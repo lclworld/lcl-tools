@@ -549,6 +549,102 @@
   /* ── DATALIST STYLING ── */
   input[list] { cursor: pointer; }
 
+  /* ── PRODUCTION SHEET ── */
+  .production-sheet {
+    display: none;
+    margin-top: 16px;
+    border: 1.5px solid var(--accent);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .production-sheet.active { display: block; }
+  .production-sheet-header {
+    background: var(--accent);
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .production-sheet-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .production-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .production-sheet th {
+    font-family: 'Poppins', sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1.5px solid var(--rule);
+    background: var(--cream);
+  }
+  .production-sheet td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rule-light);
+    font-size: 13px;
+  }
+  .production-sheet .phase-header td {
+    background: var(--ink);
+    color: white;
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 7px 16px;
+    border: none;
+  }
+  .production-sheet .qty-cell {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    color: var(--accent);
+    text-align: right;
+  }
+
+  /* ── INCI SECTION ── */
+  .inci-section { }
+  .inci-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .inci-textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1.5px solid var(--rule);
+    border-radius: 2px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--ink);
+    background: white;
+    resize: vertical;
+    min-height: 100px;
+    transition: border-color 0.15s;
+  }
+  .inci-textarea:focus { outline: none; border-color: var(--accent); }
+  .inci-highlight-note {
+    font-size: 11px;
+    color: var(--gold);
+    font-style: italic;
+    margin-top: 6px;
+    display: none;
+  }
+  .inci-highlight-note.show { display: block; }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 768px) {
     .product-grid { grid-template-columns: 1fr; }
@@ -657,6 +753,50 @@
       </div>
       <div id="pctWarn" class="pct-warn"></div>
       <button class="btn btn-add no-print" onclick="addIngredientRow()">+ Add Ingredient</button>
+    </div>
+  </div>
+
+  <!-- SECTION 2B: INCI DECLARATION -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">02B — INCI Declaration</span>
+    </div>
+    <div class="section-body inci-section">
+      <div class="inci-actions">
+        <button class="btn btn-primary no-print" onclick="generateINCI()">Generate INCI List</button>
+        <span style="font-size:11px;color:var(--ink-muted);">Edit freely after generating. You will be warned before overwriting manual edits.</span>
+      </div>
+      <textarea class="inci-textarea" id="inciOutput" rows="4"
+        placeholder="Tap 'Generate INCI List' to populate this field from your formula above. You can edit it freely after generating."
+        oninput="markInciEdited()"></textarea>
+      <div class="inci-highlight-note" id="inciHighlightNote">
+        ⚠ Ingredients marked with [CHECK INCI] have no INCI name in your master list — please verify and update your sheet.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2C: PRODUCTION SHEET -->
+  <div class="section">
+    <div class="section-header" style="justify-content:space-between;">
+      <span class="section-title">02C — Production Sheet</span>
+      <button class="btn btn-outline no-print" id="prodSheetToggle"
+        ontouchend="event.preventDefault();toggleProductionSheet()"
+        onclick="toggleProductionSheet()">Show Production Sheet</button>
+    </div>
+    <div class="production-sheet" id="productionSheet">
+      <div class="production-sheet-header">
+        <span class="production-sheet-title" id="prodSheetProductName">Production Sheet</span>
+        <span style="font-size:11px;opacity:0.8;" id="prodSheetBatchInfo"></span>
+      </div>
+      <table id="prodSheetTable">
+        <thead>
+          <tr>
+            <th>Ingredient</th>
+            <th style="text-align:right;">Amount (g)</th>
+          </tr>
+        </thead>
+        <tbody id="prodSheetBody"></tbody>
+      </table>
     </div>
   </div>
 
@@ -1152,6 +1292,135 @@ function resetAll() {
   });
   rowCount = 0;
   recalcAll();
+}
+
+// ── INCI GENERATION ───────────────────────────────────────────────
+let inciManuallyEdited = false;
+
+function markInciEdited() {
+  inciManuallyEdited = true;
+}
+
+function toTitleCase(str) {
+  if (!str) return '';
+  // Preserve content inside parentheses
+  return str.replace(/\w\S*/g, txt => {
+    // Don't change all-caps abbreviations like "AHA", "BHA", "UV"
+    if (txt === txt.toUpperCase() && txt.length <= 4) return txt;
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+}
+
+function generateINCI() {
+  const textarea = document.getElementById('inciOutput');
+
+  // Warn if manually edited
+  if (inciManuallyEdited && textarea.value.trim() !== '') {
+    if (!confirm('You have manual edits in the INCI field. Regenerating will overwrite them. Continue?')) return;
+  }
+
+  const rows = document.querySelectorAll('#formulaBody tr');
+  const items = [];
+  let hasHighlights = false;
+
+  rows.forEach(row => {
+    const id = row.id.replace('row-', '');
+    const nameEl = document.getElementById(`ing-name-${id}`);
+    const pctEl = document.getElementById(`ing-pct-${id}`);
+    if (!nameEl || !pctEl) return;
+
+    const name = nameEl.value.trim();
+    const pct = parseFloat(pctEl.value) || 0;
+    if (!name || pct === 0) return;
+
+    const inciEl = document.getElementById(`ing-inci-${id}`);
+    const inciRaw = inciEl ? inciEl.value.trim() : '';
+    
+    let inciName;
+    if (inciRaw && inciRaw !== '—' && inciRaw !== '') {
+      inciName = toTitleCase(inciRaw);
+    } else {
+      // No INCI — use common name, flag it
+      inciName = `[CHECK INCI: ${name}]`;
+      hasHighlights = true;
+    }
+
+    items.push({ inciName, pct });
+  });
+
+  // Sort strictly descending by percentage
+  items.sort((a, b) => b.pct - a.pct);
+
+  const inciList = items.map(i => i.inciName).join(', ');
+  textarea.value = inciList;
+  inciManuallyEdited = false;
+
+  // Show highlight note if any missing INCI
+  const note = document.getElementById('inciHighlightNote');
+  note.className = hasHighlights ? 'inci-highlight-note show' : 'inci-highlight-note';
+}
+
+// ── PRODUCTION SHEET ───────────────────────────────────────────────
+let prodSheetVisible = false;
+
+function toggleProductionSheet() {
+  const sheet = document.getElementById('productionSheet');
+  const btn = document.getElementById('prodSheetToggle');
+  prodSheetVisible = !prodSheetVisible;
+
+  if (prodSheetVisible) {
+    buildProductionSheet();
+    sheet.classList.add('active');
+    btn.textContent = 'Hide Production Sheet';
+  } else {
+    sheet.classList.remove('active');
+    btn.textContent = 'Show Production Sheet';
+  }
+}
+
+function buildProductionSheet() {
+  const productName = document.getElementById('productName').value || 'Untitled Product';
+  const batchSize = document.getElementById('batchSize').value || '—';
+  const batchUnit = document.getElementById('batchUnit').value;
+
+  document.getElementById('prodSheetProductName').textContent = productName + ' — Production Sheet';
+  document.getElementById('prodSheetBatchInfo').textContent = `Batch: ${batchSize}${batchUnit}`;
+
+  const tbody = document.getElementById('prodSheetBody');
+  tbody.innerHTML = '';
+
+  const rows = document.querySelectorAll('#formulaBody tr');
+  let currentPhase = null;
+
+  rows.forEach(row => {
+    const id = row.id.replace('row-', '');
+    const nameEl = document.getElementById(`ing-name-${id}`);
+    const gramsEl = document.getElementById(`ing-grams-${id}`);
+    const phaseEl = document.getElementById(`ing-phase-${id}`);
+    if (!nameEl) return;
+
+    const name = nameEl.value.trim();
+    const grams = gramsEl ? gramsEl.textContent.trim() : '—';
+    const phase = phaseEl ? phaseEl.value.trim() : '';
+
+    if (!name) return;
+
+    // Phase header row
+    if (phase && phase !== currentPhase) {
+      currentPhase = phase;
+      const phaseRow = document.createElement('tr');
+      phaseRow.className = 'phase-header';
+      phaseRow.innerHTML = `<td colspan="2">Phase ${phase}</td>`;
+      tbody.appendChild(phaseRow);
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${name}</td>
+      <td class="qty-cell">${grams}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 // ── INIT ───────────────────────────────────────────────────────────
