@@ -1159,6 +1159,13 @@ loadConfig();
 addIngredientRow();
 addIngredientRow();
 addIngredientRow();
+
+// Auto-load ingredients if config is already saved
+const _k = localStorage.getItem('lcl_apiKey');
+const _s = localStorage.getItem('lcl_sheetId');
+if (_k && _s) {
+  loadIngredients();
+}
 </script>
 </body>
 </html>
