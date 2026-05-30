@@ -1390,7 +1390,10 @@ function buildProductionSheet() {
   tbody.innerHTML = '';
 
   const rows = document.querySelectorAll('#formulaBody tr');
-  let currentPhase = null;
+
+  // Collect all ingredients and group by phase
+  const phaseMap = {}; // { phaseName: [{name, grams}] }
+  const phaseOrder = []; // preserve first-seen order of phases
 
   rows.forEach(row => {
     const id = row.id.replace('row-', '');
@@ -1401,25 +1404,41 @@ function buildProductionSheet() {
 
     const name = nameEl.value.trim();
     const grams = gramsEl ? gramsEl.textContent.trim() : '—';
-    const phase = phaseEl ? phaseEl.value.trim() : '';
+    const phase = phaseEl ? phaseEl.value.trim() : 'Unassigned';
 
     if (!name) return;
 
-    // Phase header row
-    if (phase && phase !== currentPhase) {
-      currentPhase = phase;
-      const phaseRow = document.createElement('tr');
-      phaseRow.className = 'phase-header';
-      phaseRow.innerHTML = `<td colspan="2">Phase ${phase}</td>`;
-      tbody.appendChild(phaseRow);
+    const key = phase || 'Unassigned';
+    if (!phaseMap[key]) {
+      phaseMap[key] = [];
+      phaseOrder.push(key);
     }
+    phaseMap[key].push({ name, grams });
+  });
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${name}</td>
-      <td class="qty-cell">${grams}</td>
-    `;
-    tbody.appendChild(tr);
+  // Render grouped by phase in alphabetical phase order
+  const sortedPhases = phaseOrder.slice().sort((a, b) => {
+    if (a === 'Unassigned') return 1;
+    if (b === 'Unassigned') return -1;
+    return a.localeCompare(b);
+  });
+
+  sortedPhases.forEach(phase => {
+    // Phase header
+    const phaseRow = document.createElement('tr');
+    phaseRow.className = 'phase-header';
+    phaseRow.innerHTML = `<td colspan="2">Phase ${phase}</td>`;
+    tbody.appendChild(phaseRow);
+
+    // Ingredients in this phase
+    phaseMap[phase].forEach(ing => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${ing.name}</td>
+        <td class="qty-cell">${ing.grams}</td>
+      `;
+      tbody.appendChild(tr);
+    });
   });
 }
 
