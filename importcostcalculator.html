@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Import Cost Calculator | LCL Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #FEF7F0;
+  --white:    #FFFFFF;
+  --orange:   #E8824F;
+  --orange-p: #FDDEC8;
+  --orange-pp:#FFF3EA;
+  --brown:    #7A5040;
+  --brown-p:  #EDE0D8;
+  --brown-pp: #F8F1ED;
+  --text:     #3D2318;
+  --muted:    #9B7060;
+  --border:   #DBBFA8;
+  --r:        14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; font-weight: 400; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* HEADER */
+header {
+  background: var(--brown);
+  padding: 13px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 20;
+}
+header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0.2px; }
+.badge { background: var(--orange); color: #fff; font-size: 0.62rem; padding: 3px 10px; border-radius: 20px; }
+
+/* LAYOUT */
+.layout { display: flex; min-height: calc(100vh - 46px); }
+
+/* MAIN */
+.main { flex: 1; padding: 24px; min-width: 0; }
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; gap: 12px;
+}
+.toolbar-label { font-size: 0.78rem; color: var(--muted); }
+
+/* BUTTONS */
+.btn {
+  font-family: 'Poppins', sans-serif; font-size: 0.8rem; font-weight: 500;
+  padding: 8px 16px; border-radius: 10px; border: 1.5px solid var(--border);
+  cursor: pointer; background: var(--white); color: var(--text);
+}
+.btn:hover { background: var(--brown-p); }
+.btn.primary { background: var(--brown); color: #fff; border-color: var(--brown); }
+.btn.primary:hover { background: var(--orange); border-color: var(--orange); }
+.btn.sm { padding: 6px 13px; font-size: 0.75rem; }
+
+/* ITEMS ROW */
+.items-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+
+/* EMPTY */
+.empty {
+  width: 100%; background: var(--white); border-radius: var(--r);
+  border: 1.5px dashed var(--border); padding: 52px 24px;
+  text-align: center; color: var(--muted);
+}
+.empty .e-icon { font-size: 2rem; margin-bottom: 8px; }
+.empty p { font-size: 0.82rem; }
+
+/* ITEM CARD */
+.item-card {
+  background: var(--white); border-radius: var(--r);
+  border: 1.5px solid var(--border); width: 290px; flex-shrink: 0;
+}
+
+.card-top {
+  background: var(--orange-pp); padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1.5px solid var(--orange-p);
+  border-radius: var(--r) var(--r) 0 0;
+}
+.card-num {
+  font-size: 0.68rem; color: var(--orange);
+  background: var(--orange-p); padding: 2px 9px; border-radius: 20px;
+}
+.remove-btn {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px;
+}
+.remove-btn:hover { color: #c0392b; }
+
+.card-body { padding: 14px; }
+
+/* FIELDS */
+.field { margin-bottom: 10px; }
+.field label { display: block; font-size: 0.67rem; color: var(--muted); margin-bottom: 3px; }
+.field input, .field select {
+  width: 100%; padding: 7px 10px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;
+  color: var(--text); background: var(--white);
+}
+.field input:focus, .field select:focus {
+  outline: none; border-color: var(--orange); background: var(--orange-pp);
+}
+.field input.auto {
+  background: var(--bg); color: var(--muted); cursor: default;
+}
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* RESULT ROWS */
+.results-divider { border: none; border-top: 1.5px solid var(--border); margin: 12px 0; }
+
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-bottom: 10px; }
+.rg-label { font-size: 0.62rem; color: var(--muted); margin-bottom: 2px; }
+.rg-value { font-size: 0.8rem; color: var(--text); }
+
+.r-strip {
+  background: var(--brown-pp); border-radius: 10px;
+  padding: 9px 12px; margin-bottom: 8px;
+}
+.r-strip .rs-label { font-size: 0.62rem; color: var(--muted); margin-bottom: 1px; }
+.r-strip .rs-value { font-size: 0.9rem; color: var(--brown); }
+
+.r-highlight {
+  background: var(--orange-p); border-radius: 10px; padding: 10px 12px;
+}
+.r-highlight .rs-label { font-size: 0.62rem; color: var(--orange); margin-bottom: 2px; }
+.r-highlight .rs-value { font-size: 1rem; color: var(--orange); }
+.r-highlight .rs-sub { font-size: 0.76rem; color: var(--brown); margin-top: 2px; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 268px; min-width: 268px; background: var(--white);
+  border-left: 1.5px solid var(--border);
+  padding: 22px 18px; overflow-y: auto;
+  position: sticky; top: 46px; height: calc(100vh - 46px);
+}
+.sb-section { margin-bottom: 24px; }
+.sb-title {
+  font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--muted); margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--border);
+}
+.sb-field { margin-bottom: 10px; }
+.sb-field label { display: block; font-size: 0.67rem; color: var(--muted); margin-bottom: 3px; }
+.sb-field input {
+  width: 100%; padding: 7px 10px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;
+  background: var(--bg); color: var(--text);
+}
+.sb-field input:focus { outline: none; border-color: var(--orange); background: var(--orange-pp); }
+
+.markup-box {
+  background: var(--orange-pp); border: 1.5px solid var(--orange-p);
+  border-radius: 10px; padding: 10px 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.markup-box label { flex: 1; font-size: 0.75rem; color: var(--brown); }
+.markup-box input {
+  width: 58px; padding: 5px 8px; border: 1.5px solid var(--border);
+  border-radius: 7px; font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem; text-align: center; background: var(--white);
+}
+.markup-box input:focus { outline: none; border-color: var(--orange); }
+.markup-box span { font-size: 0.8rem; color: var(--brown); }
+
+.sb-generate { width: 100%; margin-top: 8px; }
+
+/* SUMMARY */
+.summary-wrap {
+  margin-top: 24px; background: var(--white); border-radius: var(--r);
+  border: 1.5px solid var(--border); padding: 18px;
+}
+.summary-wrap h3 { font-size: 0.85rem; font-weight: 500; margin-bottom: 12px; color: var(--text); }
+.summary-wrap pre {
+  background: var(--bg); border-radius: 10px; border: 1.5px solid var(--border);
+  padding: 14px; font-family: 'Poppins', sans-serif; font-size: 0.73rem;
+  line-height: 1.75; white-space: pre-wrap; color: var(--text);
+}
+
+@media(max-width: 800px) {
+  .layout { flex-direction: column-reverse; }
+  .sidebar { width: 100%; min-width: 0; position: static; height: auto; border-left: none; border-top: 1.5px solid var(--border); }
+  .item-card { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Import Cost Calculator</h1>
+  <span class="badge">LCL Tools</span>
+</header>
+
+<div class="layout">
+  <div class="main">
+    <div class="toolbar">
+      <span class="toolbar-label" id="itemCount"></span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn sm" id="genBtn" onclick="generateSummary()" style="display:none;">Generate Summary</button>
+        <button class="btn primary" onclick="addItem()">+ Add Item</button>
+      </div>
+    </div>
+    <div class="items-row" id="itemsRow">
+      <div class="empty">
+        <div class="e-icon">📦</div>
+        <p>Add an item to begin</p>
+      </div>
+    </div>
+    <div id="summaryWrap" class="summary-wrap" style="display:none;">
+      <h3>Summary</h3>
+      <pre id="summaryText"></pre>
+      <div style="margin-top:10px;">
+        <button class="btn sm" id="copyBtn" onclick="copySummary()">Copy to clipboard</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebar"></div>
+</div>
+
+<script>
+const METHODS = [
+  "China Air Normal",
+  "China Air Special",
+  "China Air Express",
+  "US Air Normal",
+  "US Air Express"
+];
+
+let settings = {
+  rates: {
+    "China Air Normal": 6.5,
+    "China Air Special": 8.5,
+    "China Air Express": 12.0,
+    "US Air Normal": 9.0,
+    "US Air Express": 14.0
+  },
+  usdToGhs: "",
+  ghsToUsd: "",
+  markup: 20
+};
+
+let items = [];
+let nid = 1;
+
+/* ── ADD / REMOVE ── */
+function addItem() {
+  const id = nid++;
+  items.push({ id, name:"", supplier:"", country:"", priceUSD:"", unitWeight:"", quantity:"", method: METHODS[0] });
+  const row = document.getElementById('itemsRow');
+  const empty = row.querySelector('.empty');
+  if (empty) empty.remove();
+  const card = buildCard(id, items.length);
+  row.appendChild(card);
+  updateToolbar();
+}
+
+function removeItem(id) {
+  items = items.filter(i => i.id !== id);
+  const card = document.querySelector(`.item-card[data-id="${id}"]`);
+  if (card) card.remove();
+  if (items.length === 0) {
+    document.getElementById('itemsRow').innerHTML =
+      `<div class="empty"><div class="e-icon">📦</div><p>Add an item to begin</p></div>`;
+    document.getElementById('summaryWrap').style.display = 'none';
+  }
+  updateToolbar();
+}
+
+/* ── BUILD CARD DOM ── */
+function buildCard(id, num) {
+  const div = document.createElement('div');
+  div.className = 'item-card';
+  div.dataset.id = id;
+  div.innerHTML = `
+    <div class="card-top">
+      <span class="card-num">Item ${num}</span>
+      <button class="remove-btn" onclick="removeItem(${id})" title="Remove item">×</button>
+    </div>
+    <div class="card-body">
+
+      <div class="field">
+        <label>Item name</label>
+        <input type="text" placeholder="e.g. Glass Jars 50ml"
+          oninput="setField(${id},'name',this.value)">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Supplier</label>
+          <input type="text" placeholder="Name" oninput="setField(${id},'supplier',this.value)">
+        </div>
+        <div class="field">
+          <label>Country</label>
+          <input type="text" placeholder="e.g. China" oninput="setField(${id},'country',this.value)">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Price / item (USD)</label>
+          <input type="number" step="0.01" min="0" placeholder="0.00"
+            oninput="setField(${id},'priceUSD',this.value)">
+        </div>
+        <div class="field">
+          <label>Quantity</label>
+          <input type="number" step="1" min="0" placeholder="0"
+            oninput="setField(${id},'quantity',this.value)">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Unit weight (kg)</label>
+          <input type="number" step="0.001" min="0" placeholder="0.000"
+            oninput="setField(${id},'unitWeight',this.value)">
+        </div>
+        <div class="field">
+          <label>Total weight — auto</label>
+          <input type="text" class="auto" id="f-${id}-tw" readonly placeholder="—">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Shipping method</label>
+        <select onchange="setField(${id},'method',this.value)">
+          ${METHODS.map(m => `<option value="${m}">${m}</option>`).join('')}
+        </select>
+      </div>
+
+      <hr class="results-divider">
+
+      <div class="result-grid">
+        <div>
+          <div class="rg-label">Items cost</div>
+          <div class="rg-value" id="r-${id}-ic">—</div>
+        </div>
+        <div>
+          <div class="rg-label">Shipping cost</div>
+          <div class="rg-value" id="r-${id}-sc">—</div>
+        </div>
+        <div style="grid-column:span 2;">
+          <div class="rg-label">Total cost (USD)</div>
+          <div class="rg-value" id="r-${id}-tu">—</div>
+        </div>
+      </div>
+
+      <div class="r-strip">
+        <div class="rs-label">Total cost (GHS)</div>
+        <div class="rs-value" id="r-${id}-tg">—</div>
+      </div>
+
+      <div class="r-strip">
+        <div class="rs-label">Unit cost price (GHS)</div>
+        <div class="rs-value" id="r-${id}-uc">—</div>
+      </div>
+
+      <div class="r-highlight">
+        <div class="rs-label">PMP unit selling price</div>
+        <div class="rs-value" id="r-${id}-sg">—</div>
+        <div class="rs-sub" id="r-${id}-su"></div>
+      </div>
+
+      <div class="r-strip" style="margin-top:8px;margin-bottom:0;">
+        <div class="rs-label">PMP bulk price (unit selling × qty)</div>
+        <div class="rs-value" id="r-${id}-bp">—</div>
+      </div>
+
+    </div>
+  `;
+  return div;
+}
+
+/* ── STATE UPDATE ── */
+function setField(id, field, value) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item[field] = value;
+  recalcItem(id);
+}
+
+/* ── CALCULATION ── */
+function calcItem(item) {
+  const qty    = parseFloat(item.quantity)   || 0;
+  const price  = parseFloat(item.priceUSD)   || 0;
+  const uw     = parseFloat(item.unitWeight)  || 0;
+  const rate   = settings.rates[item.method] || 0;
+  const u2g    = parseFloat(settings.usdToGhs) || 0;
+  const g2u    = parseFloat(settings.ghsToUsd) || 0;
+  const mkp    = parseFloat(settings.markup)   || 0;
+
+  const tw  = uw * qty;
+  const ic  = price * qty;
+  const sc  = rate * tw;
+  const tu  = ic + sc;
+  const tg  = tu * u2g;
+  const uc  = qty > 0 ? tg / qty : 0;
+  const sg  = uc * (1 + mkp / 100);
+  const su  = sg * g2u;
+  const bp = sg * qty;
+  return { tw, ic, sc, tu, tg, uc, sg, su, bp };
+}
+
+function fv(n, dp = 2) {
+  const v = parseFloat(n);
+  if (isNaN(v) || !isFinite(v)) return "—";
+  return v.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+}
+
+function recalcItem(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  const r = calcItem(item);
+
+  const set = (suf, val) => {
+    const el = document.getElementById(`r-${id}-${suf}`);
+    if (el) el.textContent = val;
+  };
+  const setF = (suf, val) => {
+    const el = document.getElementById(`f-${id}-${suf}`);
+    if (el) el.value = val;
+  };
+
+  setF('tw', r.tw > 0 ? fv(r.tw, 3) + ' kg' : '');
+  set('ic', r.ic > 0 ? '$' + fv(r.ic) : '—');
+  set('sc', r.sc > 0 ? '$' + fv(r.sc) : '—');
+  set('tu', r.tu > 0 ? '$' + fv(r.tu) : '—');
+  set('tg', r.tg > 0 ? 'GHS ' + fv(r.tg) : '—');
+  set('uc', r.uc > 0 ? 'GHS ' + fv(r.uc) : '—');
+  set('sg', r.sg > 0 ? 'GHS ' + fv(r.sg) : '—');
+  set('su', r.su > 0 ? '≈ $' + fv(r.su) : '');
+  set('bp', r.bp > 0 ? 'GHS ' + fv(r.bp) : '—');
+}
+
+function recalcAll() { items.forEach(i => recalcItem(i.id)); }
+
+/* ── TOOLBAR ── */
+function updateToolbar() {
+  const n = items.length;
+  document.getElementById('itemCount').textContent = n === 0 ? '' : n === 1 ? '1 item' : `${n} items`;
+  document.getElementById('genBtn').style.display = n > 0 ? '' : 'none';
+}
+
+/* ── SIDEBAR ── */
+function renderSidebar() {
+  document.getElementById('sidebar').innerHTML = `
+    <div class="sb-section">
+      <div class="sb-title">Shipping rates (USD / kg)</div>
+      ${METHODS.map(m => `
+        <div class="sb-field">
+          <label>${m}</label>
+          <input type="number" step="0.01" value="${settings.rates[m]}"
+            oninput="settings.rates['${m}']=parseFloat(this.value)||0; recalcAll()">
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">Exchange rates</div>
+      <div class="sb-field">
+        <label>USD → GHS</label>
+        <input type="number" step="0.0001" value="${settings.usdToGhs}" placeholder="e.g. 15.50"
+          oninput="settings.usdToGhs=this.value; recalcAll()">
+      </div>
+      <div class="sb-field">
+        <label>GHS → USD</label>
+        <input type="number" step="0.0001" value="${settings.ghsToUsd}" placeholder="e.g. 0.0645"
+          oninput="settings.ghsToUsd=this.value; recalcAll()">
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">PMP markup</div>
+      <div class="markup-box">
+        <label>Markup percentage</label>
+        <input type="number" step="0.1" value="${settings.markup}"
+          oninput="settings.markup=this.value; recalcAll()">
+        <span>%</span>
+      </div>
+    </div>
+  `;
+}
+
+/* ── SUMMARY ── */
+function generateSummary() {
+  const lines = [];
+  lines.push('IMPORT COST SUMMARY');
+  lines.push('='.repeat(42));
+  lines.push(`USD → GHS: ${settings.usdToGhs || '—'}    GHS → USD: ${settings.ghsToUsd || '—'}`);
+  lines.push(`PMP Markup: ${settings.markup}%`);
+  lines.push('');
+
+  items.forEach((item, idx) => {
+    const r = calcItem(item);
+    lines.push(`ITEM ${idx + 1}: ${item.name || '(unnamed)'}`);
+    lines.push(`Supplier: ${item.supplier || '—'} | Country: ${item.country || '—'}`);
+    lines.push(`Price/item: $${fv(item.priceUSD)}   Qty: ${item.quantity || 0}   Unit weight: ${fv(item.unitWeight, 3)} kg`);
+    lines.push(`Total weight: ${fv(r.tw, 3)} kg   Shipping: ${item.method}`);
+    lines.push(`Items cost: $${fv(r.ic)}   Shipping cost: $${fv(r.sc)}`);
+    lines.push(`Total cost (USD): $${fv(r.tu)}`);
+    lines.push(`Total cost (GHS): GHS ${fv(r.tg)}`);
+    lines.push(`Unit cost price (GHS): GHS ${fv(r.uc)}`);
+    lines.push(`PMP selling price (GHS): GHS ${fv(r.sg)}`);
+    lines.push(`PMP selling price (USD): $${fv(r.su)}`);
+    lines.push(`PMP bulk price (GHS): GHS ${fv(r.bp)}`);
+    if (idx < items.length - 1) lines.push('─'.repeat(42));
+  });
+
+  lines.push('='.repeat(42));
+  document.getElementById('summaryText').textContent = lines.join('\n');
+  const wrap = document.getElementById('summaryWrap');
+  wrap.style.display = '';
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copySummary() {
+  const text = document.getElementById('summaryText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy to clipboard', 1600);
+  });
+}
+
+/* ── INIT ── */
+renderSidebar();
+updateToolbar();
+</script>
+</body>
+</html>
