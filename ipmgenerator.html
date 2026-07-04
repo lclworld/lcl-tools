@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LCL — IPM Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --cream:#F7F1E7;
+    --umber:#3E2B22;
+    --umber-soft:#4A3428;
+    --orange:#E8823C;
+    --orange-deep:#C9642A;
+    --line:#D9CBB8;
+    --ink:#2B2320;
+    --white:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Poppins',sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    padding:0 0 100px 0;
+  }
+  header.app{
+    background:var(--umber);
+    color:var(--white);
+    padding:28px 24px 24px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.app::after{
+    content:"";
+    position:absolute;
+    right:-40px; top:-40px;
+    width:160px;height:160px;
+    background:radial-gradient(circle, var(--orange) 0%, transparent 70%);
+    opacity:.5;
+  }
+  header.app h1{
+    margin:0 0 4px;
+    font-size:22px;
+    font-weight:800;
+    letter-spacing:.5px;
+  }
+  header.app p{
+    margin:0;
+    font-size:12.5px;
+    opacity:.75;
+    letter-spacing:.5px;
+  }
+  .wrap{
+    max-width:720px;
+    margin:0 auto;
+    padding:20px 16px;
+  }
+  .card{
+    background:var(--white);
+    border:2.5px solid var(--ink);
+    border-radius:14px;
+    box-shadow:6px 6px 0 var(--ink);
+    padding:20px;
+    margin-bottom:22px;
+  }
+  .card h2{
+    margin:0 0 4px;
+    font-size:15px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.8px;
+    color:var(--orange-deep);
+  }
+  .card .sub{
+    font-size:12px;
+    color:#6b5d50;
+    margin:0 0 16px;
+  }
+  label{
+    display:block;
+    font-size:11.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    color:var(--umber);
+    margin-bottom:5px;
+  }
+  input[type=text], input[type=date], textarea{
+    width:100%;
+    font-family:'Poppins',sans-serif;
+    font-size:13.5px;
+    padding:9px 11px;
+    border:1.8px solid var(--ink);
+    border-radius:8px;
+    background:var(--cream);
+    color:var(--ink);
+    margin-bottom:14px;
+    resize:vertical;
+  }
+  textarea{min-height:70px; line-height:1.5;}
+  .row{display:flex; gap:12px;}
+  .row > div{flex:1;}
+  .filebtn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:var(--cream);
+    border:1.8px dashed var(--umber);
+    border-radius:8px;
+    padding:10px 12px;
+    font-size:12.5px;
+    cursor:pointer;
+    margin-bottom:14px;
+    width:100%;
+  }
+  .filebtn input{display:none;}
+  .thumb{
+    height:34px; width:34px;
+    border-radius:6px;
+    object-fit:cover;
+    border:1.5px solid var(--ink);
+    flex-shrink:0;
+  }
+  .product-block{
+    border:1.8px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+    margin-bottom:14px;
+    background:#FCFAF6;
+    position:relative;
+  }
+  .product-block .rm{
+    position:absolute; top:10px; right:10px;
+    background:none; border:none; color:#B5432A;
+    font-size:12px; font-weight:600; cursor:pointer;
+    text-transform:uppercase; letter-spacing:.3px;
+  }
+  table.tiers{width:100%; border-collapse:collapse; margin-bottom:8px;}
+  table.tiers th{
+    font-size:10px; text-transform:uppercase; letter-spacing:.3px;
+    color:#6b5d50; text-align:left; padding:4px 6px; font-weight:600;
+  }
+  table.tiers td{padding:3px 6px;}
+  table.tiers input{
+    margin:0; padding:6px 8px; font-size:12.5px;
+    border:1.5px solid var(--line); border-radius:6px; background:var(--white);
+  }
+  .tier-rm{
+    background:none;border:none;color:#B5432A;cursor:pointer;font-size:14px;
+  }
+  .ghost-btn{
+    background:none;
+    border:1.8px solid var(--umber);
+    color:var(--umber);
+    border-radius:8px;
+    padding:8px 14px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+  }
+  .add-product{
+    width:100%;
+    background:var(--umber);
+    color:var(--white);
+    border:none;
+    border-radius:10px;
+    padding:12px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+  }
+  .footer-bar{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    background:var(--umber);
+    padding:14px 16px;
+    display:flex;
+    justify-content:center;
+    box-shadow:0 -4px 12px rgba(0,0,0,.2);
+    z-index:50;
+  }
+  .generate-btn{
+    background:var(--orange);
+    color:var(--white);
+    border:none;
+    border-radius:10px;
+    padding:14px 28px;
+    font-size:14px;
+    font-weight:800;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    cursor:pointer;
+    box-shadow:4px 4px 0 var(--orange-deep);
+    max-width:400px;
+    width:100%;
+  }
+  .generate-btn:active{ transform:translate(2px,2px); box-shadow:2px 2px 0 var(--orange-deep); }
+  .status{
+    text-align:center;
+    font-size:11.5px;
+    color:var(--white);
+    opacity:.8;
+    margin-top:6px;
+  }
+  .hint{font-size:11px; color:#8a7c6e; margin-top:-8px; margin-bottom:12px;}
+</style>
+</head>
+<body>
+
+<header class="app">
+  <h1>IPM Quotation Generator</h1>
+  <p>Lueur Cosmetics Lab — @lueurcosmeticslab</p>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>Client & Cover</h2>
+    <p class="sub">This appears on the cover page of the quotation.</p>
+    <div class="row">
+      <div>
+        <label>Client Name</label>
+        <input type="text" id="clientName" placeholder="e.g. Canfor Beauty">
+      </div>
+      <div>
+        <label>Quote Date</label>
+        <input type="date" id="quoteDate">
+      </div>
+    </div>
+    <label>Cover Image (optional)</label>
+    <label class="filebtn" id="coverLabel">
+      <span id="coverText">Upload a product photo for the cover</span>
+      <input type="file" id="coverImage" accept="image/*">
+    </label>
+    <label>Logo (optional — defaults to text wordmark)</label>
+    <label class="filebtn" id="logoLabel">
+      <span id="logoText">Upload Lueur Cosmetics Lab logo</span>
+      <input type="file" id="logoImage" accept="image/*">
+    </label>
+  </div>
+
+  <div class="card">
+    <h2>IPM Doctrine (Intro Pages)</h2>
+    <p class="sub">Pre-filled from your standard IPM. Edit if this client needs different wording.</p>
+
+    <label>1. Model Overview</label>
+    <textarea id="sec1"></textarea>
+
+    <label>2. Pricing Structure — Delivery Mode</label>
+    <textarea id="sec2a"></textarea>
+
+    <label>2. Pricing Structure — Batch Scaling</label>
+    <textarea id="sec2b"></textarea>
+
+    <label>3. Production & Fulfilment Principle</label>
+    <textarea id="sec3"></textarea>
+
+    <label>4. What Each Unit Price Includes</label>
+    <textarea id="sec4"></textarea>
+  </div>
+
+  <div class="card">
+    <h2>Products</h2>
+    <p class="sub">Add each product with its batch tiers and pricing. Tiers default to 100 / 500 / 1,000 — edit or add as needed.</p>
+    <div id="productsContainer"></div>
+    <button class="add-product" onclick="addProduct()">+ Add Product</button>
+  </div>
+
+</div>
+
+<div class="footer-bar">
+  <div>
+    <button class="generate-btn" onclick="generatePDF()">Generate IPM PDF</button>
+    <div class="status" id="statusMsg">Fill in client info and products above</div>
+  </div>
+</div>
+
+<script>
+/* ---------- Default doctrine text ---------- */
+document.getElementById('sec1').value =
+"Our Integrated Pricing Model (IPM) is a unified pricing system developed to simplify product development, production, and fulfillment for all clients. This model ensures consistency in pricing across product categories, strict quality control across all production cycles, simplified ordering and repeat production processes, and reduced client involvement in technical sourcing and logistics coordination. Under this system, clients are not required to manage raw material sourcing, packaging procurement, or logistics coordination. All processes are fully handled internally to ensure efficiency, quality assurance, and production reliability.";
+
+document.getElementById('sec2a').value =
+"Packaging materials required for production are sourced externally and imported. Clients may select one of two import methods: Air Import (2-3 weeks) offers a faster procurement cycle allowing quicker production turnaround, at higher logistics cost. Sea Import (8-12 weeks) offers a slower procurement cycle with extended lead time, more cost-efficient for larger volumes. Packaging import timelines directly influence production scheduling.";
+
+document.getElementById('sec2b').value =
+"Final unit pricing is also influenced by total production volume. Smaller batch sizes result in higher unit cost; larger batch sizes result in lower unit cost due to production efficiency and material optimization. This ensures fair distribution of production efficiency across all order sizes.";
+
+document.getElementById('sec3').value =
+"Once packaging materials are imported, production begins immediately upon arrival. Products are manufactured fresh per batch, and filling and sealing are completed within controlled production cycles before finished goods are prepared for final dispatch. Production is not pre-stocked; it is batch-activated to maintain quality integrity.";
+
+document.getElementById('sec4').value =
+"Every quoted unit price under this model is fully inclusive of: product formulation and manufacturing, raw material sourcing and processing, packaging (bottles, tubes, jars, as applicable), label print and application, filling and sealing of finished units, inner and outer carton packaging, export handling and logistics coordination, and delivery to destination. No additional costs are required after confirmation of order.";
+
+document.getElementById('quoteDate').valueAsDate = new Date();
+
+/* ---------- Image handling ---------- */
+let coverImageData = null;
+let logoImageData = null;
+
+document.getElementById('coverImage').addEventListener('change', e => handleImg(e, d => { coverImageData = d; document.getElementById('coverText').textContent = "Cover image loaded ✓"; }));
+document.getElementById('logoImage').addEventListener('change', e => handleImg(e, d => { logoImageData = d; document.getElementById('logoText').textContent = "Logo loaded ✓"; }));
+
+function handleImg(e, cb){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => cb(ev.target.result);
+  reader.readAsDataURL(file);
+}
+
+/* ---------- Product management ---------- */
+let productCount = 0;
+const productsContainer = document.getElementById('productsContainer');
+
+function defaultTiers(){
+  return [
+    {units:100, kg:'', air:'', sea:''},
+    {units:500, kg:'', air:'', sea:''},
+    {units:1000, kg:'', air:'', sea:''}
+  ];
+}
+
+function addProduct(){
+  productCount++;
+  const id = 'p'+productCount;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'product-block';
+  wrapper.id = id;
+  wrapper.dataset.tiers = JSON.stringify(defaultTiers());
+  wrapper.innerHTML = `
+    <button class="rm" onclick="removeProduct('${id}')">Remove</button>
+    <label>Product Name</label>
+    <input type="text" class="p-name" placeholder="e.g. Handwashing Gel">
+    <div class="row">
+      <div>
+        <label>Fill Size</label>
+        <input type="text" class="p-fill" placeholder="e.g. 30ml">
+      </div>
+      <div>
+        <label>Packaging Status</label>
+        <input type="text" class="p-status" placeholder="e.g. Confirmed">
+      </div>
+    </div>
+    <label>Batch Tiers & Pricing (GHS)</label>
+    <table class="tiers">
+      <thead><tr><th>Units</th><th>Batch (kg/L)</th><th>Air Price</th><th>Sea Price</th><th></th></tr></thead>
+      <tbody class="tier-body"></tbody>
+    </table>
+    <button class="ghost-btn" onclick="addTier('${id}')">+ Add Tier</button>
+  `;
+  productsContainer.appendChild(wrapper);
+  renderTiers(id);
+}
+
+function removeProduct(id){
+  document.getElementById(id).remove();
+}
+
+function renderTiers(id){
+  const wrapper = document.getElementById(id);
+  const tiers = JSON.parse(wrapper.dataset.tiers);
+  const tbody = wrapper.querySelector('.tier-body');
+  tbody.innerHTML = '';
+  tiers.forEach((t, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${t.units}" onchange="updateTier('${id}',${idx},'units',this.value)" style="width:70px"></td>
+      <td><input type="text" value="${t.kg}" onchange="updateTier('${id}',${idx},'kg',this.value)" style="width:70px" placeholder="—"></td>
+      <td><input type="text" value="${t.air}" onchange="updateTier('${id}',${idx},'air',this.value)" style="width:75px" placeholder="0.00"></td>
+      <td><input type="text" value="${t.sea}" onchange="updateTier('${id}',${idx},'sea',this.value)" style="width:75px" placeholder="0.00"></td>
+      <td><button class="tier-rm" onclick="removeTier('${id}',${idx})">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateTier(id, idx, field, value){
+  const wrapper = document.getElementById(id);
+  const tiers = JSON.parse(wrapper.dataset.tiers);
+  tiers[idx][field] = value;
+  wrapper.dataset.tiers = JSON.stringify(tiers);
+}
+
+function addTier(id){
+  const wrapper = document.getElementById(id);
+  const tiers = JSON.parse(wrapper.dataset.tiers);
+  tiers.push({units:'', kg:'', air:'', sea:''});
+  wrapper.dataset.tiers = JSON.stringify(tiers);
+  renderTiers(id);
+}
+
+function removeTier(id, idx){
+  const wrapper = document.getElementById(id);
+  const tiers = JSON.parse(wrapper.dataset.tiers);
+  tiers.splice(idx,1);
+  wrapper.dataset.tiers = JSON.stringify(tiers);
+  renderTiers(id);
+}
+
+// seed with one product
+addProduct();
+
+/* ---------- PDF Generation ---------- */
+const PAGE_W = 210, PAGE_H = 297; // A4 mm
+const COLORS = {
+  cream: [247,241,231],
+  umber: [62,43,34],
+  orangeDeep: [201,100,42],
+  orange: [232,130,60],
+  ink: [43,35,32],
+  line: [201,178,152],
+  white: [255,255,255],
+  muted: [180,160,140]
+};
+
+function generatePDF(){
+  const statusEl = document.getElementById('statusMsg');
+  const clientName = document.getElementById('clientName').value.trim() || 'Client';
+  const quoteDateRaw = document.getElementById('quoteDate').value;
+  const quoteDate = quoteDateRaw ? new Date(quoteDateRaw+'T00:00:00').toLocaleDateString('en-GB', {day:'numeric', month:'long', year:'numeric'}) : '';
+
+  const products = [];
+  document.querySelectorAll('.product-block').forEach(block => {
+    const name = block.querySelector('.p-name').value.trim();
+    const fill = block.querySelector('.p-fill').value.trim();
+    const status = block.querySelector('.p-status').value.trim();
+    const tiers = JSON.parse(block.dataset.tiers).filter(t => t.units);
+    if(name) products.push({name, fill, status, tiers});
+  });
+
+  if(products.length === 0){
+    statusEl.textContent = "Add at least one product before generating.";
+    return;
+  }
+
+  statusEl.textContent = "Generating PDF...";
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p','mm','a4');
+  let pageNum = 1;
+
+  /* ---- helpers ---- */
+  function bgFill(color){
+    doc.setFillColor(...color);
+    doc.rect(0,0,PAGE_W,PAGE_H,'F');
+  }
+  function hairline(x1,y,x2,color){
+    doc.setDrawColor(...(color||COLORS.line));
+    doc.setLineWidth(0.4);
+    doc.line(x1,y,x2,y);
+  }
+  function eyebrow(text, color, x, y){
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...color);
+    doc.text(text.toUpperCase(), x, y, {charSpace:0.6});
+  }
+  function footer(color, isDark){
+    const c = isDark ? COLORS.white : COLORS.umber;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...c);
+    doc.text('PAGE ' + pageNum, 16, 284);
+    doc.text('@LUEURCOSMETICSLAB', PAGE_W-16, 284, {align:'right'});
+    hairline(16, 278, PAGE_W-16, isDark ? [255,255,255] : COLORS.line);
+  }
+  function logoMark(x, y, size, colorA, colorB){
+    // simple abstract two-blob mark echoing the LCL logo
+    doc.setFillColor(...colorA);
+    doc.circle(x, y, size*0.55, 'F');
+    doc.setFillColor(...colorB);
+    doc.circle(x+size*0.8, y+size*0.35, size*0.35, 'F');
+  }
+  function newPage(){ doc.addPage(); pageNum++; }
+
+  /* ---- PAGE 1: COVER ---- */
+  bgFill(COLORS.cream);
+  if(logoImageData){
+    try{ doc.addImage(logoImageData, undefined, PAGE_W/2-12, 22, 24, 24); }catch(e){}
+  } else {
+    logoMark(PAGE_W/2-4, 34, 7, COLORS.orange, COLORS.umber);
+  }
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(20);
+  doc.setTextColor(...COLORS.ink);
+  doc.text('INTEGRATED', PAGE_W/2, 65, {align:'center'});
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(30);
+  doc.text('PRICING MODEL', PAGE_W/2, 76, {align:'center'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(11);
+  doc.setTextColor(...COLORS.orangeDeep);
+  doc.text(quoteDate.toUpperCase(), PAGE_W/2, 86, {align:'center'});
+
+  if(coverImageData){
+    try{
+      const imgProps = doc.getImageProperties(coverImageData);
+      const maxW = 150, maxH = 130;
+      let w = maxW, h = (imgProps.height/imgProps.width)*w;
+      if(h > maxH){ h = maxH; w = (imgProps.width/imgProps.height)*h; }
+      doc.addImage(coverImageData, undefined, PAGE_W/2 - w/2, 105, w, h);
+    }catch(e){}
+  }
+
+  // bottom brand block
+  doc.setFillColor(...COLORS.umber);
+  doc.rect(16, 250, 20, 20, 'F');
+  logoMark(22, 260, 5, COLORS.orange, COLORS.cream);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...COLORS.ink);
+  doc.text('FOR ' + clientName.toUpperCase(), 42, 263);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.muted);
+  doc.text('LUEURCOSMETICSLAB.COM   @LUEURCOSMETICSLAB   LUEURCOSMETICSLAB@GMAIL.COM', 16, 278);
+
+  /* ---- INTRO / DOCTRINE PAGES (dark) ---- */
+  function doctrinePage(title, bodyParts){
+    newPage();
+    bgFill(COLORS.umber);
+    eyebrow('FOR ' + clientName, [232,213,197], 16, 20);
+    hairline(16, 26, PAGE_W-16, [90,72,60]);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(24);
+    doc.setTextColor(...COLORS.white);
+    const titleLines = doc.splitTextToSize(title.toUpperCase(), 178);
+    doc.text(titleLines, 16, 50);
+    let y = 50 + titleLines.length*9 + 12;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(10.5);
+    doc.setTextColor(235,227,217);
+    bodyParts.forEach(part => {
+      if(part.heading){
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(...COLORS.orange);
+        doc.text(part.heading, 16, y);
+        y += 7;
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(235,227,217);
+      }
+      const lines = doc.splitTextToSize(part.text, 178);
+      doc.text(lines, 16, y);
+      y += lines.length*5.6 + 8;
+    });
+    footer(null, true);
+  }
+
+  doctrinePage('Model Overview', [
+    {text: document.getElementById('sec1').value}
+  ]);
+
+  doctrinePage('Pricing Structure', [
+    {heading:'A. Delivery Mode for Packaging Import', text: document.getElementById('sec2a').value},
+    {heading:'B. Batch Size Scaling Effect', text: document.getElementById('sec2b').value}
+  ]);
+
+  doctrinePage('Production, Fulfilment & Inclusions', [
+    {heading:'Production & Fulfilment Principle', text: document.getElementById('sec3').value},
+    {heading:'What Each Unit Price Includes', text: document.getElementById('sec4').value}
+  ]);
+
+  /* ---- PRODUCT PAGES (light) ---- */
+  products.forEach((p, i) => {
+    newPage();
+    bgFill(COLORS.cream);
+    eyebrow('FOR ' + clientName, COLORS.orangeDeep, 16, 18);
+    hairline(16, 22, PAGE_W-16, COLORS.line);
+
+    if(logoImageData){
+      try{ doc.addImage(logoImageData, undefined, PAGE_W-40, 14, 20, 20); }catch(e){}
+    } else {
+      doc.setFillColor(...COLORS.umber);
+      doc.rect(PAGE_W-40, 14, 20, 20, 'F');
+      logoMark(PAGE_W-33, 24, 5, COLORS.orange, COLORS.cream);
+    }
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(26);
+    doc.setTextColor(...COLORS.ink);
+    const nameLines = doc.splitTextToSize(p.name.toUpperCase(), 130);
+    doc.text(nameLines, 16, 46);
+
+    let metaY = 46 + nameLines.length*9 + 8;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...COLORS.ink);
+    if(p.fill){ doc.text('Fill Size: ' + p.fill, 16, metaY); metaY += 6; }
+    if(p.status){ doc.text('Packaging: ' + p.status, 16, metaY); metaY += 6; }
+    metaY += 4;
+    hairline(16, metaY, PAGE_W-16, COLORS.line);
+    metaY += 10;
+
+    function priceTable(label, key, startY){
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...COLORS.orangeDeep);
+      doc.text(label.toUpperCase(), 16, startY);
+      let ty = startY + 8;
+
+      // table header
+      doc.setFillColor(...COLORS.umber);
+      doc.rect(16, ty-5, 178, 8, 'F');
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...COLORS.white);
+      doc.text('UNITS', 20, ty);
+      doc.text('BATCH (KG/L)', 75, ty);
+      doc.text('UNIT PRICE (GHS)', 140, ty);
+      ty += 8;
+
+      p.tiers.forEach((t, idx) => {
+        const rowBg = idx % 2 === 0 ? [255,255,255] : [240,232,220];
+        doc.setFillColor(...rowBg);
+        doc.rect(16, ty-5, 178, 8, 'F');
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...COLORS.ink);
+        doc.text(String(t.units), 20, ty);
+        doc.text(t.kg ? String(t.kg) : '—', 75, ty);
+        const price = t[key];
+        doc.text(price ? ('GHS ' + price) : '—', 140, ty);
+        ty += 8;
+      });
+      hairline(16, ty, 194, COLORS.line);
+      return ty + 10;
+    }
+
+    let y2 = priceTable('Air Import (2-3 weeks)', 'air', metaY);
+    priceTable('Sea Import (8-12 weeks)', 'sea', y2);
+
+    footer(null, false);
+  });
+
+  /* ---- CLOSING PAGE ---- */
+  newPage();
+  bgFill(COLORS.umber);
+  logoMark(PAGE_W/2-4, 120, 9, COLORS.orange, COLORS.cream);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...COLORS.white);
+  doc.text('LUEUR COSMETICS LAB', PAGE_W/2, 145, {align:'center'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.setTextColor(215,200,188);
+  doc.text('LUEURCOSMETICSLAB.COM   @LUEURCOSMETICSLAB   LUEURCOSMETICSLAB@GMAIL.COM', PAGE_W/2, 154, {align:'center'});
+  footer(null, true);
+
+  const fileName = 'IPM_' + clientName.replace(/\s+/g,'_') + '.pdf';
+  doc.save(fileName);
+  statusEl.textContent = "Downloaded: " + fileName;
+}
+</script>
+
+</body>
+</html>
