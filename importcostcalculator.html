@@ -16,6 +16,8 @@
   --brown:    #7A5040;
   --brown-p:  #EDE0D8;
   --brown-pp: #F8F1ED;
+  --green:    #3D8B40;
+  --green-p:  #E8F5E9;
   --text:     #3D2318;
   --muted:    #9B7060;
   --border:   #DBBFA8;
@@ -24,30 +26,19 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Poppins', sans-serif; font-weight: 400; background: var(--bg); color: var(--text); font-size: 14px; }
 
-/* HEADER */
 header {
-  background: var(--brown);
-  padding: 13px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  background: var(--brown); padding: 13px 24px;
+  display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; z-index: 20;
 }
-header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0.2px; }
+header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; }
 .badge { background: var(--orange); color: #fff; font-size: 0.62rem; padding: 3px 10px; border-radius: 20px; }
 
-/* LAYOUT */
 .layout { display: flex; min-height: calc(100vh - 46px); }
-
-/* MAIN */
 .main { flex: 1; padding: 24px; min-width: 0; }
-.toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 20px; gap: 12px;
-}
+.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
 .toolbar-label { font-size: 0.78rem; color: var(--muted); }
 
-/* BUTTONS */
 .btn {
   font-family: 'Poppins', sans-serif; font-size: 0.8rem; font-weight: 500;
   padding: 8px 16px; border-radius: 10px; border: 1.5px solid var(--border);
@@ -58,10 +49,7 @@ header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0
 .btn.primary:hover { background: var(--orange); border-color: var(--orange); }
 .btn.sm { padding: 6px 13px; font-size: 0.75rem; }
 
-/* ITEMS ROW */
 .items-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-
-/* EMPTY */
 .empty {
   width: 100%; background: var(--white); border-radius: var(--r);
   border: 1.5px dashed var(--border); padding: 52px 24px;
@@ -70,28 +58,17 @@ header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0
 .empty .e-icon { font-size: 2rem; margin-bottom: 8px; }
 .empty p { font-size: 0.82rem; }
 
-/* ITEM CARD */
-.item-card {
-  background: var(--white); border-radius: var(--r);
-  border: 1.5px solid var(--border); width: 290px; flex-shrink: 0;
-}
-
+/* CARD */
+.item-card { background: var(--white); border-radius: var(--r); border: 1.5px solid var(--border); width: 300px; flex-shrink: 0; }
 .card-top {
   background: var(--orange-pp); padding: 10px 14px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1.5px solid var(--orange-p);
   border-radius: var(--r) var(--r) 0 0;
 }
-.card-num {
-  font-size: 0.68rem; color: var(--orange);
-  background: var(--orange-p); padding: 2px 9px; border-radius: 20px;
-}
-.remove-btn {
-  background: none; border: none; color: var(--muted);
-  cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px;
-}
+.card-num { font-size: 0.68rem; color: var(--orange); background: var(--orange-p); padding: 2px 9px; border-radius: 20px; }
+.remove-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
 .remove-btn:hover { color: #c0392b; }
-
 .card-body { padding: 14px; }
 
 /* FIELDS */
@@ -102,31 +79,58 @@ header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0
   border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 0.8rem;
   color: var(--text); background: var(--white);
 }
-.field input:focus, .field select:focus {
-  outline: none; border-color: var(--orange); background: var(--orange-pp);
-}
-.field input.auto {
-  background: var(--bg); color: var(--muted); cursor: default;
-}
+.field input:focus, .field select:focus { outline: none; border-color: var(--orange); background: var(--orange-pp); }
+.field input.auto { background: var(--bg); color: var(--muted); cursor: default; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 
-/* RESULT ROWS */
+/* DIM TOGGLE */
+.dim-toggle-btn {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: 1.5px dashed var(--border); border-radius: 8px;
+  padding: 6px 10px; margin-bottom: 10px;
+  font-family: 'Poppins', sans-serif; font-size: 0.72rem; color: var(--muted); cursor: pointer;
+}
+.dim-toggle-btn.active { border-style: solid; border-color: var(--orange); color: var(--orange); background: var(--orange-pp); }
+.dtb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background 0.2s; }
+.dim-toggle-btn.active .dtb-dot { background: var(--orange); }
+
+/* DIM SECTION */
+.dim-section { background: var(--orange-pp); border: 1.5px solid var(--orange-p); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+
+/* MODE PILLS */
+.mode-pills { display: flex; gap: 6px; margin-bottom: 10px; }
+.mode-pill {
+  flex: 1; padding: 5px 8px; border-radius: 20px; text-align: center;
+  font-family: 'Poppins', sans-serif; font-size: 0.7rem;
+  border: 1.5px solid var(--border); background: var(--white); color: var(--muted); cursor: pointer;
+}
+.mode-pill.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+/* CHARGEABLE WEIGHT */
+.charge-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+.cc-item .cc-label { font-size: 0.62rem; color: var(--muted); margin-bottom: 2px; }
+.cc-item .cc-val { font-size: 0.8rem; color: var(--text); }
+.chargeable-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--white); border-radius: 8px; padding: 7px 10px;
+  border: 1.5px solid var(--border);
+}
+.chargeable-row .ch-lbl { font-size: 0.65rem; color: var(--muted); }
+.chargeable-row .ch-val { font-size: 0.82rem; color: var(--text); }
+.used-badge { font-size: 0.6rem; padding: 2px 8px; border-radius: 20px; }
+.used-badge.vol { background: var(--orange-p); color: var(--orange); }
+.used-badge.act { background: var(--green-p); color: var(--green); }
+
+/* RESULTS */
 .results-divider { border: none; border-top: 1.5px solid var(--border); margin: 12px 0; }
-
 .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-bottom: 10px; }
 .rg-label { font-size: 0.62rem; color: var(--muted); margin-bottom: 2px; }
 .rg-value { font-size: 0.8rem; color: var(--text); }
-
-.r-strip {
-  background: var(--brown-pp); border-radius: 10px;
-  padding: 9px 12px; margin-bottom: 8px;
-}
+.r-strip { background: var(--brown-pp); border-radius: 10px; padding: 9px 12px; margin-bottom: 8px; }
 .r-strip .rs-label { font-size: 0.62rem; color: var(--muted); margin-bottom: 1px; }
 .r-strip .rs-value { font-size: 0.9rem; color: var(--brown); }
-
-.r-highlight {
-  background: var(--orange-p); border-radius: 10px; padding: 10px 12px;
-}
+.r-highlight { background: var(--orange-p); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
 .r-highlight .rs-label { font-size: 0.62rem; color: var(--orange); margin-bottom: 2px; }
 .r-highlight .rs-value { font-size: 1rem; color: var(--orange); }
 .r-highlight .rs-sub { font-size: 0.76rem; color: var(--brown); margin-top: 2px; }
@@ -134,16 +138,11 @@ header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0
 /* SIDEBAR */
 .sidebar {
   width: 268px; min-width: 268px; background: var(--white);
-  border-left: 1.5px solid var(--border);
-  padding: 22px 18px; overflow-y: auto;
+  border-left: 1.5px solid var(--border); padding: 22px 18px; overflow-y: auto;
   position: sticky; top: 46px; height: calc(100vh - 46px);
 }
 .sb-section { margin-bottom: 24px; }
-.sb-title {
-  font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.6px;
-  color: var(--muted); margin-bottom: 12px; padding-bottom: 8px;
-  border-bottom: 1.5px solid var(--border);
-}
+.sb-title { font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1.5px solid var(--border); }
 .sb-field { margin-bottom: 10px; }
 .sb-field label { display: block; font-size: 0.67rem; color: var(--muted); margin-bottom: 3px; }
 .sb-field input {
@@ -152,7 +151,6 @@ header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0
   background: var(--bg); color: var(--text);
 }
 .sb-field input:focus { outline: none; border-color: var(--orange); background: var(--orange-pp); }
-
 .markup-box {
   background: var(--orange-pp); border: 1.5px solid var(--orange-p);
   border-radius: 10px; padding: 10px 12px;
@@ -161,27 +159,26 @@ header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0
 .markup-box label { flex: 1; font-size: 0.75rem; color: var(--brown); }
 .markup-box input {
   width: 58px; padding: 5px 8px; border: 1.5px solid var(--border);
-  border-radius: 7px; font-family: 'Poppins', sans-serif;
-  font-size: 0.85rem; text-align: center; background: var(--white);
+  border-radius: 7px; font-family: 'Poppins', sans-serif; font-size: 0.85rem;
+  text-align: center; background: var(--white);
 }
 .markup-box input:focus { outline: none; border-color: var(--orange); }
 .markup-box span { font-size: 0.8rem; color: var(--brown); }
 
-.sb-generate { width: 100%; margin-top: 8px; }
-
 /* SUMMARY */
-.summary-wrap {
-  margin-top: 24px; background: var(--white); border-radius: var(--r);
-  border: 1.5px solid var(--border); padding: 18px;
-}
-.summary-wrap h3 { font-size: 0.85rem; font-weight: 500; margin-bottom: 12px; color: var(--text); }
-.summary-wrap pre {
-  background: var(--bg); border-radius: 10px; border: 1.5px solid var(--border);
-  padding: 14px; font-family: 'Poppins', sans-serif; font-size: 0.73rem;
-  line-height: 1.75; white-space: pre-wrap; color: var(--text);
-}
+.summary-wrap { margin-top: 24px; background: var(--white); border-radius: var(--r); border: 1.5px solid var(--border); padding: 18px; }
+.summary-wrap h3 { font-size: 0.85rem; font-weight: 500; margin-bottom: 12px; }
+.summary-meta { font-size: 0.72rem; color: var(--muted); margin-bottom: 14px; }
+.table-scroll { overflow-x: auto; border-radius: 10px; border: 1.5px solid var(--border); }
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; white-space: nowrap; }
+.summary-table th { background: var(--brown); color: #fff; padding: 9px 12px; text-align: left; font-weight: 500; }
+.summary-table td { padding: 8px 12px; border-bottom: 1.5px solid var(--border); color: var(--text); }
+.summary-table tr:last-child td { border-bottom: none; }
+.summary-table tr:nth-child(even) td { background: var(--bg); }
+.summary-table td:first-child { color: var(--muted); }
+.summary-table td.num { text-align: right; }
 
-@media(max-width: 800px) {
+@media(max-width:800px) {
   .layout { flex-direction: column-reverse; }
   .sidebar { width: 100%; min-width: 0; position: static; height: auto; border-left: none; border-top: 1.5px solid var(--border); }
   .item-card { width: 100%; }
@@ -205,57 +202,44 @@ header h1 { font-size: 0.95rem; font-weight: 500; color: #fff; letter-spacing: 0
       </div>
     </div>
     <div class="items-row" id="itemsRow">
-      <div class="empty">
-        <div class="e-icon">📦</div>
-        <p>Add an item to begin</p>
-      </div>
+      <div class="empty"><div class="e-icon">📦</div><p>Add an item to begin</p></div>
     </div>
     <div id="summaryWrap" class="summary-wrap" style="display:none;">
       <h3>Summary</h3>
-      <pre id="summaryText"></pre>
-      <div style="margin-top:10px;">
-        <button class="btn sm" id="copyBtn" onclick="copySummary()">Copy to clipboard</button>
+      <div class="summary-meta" id="summaryMeta"></div>
+      <div class="table-scroll"><table class="summary-table" id="summaryTable"></table></div>
+      <div style="margin-top:12px;">
+        <button class="btn sm" id="copyBtn" onclick="copySummary()">Copy for spreadsheet</button>
       </div>
     </div>
   </div>
-
   <div class="sidebar" id="sidebar"></div>
 </div>
 
 <script>
-const METHODS = [
-  "China Air Normal",
-  "China Air Special",
-  "China Air Express",
-  "US Air Normal",
-  "US Air Express"
-];
+const METHODS = ["China Air Normal","China Air Special","China Air Express","US Air Normal","US Air Express","China Sea Shipping"];
+function isSea(m) { return m === "China Sea Shipping"; }
 
 let settings = {
-  rates: {
-    "China Air Normal": 6.5,
-    "China Air Special": 8.5,
-    "China Air Express": 12.0,
-    "US Air Normal": 9.0,
-    "US Air Express": 14.0
-  },
-  usdToGhs: "",
-  ghsToUsd: "",
-  markup: 20
+  rates: { "China Air Normal":16,"China Air Special":23,"China Air Express":21,"US Air Normal":25,"US Air Express":40,"China Sea Shipping":300 },
+  usdToGhs: 15, ghsToUsd: 0.1, markup: 20
 };
 
-let items = [];
-let nid = 1;
+let items = [], nid = 1;
+
+function newItem(id) {
+  return { id, name:'', supplier:'', country:'', priceUSD:'', unitWeight:'', quantity:'',
+           method: METHODS[0], dimToggle:false, dimL:'', dimW:'', dimH:'', seaDimMode:'dims', directCBM:'' };
+}
 
 /* ── ADD / REMOVE ── */
 function addItem() {
   const id = nid++;
-  items.push({ id, name:"", supplier:"", country:"", priceUSD:"", unitWeight:"", quantity:"", method: METHODS[0] });
+  items.push(newItem(id));
   const row = document.getElementById('itemsRow');
   const empty = row.querySelector('.empty');
   if (empty) empty.remove();
-  const card = buildCard(id, items.length);
-  row.appendChild(card);
+  row.appendChild(buildCard(id, items.length));
   updateToolbar();
 }
 
@@ -264,14 +248,13 @@ function removeItem(id) {
   const card = document.querySelector(`.item-card[data-id="${id}"]`);
   if (card) card.remove();
   if (items.length === 0) {
-    document.getElementById('itemsRow').innerHTML =
-      `<div class="empty"><div class="e-icon">📦</div><p>Add an item to begin</p></div>`;
+    document.getElementById('itemsRow').innerHTML = '<div class="empty"><div class="e-icon">📦</div><p>Add an item to begin</p></div>';
     document.getElementById('summaryWrap').style.display = 'none';
   }
   updateToolbar();
 }
 
-/* ── BUILD CARD DOM ── */
+/* ── BUILD CARD ── */
 function buildCard(id, num) {
   const div = document.createElement('div');
   div.className = 'item-card';
@@ -279,55 +262,27 @@ function buildCard(id, num) {
   div.innerHTML = `
     <div class="card-top">
       <span class="card-num">Item ${num}</span>
-      <button class="remove-btn" onclick="removeItem(${id})" title="Remove item">×</button>
+      <button class="remove-btn" onclick="removeItem(${id})">×</button>
     </div>
     <div class="card-body">
-
       <div class="field">
         <label>Item name</label>
-        <input type="text" placeholder="e.g. Glass Jars 50ml"
-          oninput="setField(${id},'name',this.value)">
+        <input type="text" placeholder="e.g. Glass Jars 50ml" oninput="setF(${id},'name',this.value)">
+      </div>
+      <div class="row2">
+        <div class="field"><label>Supplier</label><input type="text" placeholder="Name" oninput="setF(${id},'supplier',this.value)"></div>
+        <div class="field"><label>Country</label><input type="text" placeholder="e.g. China" oninput="setF(${id},'country',this.value)"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Price / item (USD)</label><input type="number" step="0.01" min="0" placeholder="0.00" oninput="setF(${id},'priceUSD',this.value)"></div>
+        <div class="field"><label>Quantity</label><input type="number" step="1" min="0" placeholder="0" oninput="setF(${id},'quantity',this.value)"></div>
       </div>
 
-      <div class="row2">
-        <div class="field">
-          <label>Supplier</label>
-          <input type="text" placeholder="Name" oninput="setField(${id},'supplier',this.value)">
-        </div>
-        <div class="field">
-          <label>Country</label>
-          <input type="text" placeholder="e.g. China" oninput="setField(${id},'country',this.value)">
-        </div>
-      </div>
-
-      <div class="row2">
-        <div class="field">
-          <label>Price / item (USD)</label>
-          <input type="number" step="0.01" min="0" placeholder="0.00"
-            oninput="setField(${id},'priceUSD',this.value)">
-        </div>
-        <div class="field">
-          <label>Quantity</label>
-          <input type="number" step="1" min="0" placeholder="0"
-            oninput="setField(${id},'quantity',this.value)">
-        </div>
-      </div>
-
-      <div class="row2">
-        <div class="field">
-          <label>Unit weight (kg)</label>
-          <input type="number" step="0.001" min="0" placeholder="0.000"
-            oninput="setField(${id},'unitWeight',this.value)">
-        </div>
-        <div class="field">
-          <label>Total weight — auto</label>
-          <input type="text" class="auto" id="f-${id}-tw" readonly placeholder="—">
-        </div>
-      </div>
+      <div id="ws-${id}"></div>
 
       <div class="field">
         <label>Shipping method</label>
-        <select onchange="setField(${id},'method',this.value)">
+        <select onchange="setF(${id},'method',this.value)">
           ${METHODS.map(m => `<option value="${m}">${m}</option>`).join('')}
         </select>
       </div>
@@ -335,194 +290,309 @@ function buildCard(id, num) {
       <hr class="results-divider">
 
       <div class="result-grid">
-        <div>
-          <div class="rg-label">Items cost</div>
-          <div class="rg-value" id="r-${id}-ic">—</div>
-        </div>
-        <div>
-          <div class="rg-label">Shipping cost</div>
-          <div class="rg-value" id="r-${id}-sc">—</div>
-        </div>
-        <div style="grid-column:span 2;">
-          <div class="rg-label">Total cost (USD)</div>
-          <div class="rg-value" id="r-${id}-tu">—</div>
-        </div>
+        <div><div class="rg-label">Items cost</div><div class="rg-value" id="r-${id}-ic">—</div></div>
+        <div><div class="rg-label">Shipping cost</div><div class="rg-value" id="r-${id}-sc">—</div></div>
+        <div style="grid-column:span 2;"><div class="rg-label">Total cost (USD)</div><div class="rg-value" id="r-${id}-tu">—</div></div>
       </div>
-
-      <div class="r-strip">
-        <div class="rs-label">Total cost (GHS)</div>
-        <div class="rs-value" id="r-${id}-tg">—</div>
-      </div>
-
-      <div class="r-strip">
-        <div class="rs-label">Unit cost price (GHS)</div>
-        <div class="rs-value" id="r-${id}-uc">—</div>
-      </div>
-
+      <div class="r-strip"><div class="rs-label">Total cost (GHS)</div><div class="rs-value" id="r-${id}-tg">—</div></div>
+      <div class="r-strip"><div class="rs-label">Unit cost price (GHS)</div><div class="rs-value" id="r-${id}-uc">—</div></div>
       <div class="r-highlight">
         <div class="rs-label">PMP unit selling price</div>
         <div class="rs-value" id="r-${id}-sg">—</div>
         <div class="rs-sub" id="r-${id}-su"></div>
       </div>
-
-      <div class="r-strip" style="margin-top:8px;margin-bottom:0;">
+      <div class="r-strip" style="margin-bottom:0;">
         <div class="rs-label">PMP bulk price (unit selling × qty)</div>
         <div class="rs-value" id="r-${id}-bp">—</div>
       </div>
-
-    </div>
-  `;
+    </div>`;
+  renderWeightSection(id);
   return div;
 }
 
-/* ── STATE UPDATE ── */
-function setField(id, field, value) {
+/* ── WEIGHT / CBM SECTION ── */
+function renderWeightSection(id) {
+  const item = items.find(i => i.id === id);
+  const ws = document.getElementById(`ws-${id}`);
+  if (!item || !ws) return;
+  const sea = isSea(item.method);
+
+  if (!sea) {
+    // AIR
+    let dimSection = '';
+    if (item.dimToggle) {
+      dimSection = `
+        <div class="dim-section">
+          <div class="row3" style="margin-bottom:8px;">
+            <div class="field" style="margin-bottom:0;"><label>L (cm)</label><input type="number" step="0.1" min="0" placeholder="0" value="${item.dimL}" oninput="setF(${id},'dimL',this.value)"></div>
+            <div class="field" style="margin-bottom:0;"><label>W (cm)</label><input type="number" step="0.1" min="0" placeholder="0" value="${item.dimW}" oninput="setF(${id},'dimW',this.value)"></div>
+            <div class="field" style="margin-bottom:0;"><label>H (cm)</label><input type="number" step="0.1" min="0" placeholder="0" value="${item.dimH}" oninput="setF(${id},'dimH',this.value)"></div>
+          </div>
+          <div id="chargeRow-${id}"></div>
+        </div>`;
+    }
+    ws.innerHTML = `
+      <div class="row2">
+        <div class="field"><label>Unit weight (kg)</label><input type="number" step="0.001" min="0" placeholder="0.000" value="${item.unitWeight}" oninput="setF(${id},'unitWeight',this.value)"></div>
+        <div class="field"><label>Total weight — auto</label><input type="text" class="auto" id="f-${id}-tw" readonly placeholder="—"></div>
+      </div>
+      <button class="dim-toggle-btn ${item.dimToggle ? 'active' : ''}" onclick="toggleDim(${id})">
+        <span class="dtb-dot"></span>
+        ${item.dimToggle ? 'Hide dimensions' : 'Have dimensions? (volumetric weight)'}
+      </button>
+      ${dimSection}`;
+
+  } else {
+    // SEA
+    let seaContent = '';
+
+    if (!item.dimToggle) {
+      seaContent = `
+        <div class="row2">
+          <div class="field"><label>Unit CBM (m³)</label><input type="number" step="0.000001" min="0" placeholder="0.000000" value="${item.unitWeight}" oninput="setF(${id},'unitWeight',this.value)"></div>
+          <div class="field"><label>Total CBM — auto</label><input type="text" class="auto" id="f-${id}-tw" readonly placeholder="—"></div>
+        </div>`;
+    } else if (item.seaDimMode === 'dims') {
+      seaContent = `
+        <div class="dim-section">
+          <div class="mode-pills">
+            <button class="mode-pill active" onclick="setSeaMode(${id},'dims')">From dimensions</button>
+            <button class="mode-pill" onclick="setSeaMode(${id},'direct')">Direct CBM</button>
+          </div>
+          <div class="row3" style="margin-bottom:8px;">
+            <div class="field" style="margin-bottom:0;"><label>L (cm)</label><input type="number" step="0.1" min="0" placeholder="0" value="${item.dimL}" oninput="setF(${id},'dimL',this.value)"></div>
+            <div class="field" style="margin-bottom:0;"><label>W (cm)</label><input type="number" step="0.1" min="0" placeholder="0" value="${item.dimW}" oninput="setF(${id},'dimW',this.value)"></div>
+            <div class="field" style="margin-bottom:0;"><label>H (cm)</label><input type="number" step="0.1" min="0" placeholder="0" value="${item.dimH}" oninput="setF(${id},'dimH',this.value)"></div>
+          </div>
+          <div class="row2">
+            <div class="field" style="margin-bottom:0;"><label>Unit CBM — auto</label><input type="text" class="auto" id="f-${id}-ucbm" readonly placeholder="—"></div>
+            <div class="field" style="margin-bottom:0;"><label>Total CBM — auto</label><input type="text" class="auto" id="f-${id}-tw" readonly placeholder="—"></div>
+          </div>
+        </div>`;
+    } else {
+      seaContent = `
+        <div class="dim-section">
+          <div class="mode-pills">
+            <button class="mode-pill" onclick="setSeaMode(${id},'dims')">From dimensions</button>
+            <button class="mode-pill active" onclick="setSeaMode(${id},'direct')">Direct CBM</button>
+          </div>
+          <div class="field" style="margin-bottom:8px;"><label>Total CBM (given by supplier)</label><input type="number" step="0.0001" min="0" placeholder="0.0000" value="${item.directCBM}" oninput="setF(${id},'directCBM',this.value)"></div>
+          <div class="field" style="margin-bottom:0;"><label>Unit CBM — auto (total ÷ qty)</label><input type="text" class="auto" id="f-${id}-ucbm" readonly placeholder="—"></div>
+          <input type="text" id="f-${id}-tw" style="display:none;" readonly>
+        </div>`;
+    }
+
+    ws.innerHTML = `
+      ${!item.dimToggle ? seaContent : ''}
+      <button class="dim-toggle-btn ${item.dimToggle ? 'active' : ''}" onclick="toggleDim(${id})">
+        <span class="dtb-dot"></span>
+        ${item.dimToggle ? 'Hide options' : 'Have dimensions or direct CBM?'}
+      </button>
+      ${item.dimToggle ? seaContent : ''}`;
+  }
+
+  recalcItem(id);
+}
+
+/* ── TOGGLE / MODE ── */
+function toggleDim(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.dimToggle = !item.dimToggle;
+  renderWeightSection(id);
+}
+function setSeaMode(id, mode) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.seaDimMode = mode;
+  renderWeightSection(id);
+}
+
+/* ── STATE ── */
+function setF(id, field, value) {
   const item = items.find(i => i.id === id);
   if (!item) return;
   item[field] = value;
-  recalcItem(id);
+  if (field === 'method') renderWeightSection(id);
+  else recalcItem(id);
 }
 
 /* ── CALCULATION ── */
 function calcItem(item) {
-  const qty    = parseFloat(item.quantity)   || 0;
-  const price  = parseFloat(item.priceUSD)   || 0;
-  const uw     = parseFloat(item.unitWeight)  || 0;
-  const rate   = settings.rates[item.method] || 0;
-  const u2g    = parseFloat(settings.usdToGhs) || 0;
-  const g2u    = parseFloat(settings.ghsToUsd) || 0;
-  const mkp    = parseFloat(settings.markup)   || 0;
+  const qty   = parseFloat(item.quantity)    || 0;
+  const price = parseFloat(item.priceUSD)    || 0;
+  const uw    = parseFloat(item.unitWeight)  || 0;
+  const rate  = settings.rates[item.method]  || 0;
+  const u2g   = parseFloat(settings.usdToGhs) || 0;
+  const g2u   = parseFloat(settings.ghsToUsd) || 0;
+  const mkp   = parseFloat(settings.markup)   || 0;
+  const sea   = isSea(item.method);
 
-  const tw  = uw * qty;
-  const ic  = price * qty;
-  const sc  = rate * tw;
-  const tu  = ic + sc;
-  const tg  = tu * u2g;
-  const uc  = qty > 0 ? tg / qty : 0;
-  const sg  = uc * (1 + mkp / 100);
-  const su  = sg * g2u;
+  let tw;                        // total chargeable weight or CBM
+  let volWeight = null;          // volumetric weight of whole package (air)
+  let totalActual = uw * qty;   // total actual weight (air)
+  let usedVol = false;
+  let unitCBM = uw;             // for sea display
+
+  if (!sea) {
+    // AIR: dimensions are for the whole shipment package
+    if (item.dimToggle) {
+      const L = parseFloat(item.dimL)||0, W = parseFloat(item.dimW)||0, H = parseFloat(item.dimH)||0;
+      volWeight = (L * W * H) / 5000;  // volumetric weight of whole package
+      tw = Math.max(totalActual, volWeight > 0 ? volWeight : 0);
+      usedVol = volWeight > 0 && volWeight > totalActual;
+    } else {
+      tw = totalActual;
+    }
+  } else {
+    // SEA: dimensions are for the whole shipment package
+    if (!item.dimToggle) {
+      unitCBM = uw;
+      tw = unitCBM * qty;
+    } else if (item.seaDimMode === 'dims') {
+      const L = parseFloat(item.dimL)||0, W = parseFloat(item.dimW)||0, H = parseFloat(item.dimH)||0;
+      tw = (L * W * H) / 1000000;   // total CBM of whole package
+      unitCBM = qty > 0 ? tw / qty : 0;
+    } else {
+      tw = parseFloat(item.directCBM) || 0;  // total CBM given directly
+      unitCBM = qty > 0 ? tw / qty : 0;
+    }
+  }
+
+  const ic = price * qty;
+  const sc = rate * tw;
+  const tu = ic + sc;
+  const tg = tu * u2g;
+  const uc = qty > 0 ? tg / qty : 0;
+  const sg = uc * (1 + mkp / 100);
+  const su = sg * g2u;
   const bp = sg * qty;
-  return { tw, ic, sc, tu, tg, uc, sg, su, bp };
+
+  return { tw, ic, sc, tu, tg, uc, sg, su, bp, volWeight, totalActual, usedVol, uw, unitCBM, sea };
 }
 
-function fv(n, dp = 2) {
+function fv(n, dp=2) {
   const v = parseFloat(n);
-  if (isNaN(v) || !isFinite(v)) return "—";
-  return v.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  if (isNaN(v) || !isFinite(v)) return '—';
+  return v.toLocaleString('en-US', { minimumFractionDigits:dp, maximumFractionDigits:dp });
 }
 
 function recalcItem(id) {
   const item = items.find(i => i.id === id);
   if (!item) return;
   const r = calcItem(item);
+  const set  = (suf,val) => { const e=document.getElementById(`r-${id}-${suf}`); if(e) e.textContent=val; };
+  const setI = (suf,val) => { const e=document.getElementById(`f-${id}-${suf}`); if(e) e.value=val; };
 
-  const set = (suf, val) => {
-    const el = document.getElementById(`r-${id}-${suf}`);
-    if (el) el.textContent = val;
-  };
-  const setF = (suf, val) => {
-    const el = document.getElementById(`f-${id}-${suf}`);
-    if (el) el.value = val;
-  };
+  if (!r.sea) {
+    setI('tw', r.tw > 0 ? fv(r.tw,3)+' kg' : '');
+    const cr = document.getElementById(`chargeRow-${id}`);
+    if (cr && item.dimToggle) {
+      cr.innerHTML = `
+        <div class="charge-compare">
+          <div class="cc-item"><div class="cc-label">Total actual weight</div><div class="cc-val">${r.totalActual>0?fv(r.totalActual,3)+' kg':'—'}</div></div>
+          <div class="cc-item"><div class="cc-label">Volumetric (pkg)</div><div class="cc-val">${r.volWeight!==null&&r.volWeight>0?fv(r.volWeight,3)+' kg':'—'}</div></div>
+        </div>
+        <div class="chargeable-row">
+          <div><div class="ch-lbl">Chargeable weight</div><div class="ch-val">${r.tw>0?fv(r.tw,3)+' kg':'—'}</div></div>
+          <span class="used-badge ${r.usedVol?'vol':'act'}">${r.usedVol?'Volumetric used':'Actual used'}</span>
+        </div>`;
+    }
+  } else {
+    setI('tw', r.tw > 0 ? fv(r.tw,6)+' m³' : '');
+    setI('ucbm', r.unitCBM > 0 ? fv(r.unitCBM,6)+' m³' : '');
+  }
 
-  setF('tw', r.tw > 0 ? fv(r.tw, 3) + ' kg' : '');
-  set('ic', r.ic > 0 ? '$' + fv(r.ic) : '—');
-  set('sc', r.sc > 0 ? '$' + fv(r.sc) : '—');
-  set('tu', r.tu > 0 ? '$' + fv(r.tu) : '—');
-  set('tg', r.tg > 0 ? 'GHS ' + fv(r.tg) : '—');
-  set('uc', r.uc > 0 ? 'GHS ' + fv(r.uc) : '—');
-  set('sg', r.sg > 0 ? 'GHS ' + fv(r.sg) : '—');
-  set('su', r.su > 0 ? '≈ $' + fv(r.su) : '');
-  set('bp', r.bp > 0 ? 'GHS ' + fv(r.bp) : '—');
+  set('ic', r.ic>0 ? '$'+fv(r.ic) : '—');
+  set('sc', r.sc>0 ? '$'+fv(r.sc) : '—');
+  set('tu', r.tu>0 ? '$'+fv(r.tu) : '—');
+  set('tg', r.tg>0 ? 'GHS '+fv(r.tg) : '—');
+  set('uc', r.uc>0 ? 'GHS '+fv(r.uc) : '—');
+  set('sg', r.sg>0 ? 'GHS '+fv(r.sg) : '—');
+  set('su', r.su>0 ? '≈ $'+fv(r.su) : '');
+  set('bp', r.bp>0 ? 'GHS '+fv(r.bp) : '—');
 }
 
 function recalcAll() { items.forEach(i => recalcItem(i.id)); }
 
-/* ── TOOLBAR ── */
 function updateToolbar() {
   const n = items.length;
-  document.getElementById('itemCount').textContent = n === 0 ? '' : n === 1 ? '1 item' : `${n} items`;
-  document.getElementById('genBtn').style.display = n > 0 ? '' : 'none';
+  document.getElementById('itemCount').textContent = n===0?'':n===1?'1 item':`${n} items`;
+  document.getElementById('genBtn').style.display = n>0 ? '' : 'none';
 }
 
 /* ── SIDEBAR ── */
 function renderSidebar() {
   document.getElementById('sidebar').innerHTML = `
     <div class="sb-section">
-      <div class="sb-title">Shipping rates (USD / kg)</div>
-      ${METHODS.map(m => `
+      <div class="sb-title">Shipping rates</div>
+      ${METHODS.map(m=>`
         <div class="sb-field">
-          <label>${m}</label>
-          <input type="number" step="0.01" value="${settings.rates[m]}"
-            oninput="settings.rates['${m}']=parseFloat(this.value)||0; recalcAll()">
-        </div>
-      `).join('')}
+          <label>${m} <span style="color:var(--orange);font-size:0.65rem;">${isSea(m)?'$/CBM':'$/kg'}</span></label>
+          <input type="number" step="0.01" value="${settings.rates[m]}" oninput="settings.rates['${m}']=parseFloat(this.value)||0;recalcAll()">
+        </div>`).join('')}
     </div>
-
     <div class="sb-section">
       <div class="sb-title">Exchange rates</div>
-      <div class="sb-field">
-        <label>USD → GHS</label>
-        <input type="number" step="0.0001" value="${settings.usdToGhs}" placeholder="e.g. 15.50"
-          oninput="settings.usdToGhs=this.value; recalcAll()">
-      </div>
-      <div class="sb-field">
-        <label>GHS → USD</label>
-        <input type="number" step="0.0001" value="${settings.ghsToUsd}" placeholder="e.g. 0.0645"
-          oninput="settings.ghsToUsd=this.value; recalcAll()">
-      </div>
+      <div class="sb-field"><label>USD → GHS</label><input type="number" step="0.0001" value="${settings.usdToGhs}" placeholder="e.g. 15.50" oninput="settings.usdToGhs=this.value;recalcAll()"></div>
+      <div class="sb-field"><label>GHS → USD</label><input type="number" step="0.0001" value="${settings.ghsToUsd}" placeholder="e.g. 0.0645" oninput="settings.ghsToUsd=this.value;recalcAll()"></div>
     </div>
-
     <div class="sb-section">
       <div class="sb-title">PMP markup</div>
       <div class="markup-box">
         <label>Markup percentage</label>
-        <input type="number" step="0.1" value="${settings.markup}"
-          oninput="settings.markup=this.value; recalcAll()">
+        <input type="number" step="0.1" value="${settings.markup}" oninput="settings.markup=this.value;recalcAll()">
         <span>%</span>
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
 /* ── SUMMARY ── */
+const HEADERS = ['No.','Item','Supplier','Country','Price/Item (USD)','Qty','Unit Wt / CBM','Total Wt / CBM','Shipping','Items Cost (USD)','Shipping Cost (USD)','Total Cost (USD)','Total Cost (GHS)','Unit Cost (GHS)','PMP Selling Price (GHS)','PMP Selling Price (USD)','PMP Bulk Price (GHS)'];
+
 function generateSummary() {
-  const lines = [];
-  lines.push('IMPORT COST SUMMARY');
-  lines.push('='.repeat(42));
-  lines.push(`USD → GHS: ${settings.usdToGhs || '—'}    GHS → USD: ${settings.ghsToUsd || '—'}`);
-  lines.push(`PMP Markup: ${settings.markup}%`);
-  lines.push('');
-
-  items.forEach((item, idx) => {
+  document.getElementById('summaryMeta').textContent =
+    `USD → GHS: ${settings.usdToGhs||'—'}   |   GHS → USD: ${settings.ghsToUsd||'—'}   |   PMP Markup: ${settings.markup}%`;
+  const table = document.getElementById('summaryTable');
+  let html = '<thead><tr>'+HEADERS.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>';
+  items.forEach((item,idx) => {
     const r = calcItem(item);
-    lines.push(`ITEM ${idx + 1}: ${item.name || '(unnamed)'}`);
-    lines.push(`Supplier: ${item.supplier || '—'} | Country: ${item.country || '—'}`);
-    lines.push(`Price/item: $${fv(item.priceUSD)}   Qty: ${item.quantity || 0}   Unit weight: ${fv(item.unitWeight, 3)} kg`);
-    lines.push(`Total weight: ${fv(r.tw, 3)} kg   Shipping: ${item.method}`);
-    lines.push(`Items cost: $${fv(r.ic)}   Shipping cost: $${fv(r.sc)}`);
-    lines.push(`Total cost (USD): $${fv(r.tu)}`);
-    lines.push(`Total cost (GHS): GHS ${fv(r.tg)}`);
-    lines.push(`Unit cost price (GHS): GHS ${fv(r.uc)}`);
-    lines.push(`PMP selling price (GHS): GHS ${fv(r.sg)}`);
-    lines.push(`PMP selling price (USD): $${fv(r.su)}`);
-    lines.push(`PMP bulk price (GHS): GHS ${fv(r.bp)}`);
-    if (idx < items.length - 1) lines.push('─'.repeat(42));
+    const unit = r.sea ? 'CBM' : 'kg';
+    const cols = [
+      idx+1, item.name||'—', item.supplier||'—', item.country||'—',
+      '$'+fv(item.priceUSD), fv(item.quantity,0),
+      fv(r.sea?r.unitCBM:r.uw,3)+' '+unit,
+      fv(r.tw,3)+' '+unit, item.method,
+      '$'+fv(r.ic),'$'+fv(r.sc),'$'+fv(r.tu),
+      'GHS '+fv(r.tg),'GHS '+fv(r.uc),
+      'GHS '+fv(r.sg),'$'+fv(r.su),'GHS '+fv(r.bp)
+    ];
+    html += '<tr>'+cols.map((c,i)=>`<td class="${i>=4&&i!==8?'num':''}">${c}</td>`).join('')+'</tr>';
   });
-
-  lines.push('='.repeat(42));
-  document.getElementById('summaryText').textContent = lines.join('\n');
+  table.innerHTML = html+'</tbody>';
   const wrap = document.getElementById('summaryWrap');
   wrap.style.display = '';
-  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+function rawNum(n,dp=2) { const v=parseFloat(n); return (isNaN(v)||!isFinite(v))?'':v.toFixed(dp); }
+
 function copySummary() {
-  const text = document.getElementById('summaryText').textContent;
-  navigator.clipboard.writeText(text).then(() => {
+  const header = HEADERS.join('\t');
+  const rows = items.map((item,idx) => {
+    const r = calcItem(item);
+    return [
+      idx+1, item.name||'', item.supplier||'', item.country||'',
+      rawNum(item.priceUSD), parseFloat(item.quantity)||0,
+      rawNum(r.sea?r.unitCBM:r.uw,3), rawNum(r.tw,3), item.method,
+      rawNum(r.ic), rawNum(r.sc), rawNum(r.tu),
+      rawNum(r.tg), rawNum(r.uc), rawNum(r.sg), rawNum(r.su), rawNum(r.bp)
+    ].join('\t');
+  });
+  navigator.clipboard.writeText([header,...rows].join('\n')).then(()=>{
     const btn = document.getElementById('copyBtn');
     btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy to clipboard', 1600);
+    setTimeout(()=>btn.textContent='Copy for spreadsheet',1600);
   });
 }
 
