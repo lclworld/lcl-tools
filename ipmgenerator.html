@@ -336,6 +336,30 @@
   </div>
 </div>
 
+<div id="pdfModal" style="display:none; position:fixed; inset:0; background:rgba(43,35,32,0.85); z-index:100; padding:16px; flex-direction:column;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <span style="color:#fff; font-weight:700; font-size:14px;" id="pdfModalTitle">Preview</span>
+    <div>
+      <a id="pdfDownloadBtn" href="#" download="quote.pdf" style="background:#E8823C; color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; text-decoration:none; margin-right:8px; font-family:'Poppins',sans-serif;">Download</a>
+      <button onclick="closePdfPreview()" style="background:none; border:1.8px solid #fff; color:#fff; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; cursor:pointer; font-family:'Poppins',sans-serif;">Close</button>
+    </div>
+  </div>
+  <iframe id="pdfFrame" style="flex:1; width:100%; border:none; border-radius:8px; background:#fff;"></iframe>
+</div>
+
+<script>
+function showPdfPreview(blobUrl, fileName){
+  document.getElementById('pdfFrame').src = blobUrl;
+  document.getElementById('pdfDownloadBtn').href = blobUrl;
+  document.getElementById('pdfDownloadBtn').download = fileName;
+  document.getElementById('pdfModalTitle').textContent = fileName;
+  document.getElementById('pdfModal').style.display = 'flex';
+}
+function closePdfPreview(){
+  document.getElementById('pdfModal').style.display = 'none';
+}
+</script>
+
 <script>
 /* ---------- Default doctrine text ---------- */
 document.getElementById('sec1').value =
@@ -923,8 +947,9 @@ function generatePDF(){
   footer(null, true);
 
   const fileName = 'IPM_' + clientName.replace(/\s+/g,'_') + '.pdf';
-  doc.save(fileName);
-  statusEl.textContent = "Downloaded: " + fileName;
+  const blobUrl = doc.output('bloburl');
+  showPdfPreview(blobUrl, fileName);
+  statusEl.textContent = "PDF ready — preview below.";
 }
 </script>
 
