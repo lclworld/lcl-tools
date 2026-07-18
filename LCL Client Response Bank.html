@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LCL Client Response Bank</title>
+<link href="https://fonts.googleapis.com/css2?family=Garet:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange: #FF914D;
+  --orange-light: #FFF0E6;
+  --cream: #FBF8EF;
+  --yellow: #FFDE59;
+  --yellow-light: #FFFBE6;
+  --black: #1a1a1a;
+  --brown: #5B4239;
+  --brown-light: #7a5a50;
+  --cream-dark: #F5EFE0;
+  --tag-bg: #fff3e8;
+  --blue: #2563a8;
+  --blue-light: #eef4fb;
+  --blue-border: #c5dbf0;
+  --white: #ffffff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Garet', Georgia, serif; background: var(--cream); color: var(--black); min-height: 100vh; }
+
+/* HEADER */
+header {
+  background: linear-gradient(135deg, var(--orange) 0%, #ffb347 100%);
+  padding: 20px 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 200;
+  box-shadow: 0 2px 12px rgba(255,145,77,0.25);
+}
+.logo-main { font-size: 1.2rem; font-weight: 700; color: #fff; letter-spacing: 0.08em; text-transform: uppercase; }
+.logo-sub  { font-size: 0.68rem; color: rgba(255,255,255,0.85); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 2px; }
+.header-badge {
+  background: #fff; color: var(--orange);
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; padding: 5px 12px; border-radius: 20px;
+}
+
+/* SEARCH */
+.search-wrap { background: var(--cream-dark); padding: 12px 40px; border-bottom: 1px solid #e5ddd0; }
+.search-inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+.search-input {
+  flex: 1; padding: 10px 16px; font-family: 'Garet', Georgia, serif; font-size: 0.9rem;
+  border: 2px solid #e5ddd0; border-radius: 24px; background: #fff; outline: none; transition: border-color 0.2s;
+}
+.search-input:focus { border-color: var(--orange); }
+.search-input::placeholder { color: #bbb; }
+.search-label { font-size: 0.75rem; color: var(--brown-light); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+
+/* TABS */
+.tab-nav {
+  background: #fff; border-bottom: 2px solid #ede5d8;
+  position: sticky; top: 68px; z-index: 100; display: flex; overflow-x: auto;
+  padding: 0 40px;
+}
+.tab-btn {
+  padding: 14px 20px; cursor: pointer; font-family: 'Garet', Georgia, serif;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--brown-light); border-bottom: 3px solid transparent;
+  white-space: nowrap; transition: all 0.15s; background: none;
+  border-top: none; border-left: none; border-right: none;
+}
+.tab-btn:hover { color: var(--orange); }
+.tab-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+/* LAYOUT */
+.main-wrap { max-width: 1100px; margin: 0 auto; padding: 28px 40px; }
+
+.section { display: none; }
+.section.visible { display: block; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+
+.col-heading {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--brown-light);
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 2px solid var(--orange);
+}
+.col-heading.blue-head { border-bottom-color: var(--blue); color: var(--blue); }
+
+/* CARDS */
+.card {
+  background: #fff; border: 1.5px solid #ede5d8; border-radius: 8px;
+  margin-bottom: 14px; overflow: hidden; transition: box-shadow 0.2s, border-color 0.2s;
+}
+.card:hover { box-shadow: 0 4px 20px rgba(255,145,77,0.1); border-color: #f5c9a8; }
+.card-head {
+  padding: 12px 16px 10px; border-bottom: 1px solid #f5ede4;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.card-label {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--orange); margin-bottom: 5px;
+}
+.card-triggers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.trigger-tag {
+  background: var(--orange-light); border: 1px solid #ffd5b5; color: var(--brown);
+  font-size: 0.68rem; padding: 2px 8px; border-radius: 12px; font-style: italic;
+}
+.card-body { padding: 14px 16px; }
+.response-text { font-size: 0.86rem; line-height: 1.75; color: #2a1f1b; white-space: pre-wrap; font-family: 'Garet', Georgia, serif; }
+
+.copy-btn {
+  background: var(--orange); color: #fff; border: none;
+  padding: 6px 14px; font-family: 'Garet', Georgia, serif; font-size: 0.65rem;
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; border-radius: 20px; flex-shrink: 0; transition: background 0.15s;
+}
+.copy-btn:hover { background: #e07a3a; }
+.copy-btn.copied { background: #4caf7d; }
+
+.note-box {
+  background: var(--yellow-light); border-left: 3px solid var(--yellow);
+  padding: 8px 14px; margin-top: 10px; font-size: 0.76rem; color: var(--brown); border-radius: 0 6px 6px 0;
+}
+.note-box strong { color: var(--black); }
+
+/* EMAIL PANEL */
+.email-panel { background: #fff; border: 1.5px solid var(--blue-border); border-radius: 8px; overflow: hidden; }
+.email-panel-head {
+  background: linear-gradient(135deg, #2563a8 0%, #3b82d4 100%);
+  padding: 12px 16px;
+}
+.email-panel-head h3 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
+.email-panel-body { padding: 16px; }
+
+.email-type-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+.etl-btn {
+  border: 1.5px solid var(--blue-border); border-radius: 6px; padding: 10px 13px;
+  cursor: pointer; background: var(--blue-light); transition: all 0.15s;
+  text-align: left; font-family: 'Garet', Georgia, serif; width: 100%;
+}
+.etl-btn:hover { border-color: var(--blue); }
+.etl-btn.selected { border-color: var(--blue); background: #ddeaf8; }
+.etl-title { font-size: 0.78rem; font-weight: 700; color: #1a2a3a; display: block; margin-bottom: 2px; }
+.etl-desc  { font-size: 0.68rem; color: #6a7a8a; }
+
+.email-fields { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.ef-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ef-group { display: flex; flex-direction: column; gap: 4px; }
+.ef-group.full { grid-column: 1 / -1; }
+.ef-group label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brown); }
+.ef-group input, .ef-group textarea, .ef-group select {
+  font-family: 'Garet', Georgia, serif; font-size: 0.84rem;
+  border: 1.5px solid #d5e5f0; border-radius: 6px; padding: 8px 10px;
+  background: #f7fafd; outline: none; transition: border-color 0.15s; color: #1a2a3a;
+}
+.ef-group input:focus, .ef-group textarea:focus, .ef-group select:focus { border-color: var(--blue); background: #fff; }
+.ef-group textarea { resize: vertical; min-height: 56px; }
+.cond-field { display: none; }
+.cond-field.show { display: flex; flex-direction: column; gap: 4px; }
+
+.gen-btn {
+  background: linear-gradient(135deg, var(--blue) 0%, #3b82d4 100%);
+  color: #fff; border: none; width: 100%;
+  padding: 11px; font-family: 'Garet', Georgia, serif; font-size: 0.78rem;
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; border-radius: 6px; transition: opacity 0.15s;
+}
+.gen-btn:hover { opacity: 0.9; }
+
+.email-output { margin-top: 14px; border: 1.5px solid var(--blue-border); border-radius: 8px; display: none; overflow: hidden; }
+.email-output.visible { display: block; }
+.email-output-head {
+  background: var(--blue-light); padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--blue-border);
+}
+.eo-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue); }
+.email-copy-btn {
+  background: var(--blue); color: #fff; border: none; padding: 6px 14px;
+  font-family: 'Garet', Georgia, serif; font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; border-radius: 20px; transition: background 0.15s;
+}
+.email-copy-btn:hover { background: #1a4a8a; }
+.email-copy-btn.copied { background: #4caf7d; }
+.email-output-body { padding: 18px 16px; font-size: 0.86rem; line-height: 1.8; color: #1a1a1a; white-space: pre-wrap; font-family: 'Garet', Georgia, serif; background: #fff; }
+
+/* SEARCH RESULTS */
+.search-results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--brown-light); }
+.empty-state h3 { font-size: 1rem; margin-bottom: 8px; color: var(--brown); }
+
+@media (max-width: 840px) {
+  .two-col { grid-template-columns: 1fr; }
+  .ef-row { grid-template-columns: 1fr; }
+  .main-wrap { padding: 20px 16px; }
+  .search-wrap { padding: 12px 16px; }
+  header { padding: 16px 20px; }
+  .tab-nav { padding: 0 16px; }
+  .tab-btn { padding: 12px 14px; font-size: 0.75rem; }
+  .search-results-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo-main">Lueur Cosmetics Lab</div>
+    <div class="logo-sub">Client Response Bank</div>
+  </div>
+  <span class="header-badge">Internal Tool</span>
+</header>
+
+<div class="search-wrap">
+  <div class="search-inner">
+    <span class="search-label">Search</span>
+    <input class="search-input" type="text" id="searchInput" placeholder="Search any scenario, keyword, or topic..." oninput="handleSearch()">
+  </div>
+</div>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="showTab('new-clients')">New Clients</button>
+  <button class="tab-btn" onclick="showTab('project-production')">Project &amp; Production</button>
+  <button class="tab-btn" onclick="showTab('payments-admin')">Payments &amp; Admin</button>
+  <button class="tab-btn" onclick="showTab('compliance-technical')">Compliance &amp; Technical</button>
+  <button class="tab-btn" onclick="showTab('client-management')">Client Management</button>
+</nav>
+
+<div class="main-wrap">
+
+  <!-- SEARCH RESULTS -->
+  <div class="section" id="search-results">
+    <div class="col-heading" style="margin-bottom:20px;">Search Results <span id="results-count" style="font-weight:400;color:var(--brown-light);"></span></div>
+    <div class="search-results-grid" id="results-container"></div>
+  </div>
+
+  <!-- ══════════════════════════
+       1. NEW CLIENTS
+  ══════════════════════════ -->
+  <div class="section visible" id="new-clients">
+    <div class="two-col">
+      <div>
+        <div class="col-heading">Quick Replies</div>
+
+        <div class="card" data-tags="greeting introduction hello welcome who are you kendra first message opening">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Opening / First Greeting</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Any new message — always send this first</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hello,
+
+Thank you for reaching out to Lueur Cosmetics Lab.
+
+I am Kendra and I'll be assisting you with your inquiries and orders.
+
+Kindly let me know your name and what you're interested in.</div>
+            <div class="note-box"><strong>Always send this first</strong> before any other reply. If the client has already given their name, address them by name and skip asking for it.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="new inquiry interested services what do you do start beauty brand general follow up after greeting">
+          <div class="card-head">
+            <div>
+              <div class="card-label">General First Contact — After Name is Known</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I'm interested in your services"</span>
+                <span class="trigger-tag">"I want to start a beauty brand"</span>
+                <span class="trigger-tag">After client shares their name</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], lovely to meet you.
+
+We specialise in custom formulation and private label manufacturing for skincare, haircare, body care, lip care, and personal care products — helping entrepreneurs and brands create intentional, quality beauty products.
+
+To get started, could you share a few details:
+1. What type of product(s) are you looking to develop?
+2. Are you starting a new brand or scaling an existing one?
+3. Custom formulation (developed from scratch) or private label (existing formula, your branding)?
+
+Once we understand your project, we can advise on the best path forward.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="instagram dm social seen your page referred referral friend told me">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Instagram / Social DM</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I saw your page"</span>
+                <span class="trigger-tag">"A friend told me about you"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], thank you for reaching out — and welcome!
+
+We'd love to learn more about your project. To point you in the right direction, please share:
+— What product(s) are you looking to create?
+— What is your target market?
+— Are you starting fresh or do you already have a brand?
+
+We'll follow up with the most relevant information for your needs.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="custom private label difference which should i choose explain formulation">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Custom vs. Private Label</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"What's the difference?"</span>
+                <span class="trigger-tag">"Which one should I choose?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Great question. Here's a quick breakdown:
+
+CUSTOM FORMULATION
+— Developed from scratch, specifically for your brand
+— Full control over ingredients and performance profile
+— Longer timeline; requires testing and iteration
+— Best for brands with a specific vision or differentiated positioning
+
+PRIVATE LABEL
+— Existing, tested formulation produced under your brand name
+— Faster to market; lower development cost
+— Less customisation, but still carries your label
+— Best for brands starting out or testing the market
+
+If you're unsure, a consultation can help clarify the best route.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="vague unclear no details just want product idea confused not sure where to start">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Vague / Early-Stage Client</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I just have an idea"</span>
+                <span class="trigger-tag">"I don't know what I want yet"</span>
+                <span class="trigger-tag">"Just create something for me"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], that's completely fine — many of our clients start exactly where you are.
+
+For clients still in the idea stage, we recommend beginning with a paid consultation. This gives us focused time to understand your vision, guide you on the right product development path, and set realistic expectations around timelines and investment.
+
+Would you like information on booking a consultation?</div>
+            <div class="note-box"><strong>Upsell to consultation.</strong> Do not spend time educating vague inquiries for free.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="copy dupe replicate similar brand want something like existing product">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Client Wants to Copy an Existing Product</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I want something like [brand]"</span>
+                <span class="trigger-tag">"Can you make a dupe of X?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">We understand the reference — and we can use that as a starting point for understanding the texture, performance, or concept you're drawn to.
+
+However, we don't replicate another brand's proprietary formulation. What we do is develop a product that performs to your desired standard while being original to your brand.
+
+Please describe what specifically appeals to you about that product and we'll translate that into a brief for your own formulation.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="consultation book paid session why pay free advice what is it">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Consultation — Introducing / Pushback on Fee</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"How do I get started?"</span>
+                <span class="trigger-tag">"Why do I have to pay just to talk?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">For clients in the early stages of brand development, we offer a paid consultation with our founder — a medical doctor and cosmetic scientist.
+
+In this session, we cover:
+— Your product vision and target market
+— Formulation direction (custom vs. private label)
+— Realistic timelines and investment expectations
+— Next steps tailored to your brand
+
+The consultation fee is [amount] and lasts [duration]. The fee reflects focused, expert time dedicated entirely to your brand, drawing from years of professional training and real-world experience.
+
+Would you like to schedule one?</div>
+            <div class="note-box"><strong>Do not discount or waive the consultation fee.</strong></div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="moq minimum order quantity how many units small batch private label catalogue range">
+          <div class="card-head">
+            <div>
+              <div class="card-label">MOQ &amp; Private Label Range</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"What's your minimum order?"</span>
+                <span class="trigger-tag">"What private label products do you have?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Our minimum order quantities vary by product type and formulation route.
+
+— Custom formulations: minimums are set to ensure the integrity of the development and production process.
+— Private label: minimums are typically lower and vary by product category.
+
+Our private label range covers skincare, haircare, body care, lip care, and personal care.
+
+Please share the specific product(s) you're interested in and we'll confirm the MOQ and available options for your project.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EMAIL PANEL -->
+      <div>
+        <div class="col-heading blue-head">Email Generator</div>
+        <div class="email-panel">
+          <div class="email-panel-head"><h3>Select Email Type</h3></div>
+          <div class="email-panel-body">
+            <div class="email-type-list">
+              <button class="etl-btn" onclick="selectEmail(this,'new-brand-enquiry','nc')">
+                <span class="etl-title">New Brand Enquiry Response</span>
+                <span class="etl-desc">Responding to a new client with full development overview</span>
+              </button>
+              <button class="etl-btn" onclick="selectEmail(this,'price-quote','nc')">
+                <span class="etl-title">Price Quote</span>
+                <span class="etl-desc">Sending a quotation document to a client</span>
+              </button>
+            </div>
+            <div class="email-fields">
+              <div class="ef-row">
+                <div class="ef-group"><label>Client First Name *</label><input type="text" id="nc-name" placeholder="e.g. Nathan"></div>
+                <div class="ef-group"><label>Company / Brand</label><input type="text" id="nc-company" placeholder="e.g. Oyoko Brand"></div>
+              </div>
+              <div class="ef-group full"><label>Product(s)</label><input type="text" id="nc-products" placeholder="e.g. Body Butter, Face Serum"></div>
+              <div class="ef-group cond-field" id="nc-cf-vision"><label>Brand / Product Vision</label><input type="text" id="nc-vision" placeholder="e.g. premium body care line"></div>
+              <div class="ef-group full"><label>Additional Notes (optional)</label><textarea id="nc-notes" placeholder="Anything specific to include..."></textarea></div>
+            </div>
+            <button class="gen-btn" onclick="generateEmail('nc')">Generate Email</button>
+            <div class="email-output" id="nc-output">
+              <div class="email-output-head">
+                <span class="eo-label">Ready to Copy</span>
+                <button class="email-copy-btn" id="nc-copy-btn" onclick="copyEmail('nc')">Copy Email</button>
+              </div>
+              <div class="email-output-body" id="nc-output-body"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       2. PROJECT & PRODUCTION
+  ══════════════════════════ -->
+  <div class="section" id="project-production">
+    <div class="two-col">
+      <div>
+        <div class="col-heading">Quick Replies</div>
+
+        <div class="card" data-tags="timeline how long turnaround production time ready when rush urgent asap deadline">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Timeline — General &amp; Rush Requests</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"How long does it take?"</span>
+                <span class="trigger-tag">"I need it urgently"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Production timelines depend on several factors:
+— Type of product (custom formulation vs. private label)
+— Formulation complexity
+— Packaging availability and lead time
+— Current production schedule
+
+Custom formulations take longer due to the development and testing phase. Private label orders move faster.
+
+Once your payment is received, production is counted from the following working day. Timelines are stated in working days, excluding weekends and public holidays.
+
+We cannot compromise quality to accommodate an unrealistic timeline. Please share your deadline and project details so we can assess what's feasible and advise honestly.</div>
+            <div class="note-box"><strong>Do not commit to a rush timeline without reviewing the full scope first.</strong></div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="sample try test free tester approval feedback revision changes unhappy">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Samples — Request, Approval &amp; Feedback</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"Can I try before I commit?"</span>
+                <span class="trigger-tag">"I received the sample — what next?"</span>
+                <span class="trigger-tag">"I'm not happy with the sample"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">For custom formulation projects, samples are a standard part of our process — you will receive samples for review and approval before full production proceeds.
+
+For private label, samples can be arranged and may attract a fee, communicated upfront.
+
+We do not offer free samples for general browsing or uncommitted inquiries.
+
+When providing sample feedback, please use this structure:
+— Overall performance: approved / needs adjustment
+— Texture/consistency: approved / describe changes needed
+— Scent/colour (if applicable): approved / describe changes
+— Any other observations
+
+Revisions are addressed per project. Our team will advise on what is adjustable within scope.</div>
+            <div class="note-box"><strong>Do not send samples without a confirmed, structured project in place.</strong></div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="packaging delay late wrong damaged client sourcing own ml g volume weight">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Packaging — Delays, Issues &amp; Client-Sourced</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"Can I use my own packaging?"</span>
+                <span class="trigger-tag">Packaging delayed or arrived wrong</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Clients are welcome to source their own packaging — however:
+1. It must be compatible with your formulation (material, closure type, fill capacity).
+2. We will inspect it before production begins.
+3. Any delays in packaging delivery directly impact your production schedule.
+
+Note: Volume (ml) is not equal to weight (g). A 100ml bottle does not necessarily hold 100g of product. We confirm fill weights during formulation, not from container volume.
+
+If packaging has been delayed or arrived incorrectly, we will address this with the supplier and confirm a revised timeline as soon as possible.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="production started commenced begun working on your order">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Production Update — Started</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Production has begun on client's order</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], I hope you're doing well.
+
+I'm pleased to let you know that production on your order has commenced. Your estimated completion date is [X to Y working days from [date]], excluding weekends and public holidays.
+
+We'll be in touch once your order is ready. Thank you for your patience.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="production delay setback behind schedule issue problem hold up revised timeline">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Production Update — Delay</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Something is causing a delay in the order</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], I hope you're doing well.
+
+I'm reaching out with an update on your order. We've encountered [brief reason — e.g. a delay in sourcing a key ingredient / an adjustment required during quality review] that has affected our original timeline.
+
+Your revised estimated completion date is [new date/duration], excluding weekends and public holidays.
+
+We apologise for the inconvenience and are working to resolve this as efficiently as possible. We'll keep you informed at every stage.</div>
+            <div class="note-box"><strong>Always communicate delays proactively.</strong> Never wait for the client to ask.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="production quality hold qc failed rework retest batch issue">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Production Update — Quality Hold</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Batch failed QC or requires rework</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], I hope you're doing well.
+
+During our quality review process, we identified [brief description of the issue] with your current batch. To maintain our quality standard, we will be [reworking / retesting / adjusting] before proceeding.
+
+This may add [X] working days to your timeline, excluding weekends and public holidays.
+
+We will not release a product that does not meet our quality benchmark. We appreciate your patience while we ensure this is right.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="production complete ready done finished order ready collection dispatch pickup">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Production Update — Order Ready (Pickup)</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Order is complete and client will collect</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hello [Name], hope you're doing well.
+
+Your package is ready for pickup [day], God willing.
+
+If your rider will be picking up, they should call 0544976227 to coordinate the pickup between 9:30am and 5:00pm.
+
+Please note that this number is only for pickups — not for payments, support, or general inquiries. For any of those, kindly reach out to us via Instagram DM or email.
+
+Thank you for choosing Lueur Cosmetics Lab.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="production complete delivery dispatch shipping send out order scheduled">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Production Update — Order Ready (Delivery)</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Order is complete and will be dispatched</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Good [morning/afternoon] [Name],
+
+I hope you're well.
+
+Please note that your order is ready and has been scheduled for delivery tomorrow, God willing. Kindly confirm if you will be available for delivery and the location to which you would like it delivered.
+
+Thank you for choosing Lueur Cosmetics Lab.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="launch seasonal christmas valentine deadline event popup date">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Seasonal / Launch Deadlines</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I want to launch by Christmas"</span>
+                <span class="trigger-tag">"I have a pop-up in 6 weeks"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Seasonal launches require early planning — we always recommend working backwards from your target date.
+
+Please share:
+1. Your target launch/event date
+2. Products and quantities needed
+3. Whether formulations are already developed or need to be created
+
+We'll confirm whether the timeline is achievable or advise on a realistic alternative. We recommend not setting a public launch date until your production timeline is confirmed with us.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EMAIL PANEL -->
+      <div>
+        <div class="col-heading blue-head">Email Generator</div>
+        <div class="email-panel">
+          <div class="email-panel-head"><h3>Select Email Type</h3></div>
+          <div class="email-panel-body">
+            <div class="email-type-list">
+              <button class="etl-btn" onclick="selectEmail(this,'feedback-received','pp')">
+                <span class="etl-title">Feedback Received</span>
+                <span class="etl-desc">Acknowledging client feedback and beginning reformulation</span>
+              </button>
+              <button class="etl-btn" onclick="selectEmail(this,'reformulation-update','pp')">
+                <span class="etl-title">Reformulation Update</span>
+                <span class="etl-desc">Stability test in progress; update on progress</span>
+              </button>
+              <button class="etl-btn" onclick="selectEmail(this,'production-ready','pp')">
+                <span class="etl-title">Order Ready</span>
+                <span class="etl-desc">Notifying client their order is complete</span>
+              </button>
+            </div>
+            <div class="email-fields">
+              <div class="ef-row">
+                <div class="ef-group"><label>Client First Name *</label><input type="text" id="pp-name" placeholder="e.g. Fynnba"></div>
+                <div class="ef-group"><label>Company / Brand</label><input type="text" id="pp-company" placeholder="e.g. Fynnba Beauty"></div>
+              </div>
+              <div class="ef-group full"><label>Product(s)</label><input type="text" id="pp-products" placeholder="e.g. Scalp Scrub"></div>
+              <div class="ef-group cond-field" id="pp-cf-days"><label>Turnaround (working days)</label><input type="text" id="pp-days" placeholder="e.g. five to seven"></div>
+              <div class="ef-group cond-field" id="pp-cf-refo"><label>What was reformulated / achieved?</label><input type="text" id="pp-refo" placeholder="e.g. the scalp scrub texture as requested"></div>
+              <div class="ef-group cond-field" id="pp-cf-eta"><label>Expected final update by</label><input type="text" id="pp-eta" placeholder="e.g. close of this week"></div>
+              <div class="ef-group cond-field" id="pp-cf-mode">
+                <label>Collection or Dispatch?</label>
+                <select id="pp-mode">
+                  <option value="collection">Collection / Pickup</option>
+                  <option value="dispatch">Dispatch / Delivery</option>
+                </select>
+              </div>
+              <div class="ef-group cond-field" id="pp-cf-day"><label>Ready from (day)</label><input type="text" id="pp-day" placeholder="e.g. Monday / Tuesday"></div>
+              <div class="ef-group full"><label>Additional Notes (optional)</label><textarea id="pp-notes" placeholder="Anything specific to include..."></textarea></div>
+            </div>
+            <button class="gen-btn" onclick="generateEmail('pp')">Generate Email</button>
+            <div class="email-output" id="pp-output">
+              <div class="email-output-head">
+                <span class="eo-label">Ready to Copy</span>
+                <button class="email-copy-btn" id="pp-copy-btn" onclick="copyEmail('pp')">Copy Email</button>
+              </div>
+              <div class="email-output-body" id="pp-output-body"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       3. PAYMENTS & ADMIN
+  ══════════════════════════ -->
+  <div class="section" id="payments-admin">
+    <div class="two-col">
+      <div>
+        <div class="col-heading">Quick Replies</div>
+
+        <div class="card" data-tags="pricing price how much cost budget rates what do you charge quote quotation formal">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Pricing &amp; Quote Requests</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"How much does it cost?"</span>
+                <span class="trigger-tag">"Can I get a formal quote?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Pricing at Lueur Cosmetics Lab is project-specific — it depends on the product type, formulation complexity, quantity, and packaging requirements.
+
+To prepare an accurate quote, please provide:
+1. Product name/type and intended use
+2. Custom formulation or private label
+3. Target quantity (units)
+4. Packaging preference (if known)
+5. Any specific ingredients or skin/hair concerns
+6. Target delivery or launch date
+
+Once received, we'll revert with a formal quote within [X] business days.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="pricing too expensive cheaper discount negotiate reduce">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Price Too High</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"That's too expensive"</span>
+                <span class="trigger-tag">"Can you reduce the price?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Thank you for your honesty, [Name].
+
+Our pricing reflects the quality of formulation, materials, and expertise that go into every product. We don't offer discounts on this standard.
+
+If budget is a concern, we can explore:
+— Adjusting the product scope or formulation tier
+— Starting with a lower quantity for market testing
+— A private label option if custom formulation is out of range
+
+If none of these fit your current stage, you're welcome to revisit when your budget aligns with the investment required.</div>
+            <div class="note-box"><strong>Firm but not dismissive.</strong> Leave the door open without compromising pricing integrity.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="payment plan installment pay in parts split">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Payment Plan Request</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"Can I pay in installments?"</span>
+                <span class="trigger-tag">"Do you have a payment plan?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Our standard payment structure is as follows:
+
+1. A deposit is required to secure your slot on our production calendar.
+2. The remaining balance is paid in full before production begins on your order.
+
+We do not offer extended payment plans beyond this structure. Full payment must be received before we begin producing your products.
+
+If you have specific questions about the payment schedule for your project, please share the details and we'll advise accordingly.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="payment how to pay methods momo bank transfer send money">
+          <div class="card-head">
+            <div>
+              <div class="card-label">How to Pay / Payment Details</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"How do I pay?"</span>
+                <span class="trigger-tag">"What are your payment details?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">You can send payment directly to:
+
+MTN Mobile Money
+0246278188 (Efua Kyerewaa Dwamena)
+
+For bank transfer:
+Calbank (Dansoman Branch)
+Efua K. Dwamena Ventures
+1400009487672
+
+Kindly send a screenshot or notify us after paying.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="payment confirm received thank you paid deposit proof screenshot">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Payment Received — Confirmation &amp; Client Info Request</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I've made the payment"</span>
+                <span class="trigger-tag">Client sends proof of payment</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Thank you for your payment. We appreciate your trust in us.
+
+Please let me have your:
+1. Name of Company/Individual
+2. Physical Address for receipt of products
+3. Call contact and email address
+
+An order confirmation will be emailed to you shortly.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="payment pending outstanding not paid slot reminder schedule">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Payment Pending / Slot at Risk</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Client has not paid after quote or deposit</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], just a reminder that your production slot has not yet been confirmed.
+
+A deposit is required to secure your place on our production calendar. Until this is received, we are unable to hold a date for your project.
+
+Please note that our schedule fills quickly and we cannot guarantee availability if payment is delayed. Kindly let us know your payment timeline so we can advise accordingly.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="refund cancel project change mind money back cancellation">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Refund / Cancellation</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I want to cancel my order"</span>
+                <span class="trigger-tag">"Can I get a refund?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], we're sorry to hear this.
+
+Our refund and cancellation policy is outlined in your agreement/invoice. In general:
+— Deposits are non-refundable once a project has been initiated, as they cover resource allocation and preliminary work.
+— If production has not yet started, we can discuss options on a case-by-case basis.
+
+Kindly share the reason for cancellation and we'll review your specific situation.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EMAIL PANEL -->
+      <div>
+        <div class="col-heading blue-head">Email Generator</div>
+        <div class="email-panel">
+          <div class="email-panel-head"><h3>Select Email Type</h3></div>
+          <div class="email-panel-body">
+            <div class="email-type-list">
+              <button class="etl-btn" onclick="selectEmail(this,'price-quote','pa')">
+                <span class="etl-title">Price Quote</span>
+                <span class="etl-desc">Sending a quotation document to a client</span>
+              </button>
+              <button class="etl-btn" onclick="selectEmail(this,'payment-confirmed','pa')">
+                <span class="etl-title">Payment Confirmed</span>
+                <span class="etl-desc">Confirming receipt of payment and requesting client details</span>
+              </button>
+            </div>
+            <div class="email-fields">
+              <div class="ef-row">
+                <div class="ef-group"><label>Client First Name *</label><input type="text" id="pa-name" placeholder="e.g. Nathalie"></div>
+                <div class="ef-group"><label>Company / Brand</label><input type="text" id="pa-company" placeholder="e.g. Nathalie Beauty"></div>
+              </div>
+              <div class="ef-group full"><label>Product(s)</label><input type="text" id="pa-products" placeholder="e.g. Face Serum, Body Lotion"></div>
+              <div class="ef-group full"><label>Additional Notes (optional)</label><textarea id="pa-notes" placeholder="Anything specific to include..."></textarea></div>
+            </div>
+            <button class="gen-btn" onclick="generateEmail('pa')">Generate Email</button>
+            <div class="email-output" id="pa-output">
+              <div class="email-output-head">
+                <span class="eo-label">Ready to Copy</span>
+                <button class="email-copy-btn" id="pa-copy-btn" onclick="copyEmail('pa')">Copy Email</button>
+              </div>
+              <div class="email-output-body" id="pa-output-body"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       4. COMPLIANCE & TECHNICAL
+  ══════════════════════════ -->
+  <div class="section" id="compliance-technical">
+    <div class="two-col">
+      <div>
+        <div class="col-heading">Quick Replies</div>
+
+        <div class="card" data-tags="fda registration can you register product help certificate do i need it inci labeling compliance documentation">
+          <div class="card-head">
+            <div>
+              <div class="card-label">FDA Registration — What We Do &amp; Don't Do</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"Can you register my product?"</span>
+                <span class="trigger-tag">"Do I need FDA registration?"</span>
+                <span class="trigger-tag">"Will I get an INCI list?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">We do not handle FDA registration on behalf of clients — this is done by the brand owner directly, as you are the legal registrant of your product.
+
+What we offer is FDA registration guidance: we walk you through the process, explain what's required, and ensure your product documentation is in order so you can register with confidence.
+
+All formulations we develop come with the relevant product documentation, including the INCI ingredient list — required for labelling and regulatory purposes.
+
+Whether you need registration depends on where you plan to sell. If you're targeting regulated markets, this should be planned from the start of your product development journey.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="ml g gram milliliter volume weight difference not same packaging fill">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Volume vs. Weight (ml is not equal to g)</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"A 100ml bottle holds 100g right?"</span>
+                <span class="trigger-tag">"Why doesn't weight match the volume?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Volume (ml) and weight (g) are not the same thing. A 100ml bottle does not automatically hold 100g of product.
+
+The actual weight depends on the product's density, which varies by formulation. A water-based serum may be close to 1g/ml; an oil-heavy or thick cream will differ.
+
+This is why we confirm fill weights during the formulation stage — not from container volume alone. We'll provide the correct fill weight for your specific formula before you finalise any packaging decisions.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="natural organic ingredients claim certified 100 pure shelf life expiry preservatives">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Natural / Organic Claims &amp; Preservatives</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I want a 100% natural formula"</span>
+                <span class="trigger-tag">"I don't want preservatives"</span>
+                <span class="trigger-tag">"How long will it last?"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">NATURAL / ORGANIC CLAIMS: We can formulate with natural and plant-derived ingredients. However, "100% natural" and "organic" are regulated claims — using them without proper certification is a compliance risk. We'll help you formulate a product that meets your ingredient philosophy and advise on honest labelling.
+
+PRESERVATIVES: For any water-containing formulation (creams, lotions, gels, emulsions), a preservation system is not optional — it is a safety requirement. Unpreserved water-based products are a microbial risk to the end user.
+
+SHELF LIFE: Determined during the development process, depending on formulation type, packaging, and storage conditions. We do not compromise on safety in formulation.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EMAIL PANEL -->
+      <div>
+        <div class="col-heading blue-head">Email Generator</div>
+        <div class="email-panel">
+          <div class="email-panel-head"><h3>Select Email Type</h3></div>
+          <div class="email-panel-body">
+            <div class="email-type-list">
+              <button class="etl-btn" onclick="selectEmail(this,'fda-approval','ct')">
+                <span class="etl-title">FDA Approval Notification</span>
+                <span class="etl-desc">Product registration approved by Ghana FDA</span>
+              </button>
+              <button class="etl-btn" onclick="selectEmail(this,'product-info-doc','ct')">
+                <span class="etl-title">Product Information Document</span>
+                <span class="etl-desc">Sending the PID to a client</span>
+              </button>
+            </div>
+            <div class="email-fields">
+              <div class="ef-row">
+                <div class="ef-group"><label>Client First Name *</label><input type="text" id="ct-name" placeholder="e.g. Victory"></div>
+                <div class="ef-group"><label>Company / Brand</label><input type="text" id="ct-company" placeholder="e.g. Canfor Beauty"></div>
+              </div>
+              <div class="ef-group full"><label>Product(s)</label><input type="text" id="ct-products" placeholder="e.g. Moisturising Cream"></div>
+              <div class="ef-group cond-field" id="ct-cf-fdanum"><label>FDA Registration Number</label><input type="text" id="ct-fdanum" placeholder="e.g. FDA/CO:26-7006"></div>
+              <div class="ef-group cond-field" id="ct-cf-fdadate"><label>Date of Approval</label><input type="text" id="ct-fdadate" placeholder="e.g. 9 July 2026"></div>
+              <div class="ef-group cond-field" id="ct-cf-fdaexpiry"><label>Expiry Date</label><input type="text" id="ct-fdaexpiry" placeholder="e.g. 9 August 2029"></div>
+              <div class="ef-group cond-field full" id="ct-cf-fdanotes"><label>Additional Registration Notes</label><textarea id="ct-fdanotes" placeholder="e.g. Shades registered as variants under one number"></textarea></div>
+              <div class="ef-group full"><label>Additional Notes (optional)</label><textarea id="ct-notes" placeholder="Anything specific to include..."></textarea></div>
+            </div>
+            <button class="gen-btn" onclick="generateEmail('ct')">Generate Email</button>
+            <div class="email-output" id="ct-output">
+              <div class="email-output-head">
+                <span class="eo-label">Ready to Copy</span>
+                <button class="email-copy-btn" id="ct-copy-btn" onclick="copyEmail('ct')">Copy Email</button>
+              </div>
+              <div class="email-output-body" id="ct-output-body"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════
+       5. CLIENT MANAGEMENT
+  ══════════════════════════ -->
+  <div class="section" id="client-management">
+    <div class="two-col">
+      <div>
+        <div class="col-heading">Quick Replies</div>
+
+        <div class="card" data-tags="followup follow up silent ghost no response quiet haven't heard back first">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Client Gone Silent — 1st Follow-up</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">No reply after quote or info shared (3–5 days)</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], following up on our earlier conversation.
+
+We shared [quote/information/next steps] with you and haven't heard back. We want to make sure you have everything you need to move forward.
+
+Our schedule is filling up for [month/quarter] and we'd love to secure your spot before availability closes. Please let us know if you'd like to proceed or if you have any questions — we're happy to help.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="followup final second last reminder silent ghost still no response">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Client Gone Silent — Final Follow-up</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Still no response after first follow-up</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], this will be our final follow-up on this project inquiry.
+
+If you're ready to move forward or have any questions, please don't hesitate to reach out — we'd be glad to help. If now isn't the right time, we completely understand. You're welcome to get in touch whenever you're ready.
+
+Wishing you all the best.</div>
+            <div class="note-box"><strong>Do not send more than two follow-up messages.</strong></div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="paid client slow quiet assets brief label artwork approval pending waiting info">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Paid Client Not Sending Required Info</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Client paid but hasn't sent label / artwork / approval</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], a gentle reminder that we are awaiting the following from you to proceed with your project:
+
+— [e.g. label artwork / logo files / shade approval / packaging confirmation]
+
+Delays in receiving these items will affect your delivery timeline. Kindly send them over at your earliest convenience.
+
+Thank you.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="availability slots open taking clients capacity booked full waitlist demand">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Availability &amp; Capacity</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"Are you taking new clients?"</span>
+                <span class="trigger-tag">Schedule is full</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">AVAILABLE: We are currently accepting projects for [month/quarter]. Our capacity is limited and production slots are allocated on a first-confirmed, first-scheduled basis. If you're ready to proceed, we recommend securing your slot with a deposit early.
+
+FULLY BOOKED: We are fully booked for [month/quarter]. If you'd like a slot for [next available period], please share a brief project overview and we'll add you to our waitlist. We'll be in touch when availability opens.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="non committal thinking deciding still considering I'll decide later">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Non-Committal Client</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"I'm still thinking about it"</span>
+                <span class="trigger-tag">"I'll decide later"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Of course — take the time you need.
+
+Just a note: we're unable to hold production slots without a confirmed deposit. When you're ready, please reach out and we'll confirm what availability looks like at that time.
+
+We look forward to working with you when the timing is right.</div>
+            <div class="note-box"><strong>State the reality without pressure.</strong> Communicate scarcity factually.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="returning dormant past client reconnect reorder coming back long time">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Reconnecting with a Past Client</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">Client you haven't heard from in months</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">Hi [Name], it's been a while — hope you're doing well.
+
+We're checking in to see how [product/brand] has been performing. If you're planning to reorder or looking to expand your range, we'd love to support that next phase.
+
+Let us know where you are and we'll take it from there.</div>
+          </div>
+        </div>
+
+        <div class="card" data-tags="delivery pickup collection shipping local ghana international export abroad">
+          <div class="card-head">
+            <div>
+              <div class="card-label">Delivery &amp; Pickup</div>
+              <div class="card-triggers">
+                <span class="trigger-tag">"When can I pick up?"</span>
+                <span class="trigger-tag">"Can you deliver to me?"</span>
+                <span class="trigger-tag">"I'm outside Ghana"</span>
+              </div>
+            </div>
+            <button class="copy-btn" onclick="copyCard(this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="response-text">PICKUP: Collections are at our facility in Accra. Please confirm your preferred pickup date and time. Ensure the full outstanding balance is settled before collection — proof of payment is required at pickup. The pickup number (0544976227) is for coordination only — not for payments or general inquiries.
+
+LOCAL DELIVERY: We can arrange delivery within Ghana via courier. Fees are at the client's expense and depend on location and order size.
+
+INTERNATIONAL: We work with international clients and can arrange shipping to your location. Shipping is at the client's cost. Please note: it is your responsibility to ensure the product complies with import regulations in your destination country.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- EMAIL PANEL -->
+      <div>
+        <div class="col-heading blue-head">Email Generator</div>
+        <div class="email-panel">
+          <div class="email-panel-head"><h3>Select Email Type</h3></div>
+          <div class="email-panel-body">
+            <div class="email-type-list">
+              <button class="etl-btn" onclick="selectEmail(this,'slot-confirmation','cm')">
+                <span class="etl-title">Slot Confirmation Follow-up</span>
+                <span class="etl-desc">Checking if client will confirm their development slot</span>
+              </button>
+            </div>
+            <div class="email-fields">
+              <div class="ef-row">
+                <div class="ef-group"><label>Client First Name *</label><input type="text" id="cm-name" placeholder="e.g. Princess"></div>
+                <div class="ef-group"><label>Company / Brand</label><input type="text" id="cm-company" placeholder="e.g. Princess Glow"></div>
+              </div>
+              <div class="ef-group full"><label>Product(s)</label><input type="text" id="cm-products" placeholder="e.g. Hair Growth Oil"></div>
+              <div class="ef-group cond-field" id="cm-cf-slot"><label>Slot Week / Period</label><input type="text" id="cm-slot" placeholder="e.g. this week / the week of July 21"></div>
+              <div class="ef-group full"><label>Additional Notes (optional)</label><textarea id="cm-notes" placeholder="Anything specific to include..."></textarea></div>
+            </div>
+            <button class="gen-btn" onclick="generateEmail('cm')">Generate Email</button>
+            <div class="email-output" id="cm-output">
+              <div class="email-output-head">
+                <span class="eo-label">Ready to Copy</span>
+                <button class="email-copy-btn" id="cm-copy-btn" onclick="copyEmail('cm')">Copy Email</button>
+              </div>
+              <div class="email-output-body" id="cm-output-body"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var SIGNOFF = "Warm regards,\n\nKendra Asare\nBrand Experience Manager\nLueur Cosmetics Lab";
+
+var panelType = { nc: null, pp: null, pa: null, ct: null, cm: null };
+
+var condMap = {
+  "new-brand-enquiry":    { nc: ["nc-cf-vision"] },
+  "price-quote":          { nc: [], pa: [] },
+  "feedback-received":    { pp: ["pp-cf-days"] },
+  "reformulation-update": { pp: ["pp-cf-refo", "pp-cf-eta"] },
+  "production-ready":     { pp: ["pp-cf-mode", "pp-cf-day"] },
+  "payment-confirmed":    { pa: [] },
+  "fda-approval":         { ct: ["ct-cf-fdanum", "ct-cf-fdadate", "ct-cf-fdaexpiry", "ct-cf-fdanotes"] },
+  "product-info-doc":     { ct: [] },
+  "slot-confirmation":    { cm: ["cm-cf-slot"] }
+};
+
+function selectEmail(btn, type, panel) {
+  panelType[panel] = type;
+  btn.closest(".email-type-list").querySelectorAll(".etl-btn").forEach(function(b) { b.classList.remove("selected"); });
+  btn.classList.add("selected");
+  document.querySelectorAll("[id^='" + panel + "-cf-']").forEach(function(el) { el.classList.remove("show"); });
+  var fields = (condMap[type] || {})[panel] || [];
+  fields.forEach(function(id) { var el = document.getElementById(id); if (el) el.classList.add("show"); });
+  document.getElementById(panel + "-output").classList.remove("visible");
+}
+
+function gv(id) {
+  var el = document.getElementById(id);
+  return el ? el.value.trim() : "";
+}
+
+function generateEmail(panel) {
+  var type = panelType[panel];
+  if (!type) { alert("Please select an email type first."); return; }
+
+  var name = gv(panel + "-name") || "[Client Name]";
+  var company = gv(panel + "-company");
+  var products = gv(panel + "-products");
+  var notes = gv(panel + "-notes");
+  var body = "";
+
+  if (type === "new-brand-enquiry") {
+    var vision = gv("nc-vision") || "your product line";
+    body = "Hello " + name + ",\n\nThank you for reaching out to Lueur Cosmetics Lab Services and for considering us as a potential development partner" + (company ? " for " + company : "") + ".\n\nWe're excited to learn about your vision for " + vision + " and would be delighted to explore how we can support your project.\n\nWe offer two development pathways:\n\n1. Custom Formulation\nWe develop products entirely from scratch based on your brand vision, target market, preferred ingredients, and performance goals. You also have the option of a formula buyout, which grants you full ownership of the completed formulation.\n\n2. Private Label\nWe customise our existing, tested formulations with your preferred fragrance, colour, and selected key ingredients. Please note that private label formulations remain proprietary to our laboratory." + (products ? "\n\nRegarding the product(s) you're interested in — " + products + " — we will provide full details, including timelines, MOQs, and formulation options, once we've reviewed your completed product brief." : "") + "\n\nAttached is our Product Development Brief Template. Kindly complete one template per product. This allows us to better understand your vision and provide accurate recommendations and quotations.\n\nOnce we receive your completed briefs, we will schedule a complimentary 15-minute discovery call to review your requirements and discuss next steps.\n\nWe look forward to hearing from you.";
+
+  } else if (type === "price-quote") {
+    body = "Hello " + name + ",\n\nI hope you are doing well.\n\nPlease find attached the price quote for the product(s) you requested" + (products ? " — " + products : "") + ". The document also includes some additional important information for your note.\n\nKindly review it and let me know if you have any questions or need any clarification.";
+
+  } else if (type === "feedback-received") {
+    var days = gv("pp-days") || "five to seven";
+    body = "Hello " + name + ",\n\nThank you for your feedback. We've received it and will begin working on the reformulation" + (products ? " of your " + products : "") + ".\n\nThe process will take approximately " + days + " working days, excluding weekends and public holidays.\n\nOnce it's ready, we'll contact you to confirm that it's available for pickup.";
+
+  } else if (type === "reformulation-update") {
+    var refo = gv("pp-refo") || (products ? "your " + products : "your product");
+    var eta = gv("pp-eta") || "the close of this week";
+    body = "Hello " + name + ",\n\nI hope you are well.\n\nI wanted to give you an update on your product. We have successfully reformulated " + refo + " to achieve the result you requested. At this stage, we are waiting for the stability test results to ensure the formula remains stable over time before we proceed.\n\nWe expect to have the results within the next few days, and you should hear from us with a final update by " + eta + ".\n\nThank you for your patience and understanding.";
+
+  } else if (type === "production-ready") {
+    var mode = gv("pp-mode");
+    var day = gv("pp-day") || "[day]";
+    var modeText;
+    if (mode === "dispatch") {
+      modeText = "Please note that your order is ready and has been scheduled for delivery tomorrow, God willing. Kindly confirm if you will be available for delivery and the location to which you would like it delivered.";
+    } else {
+      modeText = "Your package is ready for pickup " + day + ", God willing.\n\nIf your rider will be picking up, they should call 0544976227 to coordinate the pickup between 9:30am and 5:00pm.\n\nPlease note that this number is only for pickups — not for payments, support, or general inquiries. For any of those, kindly reach out to us via Instagram DM or email.";
+    }
+    body = "Hello " + name + ",\n\nI hope you're doing well.\n\n" + modeText + "\n\nThank you for choosing Lueur Cosmetics Lab.";
+
+  } else if (type === "payment-confirmed") {
+    body = "Hello " + name + ",\n\nThank you for your payment. We appreciate your trust in us.\n\nPlease let me have your:\n1. Name of Company/Individual\n2. Physical Address for receipt of products\n3. Call contact and email address\n\nAn order confirmation will be emailed to you shortly.";
+
+  } else if (type === "fda-approval") {
+    var fdaNum = gv("ct-fdanum") || "[FDA Registration Number]";
+    var fdaDate = gv("ct-fdadate") || "[Date of Approval]";
+    var fdaExpiry = gv("ct-fdaexpiry") || "[Expiry Date]";
+    var fdaNotes = gv("ct-fdanotes");
+    var ref = company || name;
+    body = "Dear " + ref + ",\n\nCongratulations!\n\nWe are pleased to inform you that your product registration has been successfully approved by the Ghana Food and Drugs Authority (FDA).\n\nThis milestone confirms that your product" + (products ? " (" + products + ")" : "") + " has met the applicable regulatory requirements for registration and is now authorised for marketing and sale in Ghana for the validity period of its registration. We are grateful to have supported you throughout the manufacturing and regulatory registration process.\n\nPlease find attached a digital copy of your FDA approval certificate. The FDA now issues digital certificates instead of physical copies. We recommend saving this document securely and printing a copy for your records if required." + (fdaNotes ? "\n\n" + fdaNotes : "") + "\n\nRegistration Details\n\n- FDA Registration Number: " + fdaNum + "\n- Date of Approval: " + fdaDate + "\n- Expiry Date: " + fdaExpiry + "\n\nPlease note that FDA registration is valid for three (3) years. To ensure continuous market authorisation, we recommend beginning the renewal process at least four (4) months before the expiry date. Lueur Cosmetics Lab will monitor your registration timeline and notify you when the renewal window opens.\n\nThank you for choosing Lueur Cosmetics Lab. We look forward to continuing to support your brand.";
+
+  } else if (type === "product-info-doc") {
+    body = "Hello " + name + ",\n\nI hope you're doing well.\n\nPlease find attached the Product Information Document" + (products ? " for your " + products : "") + ". It includes all the key information you need for safe use, labelling, and marketing.\n\nIf you have any questions, feel free to reach out — I'm happy to help.";
+
+  } else if (type === "slot-confirmation") {
+    var slot = gv("cm-slot") || "this week";
+    var slotPhrase = slot === "this week" ? slot : "for " + slot;
+    body = "Hello " + name + ",\n\nI hope you're doing well.\n\nJust checking in following our last conversation. We currently have a development slot reserved for you " + slotPhrase + ", as discussed, and wanted to confirm if you'll be proceeding so we can secure it for your project" + (products ? " (" + products + ")" : "") + ".\n\nKindly let me know once you're ready to move forward, as slots are limited and allocated on a first-confirmed basis.\n\nLooking forward to your update.";
+  }
+
+  if (notes) body += "\n\n" + notes;
+  body += "\n\n" + SIGNOFF;
+
+  document.getElementById(panel + "-output-body").textContent = body;
+  var out = document.getElementById(panel + "-output");
+  out.classList.add("visible");
+  out.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  var cb = document.getElementById(panel + "-copy-btn");
+  cb.textContent = "Copy Email";
+  cb.classList.remove("copied");
+}
+
+function copyEmail(panel) {
+  var text = document.getElementById(panel + "-output-body").textContent;
+  var btn = document.getElementById(panel + "-copy-btn");
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(function() { btn.textContent = "Copy Email"; btn.classList.remove("copied"); }, 2000);
+  });
+}
+
+function copyCard(btn) {
+  var text = btn.closest(".card").querySelector(".response-text").innerText;
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(function() { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1800);
+  });
+}
+
+var tabIds = ["new-clients", "project-production", "payments-admin", "compliance-technical", "client-management"];
+
+function showTab(id) {
+  document.getElementById("searchInput").value = "";
+  document.getElementById("search-results").classList.remove("visible");
+  document.querySelectorAll(".section").forEach(function(s) { s.classList.remove("visible"); });
+  document.getElementById(id).classList.add("visible");
+  document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("active"); });
+  var idx = tabIds.indexOf(id);
+  if (idx > -1) document.querySelectorAll(".tab-btn")[idx].classList.add("active");
+}
+
+function handleSearch() {
+  var query = document.getElementById("searchInput").value.toLowerCase().trim();
+  if (!query) {
+    document.getElementById("search-results").classList.remove("visible");
+    var activeBtn = document.querySelector(".tab-btn.active");
+    if (activeBtn) {
+      var idx = Array.from(document.querySelectorAll(".tab-btn")).indexOf(activeBtn);
+      if (tabIds[idx]) document.getElementById(tabIds[idx]).classList.add("visible");
+    }
+    return;
+  }
+  document.querySelectorAll(".section").forEach(function(s) { s.classList.remove("visible"); });
+  document.getElementById("search-results").classList.add("visible");
+
+  var allCards = document.querySelectorAll("[data-tags]");
+  var container = document.getElementById("results-container");
+  container.innerHTML = "";
+  var count = 0;
+
+  allCards.forEach(function(card) {
+    var tags = (card.getAttribute("data-tags") || "").toLowerCase();
+    var text = (card.querySelector(".response-text") ? card.querySelector(".response-text").innerText : "").toLowerCase();
+    var label = (card.querySelector(".card-label") ? card.querySelector(".card-label").innerText : "").toLowerCase();
+    var triggers = (card.querySelector(".card-triggers") ? card.querySelector(".card-triggers").innerText : "").toLowerCase();
+    if (tags.indexOf(query) > -1 || text.indexOf(query) > -1 || label.indexOf(query) > -1 || triggers.indexOf(query) > -1) {
+      var clone = card.cloneNode(true);
+      clone.querySelector(".copy-btn").onclick = function() { copyCard(this); };
+      container.appendChild(clone);
+      count++;
+    }
+  });
+
+  document.getElementById("results-count").textContent = "- " + count + " result" + (count !== 1 ? "s" : "");
+  if (count === 0) {
+    container.innerHTML = "<div class='empty-state'><h3>No matches found</h3><p>Try a different keyword — e.g. payment, FDA, sample.</p></div>";
+  }
+}
+</script>
+</body>
+</html>
