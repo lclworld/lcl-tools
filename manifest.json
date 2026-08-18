@@ -1,0 +1,9 @@
+{
+  "name": "LCL Inventory",
+  "short_name": "LCL Inventory",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FBF8EF",
+  "theme_color": "#17130F",
+  "icons": []
+}
