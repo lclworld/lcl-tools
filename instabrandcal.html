@@ -160,21 +160,21 @@
   <!-- PACKAGING -->
   <section class="panel no-print">
     <div class="panel-header" id="packHeader">
-      <div><h2 style="display:inline;">Packaging catalog</h2>
-      <span class="hint" style="margin-left:8px;">cost per unit, by fill volume — batch-independent</span></div>
+      <div><h2 style="display:inline;">Packaging cost catalog</h2>
+      <span class="hint" style="margin-left:8px;">fixed catalog of your real packaging — cost per unit by size, color has no price impact</span></div>
       <span class="chevron" id="packChevron">▶</span>
     </div>
     <div class="panel-body" id="packBody">
       <div style="height:14px;"></div>
       <div id="pack-list"></div>
-      <button class="link-btn" id="addPackBtn">+ Add packaging type</button>
     </div>
   </section>
   <section class="panel">
     <h2>Yield — units produced per batch size, by fill volume</h2>
     <div class="table-wrap"><table class="data" id="yieldTable"></table></div>
-    <p class="section-title">Packaging cost per unit — this product's fill volumes</p>
+    <p class="section-title">Packaging options for this product</p>
     <div class="table-wrap"><table class="data" id="packagingUnitTable"></table></div>
+    <p class="hint" id="customPackNote" style="display:none;margin-top:10px;">This product uses custom packaging — no catalog pricing applies. Note packaging details in the developer notes section below.</p>
   </section>
 
   <!-- BRANDING -->
@@ -191,9 +191,17 @@
       <div><label>Batch size</label><select id="sampleBatch"></select></div>
       <div><label>Fill volume</label><select id="sampleFill"></select></div>
       <div><label>Packaging type</label><select id="samplePack"></select></div>
+      <div><label>Color</label><select id="sampleColor"></select></div>
       <div><label>Branding</label><select id="sampleBrand"></select></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:12px;">
       <div><label>Exchange rate (GHS/USD)</label><input id="exchangeRate" type="number" placeholder="e.g. 15" /></div>
     </div>
+    <div style="margin-top:14px;">
+      <label>Add-ons this client is choosing <span class="hint" style="display:inline;text-transform:none;">(unchecked = not included — a real client rarely picks every add-on)</span></label>
+      <div id="sampleAddonChecks"></div>
+    </div>
+
     <div class="sample-result">
       <div class="amt" id="sampleTotal">GHS 0.00</div>
       <div class="sub" id="sampleSub">total production cost</div>
@@ -489,52 +497,88 @@ function loadExtras(){ try{ return JSON.parse(localStorage.getItem(EXTRA_KEY)) |
 loadExtras().forEach(d => extraList.appendChild(createExtraRow(d)));
 document.getElementById('addExtraBtn').addEventListener('click', () => extraList.appendChild(createExtraRow()));
 
-// ---------------- Packaging catalog (global) ----------------
-const ALL_FILL_KEYS = (() => {
-  const map = new Map();
-  Object.values(CATALOG).forEach(cat => cat.products.forEach(p => p.fillVolumes.forEach(v => map.set(v+p.unit, {value:v, unit:p.unit}))));
-  return Array.from(map.entries()).map(([k,v]) => ({key:k, value:v.value, unit:v.unit, label:v.value+' '+v.unit})).sort((a,b)=>a.value-b.value);
-})();
-const packList = document.getElementById('pack-list');
-const PACK_KEY = 'instabrand_be_packaging_v1';
-function createPackRow(data){
-  data = data || { name:'', prices:{} };
-  const row = document.createElement('div');
-  row.className = 'pack-row';
-  row.innerHTML = `
-    <div class="pack-row-top">
-      <input class="pk-name" placeholder="Packaging type e.g. Pump Bottle" value="${escapeAttr(data.name)}" />
-      <button class="icon-btn remove-pack" title="Remove">✕</button>
-    </div>
-    <div class="persize-grid"></div>
-  `;
-  row._prices = data.prices || {};
-  row.querySelector('.remove-pack').addEventListener('click', () => { row.remove(); persistPackaging(); renderAll(); });
-  row.querySelector('.pk-name').addEventListener('input', () => persistPackaging());
-  row.querySelector('.pk-name').addEventListener('change', () => { persistPackaging(); renderAll(); });
-  renderPackPriceFields(row);
-  return row;
+// ---------------- Packaging: fixed real catalog ----------------
+const PACKAGING_TYPES = {
+  'Plastic Jar':          { colors:['Transparent','Amber','Black','White'], sizes:[30,50,100,250,500], unit:'ml' },
+  'Squeeze Tube':         { colors:['White','Black'], sizes:[50,100,250,500], unit:'ml' },
+  'Disc Cap Bottle':      { colors:['Transparent','Amber','Black','White'], sizes:[50,250,500], unit:'ml' },
+  'Pump Cap Bottle':      { colors:['Transparent','Amber','Black','White'], sizes:[50,250,500], unit:'ml' },
+  'Flip Cap Bottle':      { colors:['Transparent','Amber','Black','White'], sizes:[50,100,250,500], unit:'ml' },
+  'Glass Dropper Bottle': { colors:['Transparent','Frosted','Amber','Black'], sizes:[30,50,100], unit:'ml' },
+  'Glass Jar':            { colors:['Clear/White cover','Clear/Black cover','Frosted/White cover','Frosted/Black cover'], sizes:[30,50], unit:'ml' },
+  'Spray Bottle':         { colors:['Transparent/White cap','Transparent/Black cap','Black/White cap','Black/Black cap','Amber/White cap','Amber/Black cap'], sizes:[50,100], unit:'ml' },
+  'Lip Balm Tube':        { colors:['Transparent','Black','White'], sizes:[5], unit:'g' },
+  'Mini Jar':             { colors:['White','Black','Pink','Clear'], sizes:[5,10,15], unit:'g' },
+};
+const OWN_PACKAGING = 'Supply my own packaging';
+
+// product name -> [{type, sizes:[...]}] ; isCustom products get free-text packaging instead
+const PRODUCT_PACKAGING = {
+  'Hand & Body Wash Gel': [ {type:'Squeeze Tube', sizes:[50,100,250,500]}, {type:'Disc Cap Bottle', sizes:[250,500]}, {type:'Pump Cap Bottle', sizes:[250,500]}, {type:'Flip Cap Bottle', sizes:[100,250,500]} ],
+  'Hand & Body Lotion':   [ {type:'Squeeze Tube', sizes:[50,100,250,500]}, {type:'Disc Cap Bottle', sizes:[250,500]}, {type:'Pump Cap Bottle', sizes:[250,500]}, {type:'Flip Cap Bottle', sizes:[100,250,500]} ],
+  'Hand & Body Scrub':    [ {type:'Plastic Jar', sizes:[100,250,500]} ],
+  'Body Butter':          [ {type:'Plastic Jar', sizes:[100,250,500]} ],
+  'Body Oil':             [ {type:'Disc Cap Bottle', sizes:[250,500]}, {type:'Pump Cap Bottle', sizes:[250,500]}, {type:'Flip Cap Bottle', sizes:[100,250,500]}, {type:'Glass Dropper Bottle', sizes:[50,100]} ],
+  'Conditioner':          [ {type:'Squeeze Tube', sizes:[50,100,250,500]}, {type:'Disc Cap Bottle', sizes:[250,500]}, {type:'Pump Cap Bottle', sizes:[250,500]}, {type:'Flip Cap Bottle', sizes:[100,250,500]} ],
+  'Shampoo':              [ {type:'Squeeze Tube', sizes:[50,100,250,500]}, {type:'Disc Cap Bottle', sizes:[250,500]}, {type:'Pump Cap Bottle', sizes:[250,500]}, {type:'Flip Cap Bottle', sizes:[100,250,500]} ],
+  'Hair Mask':            [ {type:'Plastic Jar', sizes:[100,250,500]} ],
+  'Hair Oil':             [ {type:'Disc Cap Bottle', sizes:[250,500]}, {type:'Pump Cap Bottle', sizes:[250,500]}, {type:'Flip Cap Bottle', sizes:[100,250,500]}, {type:'Glass Dropper Bottle', sizes:[50,100]} ],
+  'Cleanser':             [ {type:'Squeeze Tube', sizes:[50,100,250]}, {type:'Disc Cap Bottle', sizes:[50,250]}, {type:'Pump Cap Bottle', sizes:[50,250]}, {type:'Flip Cap Bottle', sizes:[50,100,250]}, {type:'Spray Bottle', sizes:[50,100]} ],
+  'Toner':                [ {type:'Disc Cap Bottle', sizes:[50,250]}, {type:'Pump Cap Bottle', sizes:[50,250]}, {type:'Flip Cap Bottle', sizes:[50,100,250]}, {type:'Spray Bottle', sizes:[50,100]} ],
+  'Serum':                [ {type:'Glass Dropper Bottle', sizes:[30,50,100]} ],
+  'Moisturizer':          [ {type:'Plastic Jar', sizes:[30,50,100]}, {type:'Glass Jar', sizes:[30,50]} ],
+  'Lip Gloss':            { isCustom:true },
+  'Lip Balm (Tube)':      [ {type:'Lip Balm Tube', sizes:[5]}, {type:'Mini Jar', sizes:[5]} ],
+  'Glossy Balm':          { isCustom:true },
+  'Lip Scrub':            [ {type:'Mini Jar', sizes:[5,10,15]} ],
+};
+
+function productPackagingOptions(product){
+  const entry = PRODUCT_PACKAGING[product.name];
+  if(!entry || entry.isCustom) return { isCustom:true };
+  // include "supply my own" at every size the product itself offers
+  const own = { type: OWN_PACKAGING, sizes: [...product.fillVolumes] };
+  return { isCustom:false, options:[...entry, own] };
 }
-function renderPackPriceFields(row){
-  const grid = row.querySelector('.persize-grid');
-  grid.innerHTML = '';
-  ALL_FILL_KEYS.forEach(fk => {
-    const field = document.createElement('div');
-    field.className = 'persize-field';
-    const val = row._prices[fk.key] != null ? row._prices[fk.key] : '';
-    field.innerHTML = `<label>${fk.label}</label><input type="number" value="${escapeAttr(val)}" />`;
-    field.querySelector('input').addEventListener('input', (e) => { row._prices[fk.key] = e.target.value; persistPackaging(); });
-    field.querySelector('input').addEventListener('change', () => renderAll());
-    grid.appendChild(field);
+
+// Packaging costs: keyed by packagingType|size+unit, global, editable
+const PACK_COST_KEY = 'instabrand_be_packagingcosts_v1';
+function loadPackCosts(){ try{ return JSON.parse(localStorage.getItem(PACK_COST_KEY)) || {}; }catch(e){ return {}; } }
+function savePackCosts(store){ localStorage.setItem(PACK_COST_KEY, JSON.stringify(store)); }
+function packCostKey(type, size, unit){ return type + '|' + size + unit; }
+function getPackCost(type, size, unit){
+  if(type === OWN_PACKAGING) return 0;
+  const store = loadPackCosts();
+  return Number(store[packCostKey(type,size,unit)]) || 0;
+}
+function setPackCost(type, size, unit, value){
+  const store = loadPackCosts();
+  store[packCostKey(type,size,unit)] = value;
+  savePackCosts(store);
+}
+
+const packList = document.getElementById('pack-list');
+function renderPackagingCostCatalog(){
+  packList.innerHTML = '';
+  Object.entries(PACKAGING_TYPES).forEach(([name, def]) => {
+    const row = document.createElement('div');
+    row.className = 'pack-row';
+    const colorNote = def.colors.join(' / ');
+    row.innerHTML = `<div class="pack-row-top"><div style="flex:1;"><strong>${name}</strong><div class="hint" style="margin:2px 0 0;">${colorNote}</div></div></div><div class="persize-grid"></div>`;
+    const grid = row.querySelector('.persize-grid');
+    def.sizes.forEach(size => {
+      const field = document.createElement('div');
+      field.className = 'persize-field';
+      const val = getPackCost(name, size, def.unit);
+      field.innerHTML = `<label>${size}${def.unit}</label><input type="number" value="${val || ''}" placeholder="0" />`;
+      field.querySelector('input').addEventListener('input', (e) => setPackCost(name, size, def.unit, e.target.value));
+      field.querySelector('input').addEventListener('change', () => renderAll());
+      grid.appendChild(field);
+    });
+    packList.appendChild(row);
   });
 }
-function readPackaging(){
-  return Array.from(packList.querySelectorAll('.pack-row')).map(row => ({ name: row.querySelector('.pk-name').value, prices: row._prices || {} })).filter(x => x.name);
-}
-function persistPackaging(){ try{ localStorage.setItem(PACK_KEY, JSON.stringify(readPackaging())); }catch(e){} }
-function loadPackaging(){ try{ return JSON.parse(localStorage.getItem(PACK_KEY)) || []; }catch(e){ return []; } }
-loadPackaging().forEach(d => packList.appendChild(createPackRow(d)));
-document.getElementById('addPackBtn').addEventListener('click', () => { packList.appendChild(createPackRow()); persistPackaging(); });
+renderPackagingCostCatalog();
 
 function collapsible(headerId, bodyId, chevronId){
   const header = document.getElementById(headerId), body = document.getElementById(bodyId), chevron = document.getElementById(chevronId);
@@ -663,7 +707,7 @@ function renderExtraTable(){
   document.getElementById('extraTable').innerHTML = html;
 }
 
-// ---------------- Render: yield + packaging unit cost tables ----------------
+// ---------------- Render: yield + packaging options tables ----------------
 function renderYieldAndPackagingTables(){
   const product = currentProduct();
   const sizes = currentBatchSizes();
@@ -673,16 +717,22 @@ function renderYieldAndPackagingTables(){
   });
   document.getElementById('yieldTable').innerHTML = yh;
 
-  const packaging = readPackaging();
-  let ph = '<tr><th>Packaging type</th>' + product.fillVolumes.map(v => `<th>${v} ${product.unit}</th>`).join('') + '</tr>';
-  if(packaging.length === 0){
-    ph += `<tr><td colspan="${product.fillVolumes.length+1}" style="color:#a39a89;">No packaging types added yet.</td></tr>`;
+  const packOpts = productPackagingOptions(product);
+  const noteEl = document.getElementById('customPackNote');
+  if(packOpts.isCustom){
+    document.getElementById('packagingUnitTable').innerHTML = '';
+    noteEl.style.display = 'block';
   } else {
-    packaging.forEach(p => {
-      ph += `<tr><td>${p.name}</td>` + product.fillVolumes.map(v => `<td>${fmtGHS(Number(p.prices[v+product.unit])||0)}</td>`).join('') + '</tr>';
+    noteEl.style.display = 'none';
+    let ph = '<tr><th>Packaging type</th><th>Colors</th><th>Available sizes &amp; cost/unit</th></tr>';
+    packOpts.options.forEach(opt => {
+      const def = PACKAGING_TYPES[opt.type];
+      const colorText = opt.type === OWN_PACKAGING ? '—' : def.colors.join(' / ');
+      const sizesText = opt.sizes.map(s => `${s}${product.unit}: ${fmtGHS(getPackCost(opt.type, s, product.unit))}`).join(', ');
+      ph += `<tr><td>${opt.type}</td><td>${colorText}</td><td>${sizesText}</td></tr>`;
     });
+    document.getElementById('packagingUnitTable').innerHTML = ph;
   }
-  document.getElementById('packagingUnitTable').innerHTML = ph;
 }
 
 // ---------------- Sample calculation selects ----------------
@@ -691,18 +741,71 @@ function populateSampleSelects(){
   const sizes = currentBatchSizes();
   const batchSel = document.getElementById('sampleBatch');
   batchSel.innerHTML = sizes.map(s => `<option value="${s}">${s} L</option>`).join('');
-  const fillSel = document.getElementById('sampleFill');
-  fillSel.innerHTML = product.fillVolumes.map(v => `<option value="${v}">${v} ${product.unit}</option>`).join('');
+
+  const packOpts = productPackagingOptions(product);
   const packSel = document.getElementById('samplePack');
-  const packaging = readPackaging();
-  packSel.innerHTML = packaging.length ? packaging.map(p => `<option value="${p.name}">${p.name}</option>`).join('') : '<option value="">— none added —</option>';
+  const fillSel = document.getElementById('sampleFill');
+  const colorSel = document.getElementById('sampleColor');
+
+  if(packOpts.isCustom){
+    packSel.innerHTML = '<option value="">Custom (see developer notes)</option>';
+    packSel.disabled = true;
+    fillSel.innerHTML = product.fillVolumes.map(v => `<option value="${v}">${v} ${product.unit}</option>`).join('');
+    colorSel.innerHTML = '<option value="">—</option>';
+    colorSel.disabled = true;
+  } else {
+    packSel.disabled = false;
+    packSel.innerHTML = packOpts.options.map(o => `<option value="${o.type}">${o.type}</option>`).join('');
+    updateSampleFillAndColor();
+  }
+
   const brandSel = document.getElementById('sampleBrand');
   brandSel.innerHTML = BRAND_OPTIONS.map(b => `<option value="${b}">${b}</option>`).join('');
+
+  renderSampleAddonChecks();
+}
+
+function updateSampleFillAndColor(){
+  const product = currentProduct();
+  const packOpts = productPackagingOptions(product);
+  if(packOpts.isCustom) return;
+  const selectedType = document.getElementById('samplePack').value;
+  const opt = packOpts.options.find(o => o.type === selectedType) || packOpts.options[0];
+  const fillSel = document.getElementById('sampleFill');
+  fillSel.innerHTML = (opt ? opt.sizes : product.fillVolumes).map(v => `<option value="${v}">${v} ${product.unit}</option>`).join('');
+  const colorSel = document.getElementById('sampleColor');
+  colorSel.disabled = false;
+  if(opt && opt.type === OWN_PACKAGING){
+    colorSel.innerHTML = '<option value="">—</option>';
+    colorSel.disabled = true;
+  } else {
+    const colors = opt ? PACKAGING_TYPES[opt.type].colors : [];
+    colorSel.innerHTML = colors.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+}
+document.getElementById('samplePack').addEventListener('change', () => { updateSampleFillAndColor(); renderSample(); });
+
+function renderSampleAddonChecks(){
+  const extras = readExtras();
+  const container = document.getElementById('sampleAddonChecks');
+  container.innerHTML = '';
+  if(extras.length === 0){
+    container.innerHTML = '<p class="hint">No add-ons defined yet.</p>';
+    return;
+  }
+  extras.forEach(ex => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin:0 14px 8px 0;font-size:12.8px;';
+    label.innerHTML = `<input type="checkbox" class="sample-addon-check" data-name="${escapeAttr(ex.name)}" style="width:auto;" /> ${ex.name}`;
+    label.querySelector('input').addEventListener('change', renderSample);
+    container.appendChild(label);
+  });
 }
 
 function renderSample(){
   const cfg = refConfig();
   const product = currentProduct();
+  const packOpts = productPackagingOptions(product);
   const batchSize = Number(document.getElementById('sampleBatch').value) || currentBatchSizes()[0];
   const fillVolume = Number(document.getElementById('sampleFill').value) || product.fillVolumes[0];
   const packName = document.getElementById('samplePack').value;
@@ -710,13 +813,13 @@ function renderSample(){
   const rate = Number(exchangeRateEl.value) || 0;
 
   const base = basePriceAt(batchSize, cfg);
-  const extras = readExtras();
+
+  const selectedNames = Array.from(document.querySelectorAll('.sample-addon-check:checked')).map(el => el.dataset.name);
+  const extras = readExtras().filter(ex => selectedNames.includes(ex.name));
   const extrasTotal = extras.reduce((s,ex) => s + ex.refCost * (batchSize/ex.refBatch), 0);
 
   const yieldUnits = (batchSize*1000) / fillVolume;
-  const packaging = readPackaging();
-  const selectedPack = packaging.find(p => p.name === packName);
-  const packagingPerUnit = selectedPack ? (Number(selectedPack.prices[fillVolume+product.unit]) || 0) : 0;
+  const packagingPerUnit = packOpts.isCustom ? 0 : getPackCost(packName, fillVolume, product.unit);
   const packagingTotal = packagingPerUnit * yieldUnits;
 
   const brandPrices = loadBranding();
@@ -752,7 +855,7 @@ function renderAll(){
   el.addEventListener('input', persistCurrentProductRef);
   el.addEventListener('change', () => { persistCurrentProductRef(); renderAll(); });
 });
-['sampleBatch','sampleFill','samplePack','sampleBrand'].forEach(id => {
+['sampleBatch','sampleFill','sampleColor','sampleBrand'].forEach(id => {
   document.getElementById(id).addEventListener('change', renderSample);
 });
 
