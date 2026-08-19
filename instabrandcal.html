@@ -35,7 +35,7 @@
   .link-btn{background:none;border:none;color:var(--orange);font-weight:600;font-size:13px;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:4px;}
   .icon-btn{background:none;border:none;cursor:pointer;color:#b4a99a;font-size:15px;display:flex;align-items:center;justify-content:center;padding:4px;flex-shrink:0;}
   .icon-btn:hover{color:#d1453b;}
-  .extra-row{display:grid;grid-template-columns:2fr 1fr 1fr 30px;gap:8px;align-items:center;margin-bottom:8px;}
+  .extra-row{display:grid;grid-template-columns:1.6fr 1.6fr 1fr 1fr 30px;gap:8px;align-items:center;margin-bottom:8px;}
   .pack-row{border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fffdf9;}
   .pack-row-top{display:flex;gap:8px;align-items:center;}
   .pack-row-top input{flex:1;}
@@ -73,10 +73,29 @@
     body{background:#fff;}
     .panel{box-shadow:none;}
   }
+
+  /* Developer notes document */
+  .subfield-group{margin-bottom:16px;}
+  .subfield-title{font-size:12px;font-weight:700;color:var(--brown);text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px;}
+  textarea{width:100%;padding:8px 10px;border:1px solid #d7d0c2;border-radius:8px;font-size:13.5px;font-family:inherit;resize:vertical;min-height:60px;}
+  #devNotesDoc{display:none;}
+  body.show-devnotes-print #mainCalculator{display:none !important;}
+  body.show-devnotes-print #devNotesDoc{display:block !important;}
+  .doc-page{max-width:760px;margin:0 auto;background:#fff;padding:10px;}
+  .doc-h1{font-size:20px;font-weight:800;color:var(--brown);margin:0 0 2px;}
+  .doc-sub{font-size:12px;color:#a39a89;margin:0 0 20px;}
+  .doc-section{margin-bottom:20px;}
+  .doc-section-title{font-size:13px;font-weight:800;color:#fff;background:var(--brown);padding:6px 10px;border-radius:6px;margin:0 0 10px;}
+  .doc-row{display:flex;gap:6px;font-size:13px;padding:4px 0;border-bottom:1px solid #f0ece1;}
+  .doc-row .k{color:#8a8072;min-width:200px;flex-shrink:0;}
+  .doc-row .v{color:#2b2620;font-weight:600;}
+  .doc-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
+  .doc-table th{background:var(--cream);text-align:left;padding:6px 8px;font-size:10.5px;text-transform:uppercase;color:#8a8072;}
+  .doc-table td{padding:6px 8px;border-top:1px solid #f0ece1;}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="mainCalculator">
 
   <header>
     <div class="logo">L</div>
@@ -183,9 +202,125 @@
     </div>
   </section>
 
+  <!-- ADDITIONAL DETAILS FOR DEVELOPER NOTES -->
+  <section class="panel no-print">
+    <div class="panel-header" id="devHeader">
+      <div><h2 style="display:inline;">Additional details for developer notes</h2>
+      <span class="hint" style="margin-left:8px;">only needed for the PDF handoff doc — not used in the pricing tables above</span></div>
+      <span class="chevron" id="devChevron">▶</span>
+    </div>
+    <div class="panel-body" id="devBody">
+      <div style="height:14px;"></div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Product</p>
+        <div class="grid grid-2">
+          <div><label>Product type</label><input id="devProductType" placeholder="e.g. Emulsion, Serum" /></div>
+          <div><label>Target user</label><input id="devTargetUser" /></div>
+        </div>
+        <div class="grid grid-2" style="margin-top:12px;">
+          <div><label>Brief description (optional)</label><textarea id="devDescription"></textarea></div>
+          <div><label>Key benefits (optional)</label><textarea id="devBenefits"></textarea></div>
+        </div>
+      </div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Ingredients</p>
+        <label>Full INCI list — comma separated</label>
+        <textarea id="devIngredients" placeholder="Aqua, Glycerin, Cetearyl Alcohol, ..."></textarea>
+        <div class="grid grid-4" style="margin-top:12px;">
+          <div><label>Fragrance / flavor</label><input id="devFragrance" /></div>
+          <div><label>Colour</label><input id="devColour" /></div>
+          <div><label>Preservative system</label><input id="devPreservative" /></div>
+          <div><label>Other notes</label><input id="devIngredientNotes" /></div>
+        </div>
+      </div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Add-on notes</p>
+        <label>Minimum quantity, compatibility, extra processing, etc. (optional)</label>
+        <textarea id="devAddonNotes"></textarea>
+      </div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Packaging &amp; branding detail</p>
+        <div class="grid grid-3">
+          <div><label>Packaging material</label><input id="devPackagingMaterial" placeholder="e.g. PET plastic" /></div>
+          <div><label>Label type</label><input id="devLabelType" /></div>
+          <div><label>Label size</label><input id="devLabelSize" /></div>
+        </div>
+        <div class="grid grid-2" style="margin-top:12px;">
+          <div><label>Label material</label><input id="devLabelMaterial" /></div>
+          <div><label>Packaging notes</label><input id="devPackagingNotes" /></div>
+        </div>
+      </div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Production notes</p>
+        <div class="grid grid-3">
+          <div><label>Manufacturing time</label><input id="devMfgTime" /></div>
+          <div><label>Filling / packaging requirements</label><input id="devFillingReq" /></div>
+          <div><label>Storage requirements</label><input id="devStorage" /></div>
+        </div>
+        <div class="grid grid-2" style="margin-top:12px;">
+          <div><label>Shelf life</label><input id="devShelfLife" /></div>
+          <div><label>Special production instructions</label><input id="devSpecialInstructions" /></div>
+        </div>
+      </div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Regulatory &amp; quality</p>
+        <div class="grid grid-3">
+          <div><label>FDA status</label><input id="devFDAStatus" /></div>
+          <div><label>Product registration required</label>
+            <select id="devRegRequired"><option value="">—</option><option value="Yes">Yes</option><option value="No">No</option></select>
+          </div>
+          <div><label>Required testing</label><input id="devRequiredTesting" /></div>
+        </div>
+        <div class="grid grid-3" style="margin-top:12px;">
+          <div><label>Stability testing</label><input id="devStabilityTesting" /></div>
+          <div><label>Microbiological testing</label><input id="devMicroTesting" /></div>
+          <div><label>Other regulatory notes</label><input id="devRegNotes" /></div>
+        </div>
+      </div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Status</p>
+        <div class="grid grid-4">
+          <div><label>Development status</label>
+            <select id="devStatus">
+              <option value="Concept">Concept</option>
+              <option value="Formulating">Formulating</option>
+              <option value="Sample Ready">Sample Ready</option>
+              <option value="Approved">Approved</option>
+              <option value="In Production">In Production</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+          <div><label>Formula version</label><input id="devFormulaVersion" /></div>
+          <div><label>Date created</label><input id="devDateCreated" type="date" /></div>
+          <div><label>Last updated</label><input id="devDateUpdated" type="date" /></div>
+        </div>
+      </div>
+
+      <div class="subfield-group">
+        <p class="subfield-title">Pricing notes</p>
+        <div class="grid grid-3">
+          <div><label>Recommended wholesale price (GHS)</label><input id="devWholesale" type="number" /></div>
+          <div><label>Recommended retail price (GHS)</label><input id="devRetail" type="number" /></div>
+          <div><label>Minimum order quantity</label><input id="devMOQ" /></div>
+        </div>
+        <div style="margin-top:12px;"><label>Price notes</label><textarea id="devPriceNotes"></textarea></div>
+      </div>
+
+      <div style="margin-top:4px;"><label>Additional notes</label><textarea id="devAdditionalNotes"></textarea></div>
+    </div>
+  </section>
+
   <div class="actions no-print">
     <button class="btn btn-primary" id="saveHistoryBtn">💾 Save to history</button>
     <button class="btn btn-accent" id="printBtn">🖨 Print / Save as PDF</button>
+    <button class="btn btn-outline" id="genDevNotesBtn">🗂 Generate developer notes (PDF)</button>
     <button class="btn btn-outline" id="historyToggleBtn">🕐 History (<span id="historyCount">0</span>)</button>
     <span class="status" id="statusMsg"></span>
   </div>
@@ -195,6 +330,14 @@
     <div id="historyList"></div>
   </section>
 
+</div>
+
+<div id="devNotesDoc">
+  <div class="doc-page">
+    <div class="doc-h1" id="docTitle"></div>
+    <div class="doc-sub" id="docSub"></div>
+    <div id="docBody"></div>
+  </div>
 </div>
 
 <script>
@@ -319,11 +462,12 @@ loadCurrentProductRef();
 const extraList = document.getElementById('extra-list');
 const EXTRA_KEY = 'instabrand_be_extras_v1';
 function createExtraRow(data){
-  data = data || { name:'', refBatch:5, refCost:0 };
+  data = data || { name:'', purpose:'', refBatch:5, refCost:0 };
   const row = document.createElement('div');
   row.className = 'extra-row';
   row.innerHTML = `
     <input class="ex-name" placeholder="Ingredient name" value="${escapeAttr(data.name)}" />
+    <input class="ex-purpose" placeholder="Purpose/benefit (optional)" value="${escapeAttr(data.purpose||'')}" />
     <input class="ex-refbatch" type="number" step="0.1" placeholder="Ref batch (L)" value="${escapeAttr(data.refBatch)}" />
     <input class="ex-refcost" type="number" placeholder="Cost at that batch (GHS)" value="${escapeAttr(data.refCost)}" />
     <button class="icon-btn remove-extra" title="Remove">✕</button>
@@ -335,6 +479,7 @@ function createExtraRow(data){
 function readExtras(){
   return Array.from(extraList.querySelectorAll('.extra-row')).map(row => ({
     name: row.querySelector('.ex-name').value,
+    purpose: row.querySelector('.ex-purpose').value,
     refBatch: Number(row.querySelector('.ex-refbatch').value) || 1,
     refCost: Number(row.querySelector('.ex-refcost').value) || 0,
   })).filter(x => x.name);
@@ -397,6 +542,37 @@ function collapsible(headerId, bodyId, chevronId){
 }
 collapsible('extraHeader','extraBody','extraChevron');
 collapsible('packHeader','packBody','packChevron');
+collapsible('devHeader','devBody','devChevron');
+
+// ---------------- Developer notes fields (persisted per product) ----------------
+const DEV_FIELD_IDS = ['devProductType','devTargetUser','devDescription','devBenefits','devIngredients',
+  'devFragrance','devColour','devPreservative','devIngredientNotes','devAddonNotes',
+  'devPackagingMaterial','devLabelType','devLabelSize','devLabelMaterial','devPackagingNotes',
+  'devMfgTime','devFillingReq','devStorage','devShelfLife','devSpecialInstructions',
+  'devFDAStatus','devRegRequired','devRequiredTesting','devStabilityTesting','devMicroTesting','devRegNotes',
+  'devStatus','devFormulaVersion','devDateCreated','devDateUpdated',
+  'devWholesale','devRetail','devMOQ','devPriceNotes','devAdditionalNotes'];
+const DEV_NOTES_KEY = 'instabrand_be_devnotes_v1';
+function loadDevNotesStore(){ try{ return JSON.parse(localStorage.getItem(DEV_NOTES_KEY)) || {}; }catch(e){ return {}; } }
+function saveDevNotesStore(store){ localStorage.setItem(DEV_NOTES_KEY, JSON.stringify(store)); }
+function loadCurrentDevNotes(){
+  const store = loadDevNotesStore();
+  const data = store[productKey()] || {};
+  DEV_FIELD_IDS.forEach(id => { document.getElementById(id).value = data[id] || ''; });
+}
+function persistCurrentDevNotes(){
+  const store = loadDevNotesStore();
+  const data = {};
+  DEV_FIELD_IDS.forEach(id => { data[id] = document.getElementById(id).value; });
+  store[productKey()] = data;
+  saveDevNotesStore(store);
+}
+DEV_FIELD_IDS.forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', persistCurrentDevNotes);
+  el.addEventListener('change', persistCurrentDevNotes);
+});
+loadCurrentDevNotes();
 
 // ---------------- Branding (global) ----------------
 const BRAND_KEY = 'instabrand_be_branding_v1';
@@ -560,6 +736,7 @@ function renderSample(){
 function onProductChange(){
   populateRefBatchSelect();
   populateSampleSelects();
+  loadCurrentDevNotes();
   renderAll();
 }
 function renderAll(){
@@ -640,6 +817,129 @@ document.getElementById('historyToggleBtn').addEventListener('click', () => {
   if(panel.style.display === 'block') refreshHistoryUI();
 });
 document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+// ---------------- Developer notes document ----------------
+function dv(id){ return document.getElementById(id).value || ''; }
+function docRow(label, value){ return value ? `<div class="doc-row"><div class="k">${label}</div><div class="v">${value}</div></div>` : ''; }
+
+function buildDevNotesDoc(){
+  const product = currentProduct();
+  const cfg = refConfig();
+  const sizes = currentBatchSizes();
+
+  document.getElementById('docTitle').textContent = product.name;
+  document.getElementById('docSub').textContent = `${categorySelect.value} — Product Development & Pricing Sheet — Generated ${new Date().toLocaleDateString()}`;
+
+  let html = '';
+
+  html += `<div class="doc-section"><div class="doc-section-title">1–2. Category &amp; Product Information</div>`;
+  html += docRow('Category', categorySelect.value);
+  html += docRow('Product name', product.name);
+  html += docRow('Product type', dv('devProductType'));
+  html += docRow('Target user', dv('devTargetUser'));
+  html += docRow('Description', dv('devDescription'));
+  html += docRow('Key benefits', dv('devBenefits'));
+  html += `</div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">3. Ingredients</div>`;
+  html += docRow('INCI list', dv('devIngredients'));
+  html += docRow('Fragrance / flavor', dv('devFragrance'));
+  html += docRow('Colour', dv('devColour'));
+  html += docRow('Preservative system', dv('devPreservative'));
+  html += docRow('Other notes', dv('devIngredientNotes'));
+  html += `</div>`;
+
+  const extras = readExtras();
+  html += `<div class="doc-section"><div class="doc-section-title">4. Available Add-Ons</div>`;
+  if(extras.length){
+    html += `<table class="doc-table"><tr><th>Add-on</th><th>Purpose/Benefit</th><th>Reference cost</th></tr>`;
+    extras.forEach(ex => {
+      html += `<tr><td>${ex.name}</td><td>${ex.purpose||'—'}</td><td>${fmtGHS(ex.refCost)} at ${ex.refBatch} L (scales with batch size)</td></tr>`;
+    });
+    html += `</table>`;
+  } else {
+    html += `<p style="font-size:12.5px;color:#a39a89;">No add-ons defined.</p>`;
+  }
+  html += docRow('Add-on notes', dv('devAddonNotes'));
+  html += `</div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">5. Reference Batch &amp; Base Cost</div>`;
+  html += docRow('Available batch sizes', sizes.map(s => s+' L').join(', '));
+  html += docRow('Reference batch size', cfg.refBatch + ' L');
+  html += docRow('Ingredient cost at reference', fmtGHS(cfg.refIngredientCost));
+  html += docRow('Labor cost at reference', fmtGHS(cfg.refLaborCost));
+  html += docRow('Overage %', cfg.overagePct + '%');
+  html += `<table class="doc-table"><tr><th>Batch size</th>${sizes.map(s=>`<th>${s} L</th>`).join('')}</tr>`;
+  html += `<tr><td>Markup %</td>${sizes.map((s,i)=>`<td>${cfg.markups[i]}%</td>`).join('')}</tr></table>`;
+  html += `</div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">6. Packaging</div>`;
+  html += docRow('Packaging material', dv('devPackagingMaterial'));
+  html += docRow('Available fill volumes', product.fillVolumes.map(v => v+product.unit).join(', '));
+  const packaging = readPackaging();
+  if(packaging.length){
+    html += `<table class="doc-table"><tr><th>Packaging type</th>${product.fillVolumes.map(v=>`<th>${v}${product.unit}</th>`).join('')}</tr>`;
+    packaging.forEach(p => {
+      html += `<tr><td>${p.name}</td>${product.fillVolumes.map(v=>`<td>${fmtGHS(Number(p.prices[v+product.unit])||0)}/unit</td>`).join('')}</tr>`;
+    });
+    html += `</table>`;
+  }
+  html += docRow('Packaging notes', dv('devPackagingNotes'));
+  html += `</div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">7. Branding &amp; Labeling</div>`;
+  html += docRow('Label type', dv('devLabelType'));
+  html += docRow('Label size', dv('devLabelSize'));
+  html += docRow('Label material', dv('devLabelMaterial'));
+  const brandPrices = loadBranding();
+  html += `<table class="doc-table"><tr><th>Option</th><th>Cost per unit</th></tr>`;
+  [...BRAND_OPTIONS,'Individual boxing'].forEach(name => {
+    html += `<tr><td>${name}</td><td>${fmtGHS(Number(brandPrices[name])||0)}</td></tr>`;
+  });
+  html += `</table></div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">8. Production Notes</div>`;
+  html += docRow('Manufacturing time', dv('devMfgTime'));
+  html += docRow('Filling/packaging requirements', dv('devFillingReq'));
+  html += docRow('Storage requirements', dv('devStorage'));
+  html += docRow('Shelf life', dv('devShelfLife'));
+  html += docRow('Special production instructions', dv('devSpecialInstructions'));
+  html += `</div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">9. Regulatory &amp; Quality Notes</div>`;
+  html += docRow('FDA status', dv('devFDAStatus'));
+  html += docRow('Product registration required', dv('devRegRequired'));
+  html += docRow('Required testing', dv('devRequiredTesting'));
+  html += docRow('Stability testing', dv('devStabilityTesting'));
+  html += docRow('Microbiological testing', dv('devMicroTesting'));
+  html += docRow('Other regulatory notes', dv('devRegNotes'));
+  html += `</div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">10. Pricing Notes</div>`;
+  html += docRow('Recommended wholesale price', dv('devWholesale') ? fmtGHS(Number(dv('devWholesale'))) : '');
+  html += docRow('Recommended retail price', dv('devRetail') ? fmtGHS(Number(dv('devRetail'))) : '');
+  html += docRow('Minimum order quantity', dv('devMOQ'));
+  html += docRow('Price notes', dv('devPriceNotes'));
+  html += `<p style="font-size:11.5px;color:#a39a89;font-style:italic;margin-top:8px;">Full batch-size price matrix is provided separately via the InstaBrand Pricing Data Generator output.</p>`;
+  html += `</div>`;
+
+  html += `<div class="doc-section"><div class="doc-section-title">11. Status</div>`;
+  html += docRow('Development status', dv('devStatus'));
+  html += docRow('Formula version', dv('devFormulaVersion'));
+  html += docRow('Date created', dv('devDateCreated'));
+  html += docRow('Last updated', dv('devDateUpdated'));
+  html += docRow('Additional notes', dv('devAdditionalNotes'));
+  html += `</div>`;
+
+  document.getElementById('docBody').innerHTML = html;
+}
+
+document.getElementById('genDevNotesBtn').addEventListener('click', () => {
+  buildDevNotesDoc();
+  document.body.classList.add('show-devnotes-print');
+  window.print();
+});
+window.addEventListener('afterprint', () => { document.body.classList.remove('show-devnotes-print'); });
 
 refreshHistoryUI();
 </script>
