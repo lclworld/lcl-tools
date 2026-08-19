@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>InstaBrand Batch Pricing Calculator — LCL</title>
+<title>InstaBrand Pricing Data Generator — LCL</title>
 <style>
   :root{ --orange:#FF914D; --cream:#FBF8EF; --yellow:#FFDE59; --brown:#5B4239; --border:#e5e0d5; }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--cream);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#2b2620;}
-  .wrap{max-width:1020px;margin:0 auto;padding:32px 20px 80px;}
+  .wrap{max-width:1100px;margin:0 auto;padding:32px 20px 80px;}
   header{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
   .logo{width:36px;height:36px;border-radius:50%;background:var(--orange);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;}
   h1{font-size:22px;margin:0;color:var(--brown);}
@@ -16,7 +16,6 @@
   .panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,0.03);}
   .panel h2{font-size:15px;margin:0 0 4px;color:#3a342c;}
   .panel .hint{font-size:12px;color:#a39a89;margin:0 0 14px;}
-  .step-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--orange);color:#fff;font-size:11px;font-weight:700;margin-right:8px;}
   label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:#a39a89;margin-bottom:4px;}
   input,select{width:100%;padding:8px 10px;border:1px solid #d7d0c2;border-radius:8px;font-size:13.5px;background:#fff;color:#2b2620;}
   input:focus,select:focus{outline:2px solid var(--orange);outline-offset:1px;}
@@ -24,7 +23,8 @@
   .grid-2{grid-template-columns:repeat(2,1fr);}
   .grid-3{grid-template-columns:repeat(3,1fr);}
   .grid-4{grid-template-columns:repeat(4,1fr);}
-  @media (max-width:700px){ .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;} }
+  .grid-5{grid-template-columns:repeat(5,1fr);}
+  @media (max-width:800px){ .grid-2,.grid-3,.grid-4,.grid-5{grid-template-columns:1fr 1fr;} }
   .row-inline{display:flex;gap:6px;}
   .row-inline select{width:80px;flex-shrink:0;}
   .panel-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
@@ -43,23 +43,17 @@
   .persize-field{display:flex;flex-direction:column;gap:2px;}
   .persize-field label{font-size:10px;margin:0;}
   .persize-field input{width:70px;padding:5px 7px;font-size:12.5px;}
-  .brand-options{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
-  .brand-opt{border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;}
-  .brand-opt.selected{border-color:var(--orange);background:#FFF4EC;}
-  .brand-opt input[type=radio]{width:auto;}
-  .brand-opt .bo-price{width:80px;margin-left:auto;}
-  .box-toggle{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
-  .box-toggle input[type=checkbox]{width:auto;}
-  .box-toggle .bo-price{width:100px;}
-  .base-price-card{background:linear-gradient(135deg,#FFF4EC,#FBF8EF);border:1px solid var(--border);border-radius:12px;padding:16px 18px;text-align:center;margin-top:8px;}
-  .base-price-card .amt{font-size:26px;font-weight:800;color:var(--brown);}
-  .base-price-card .sub{font-size:12px;color:#a39a89;margin-top:2px;}
-  .summary-table{width:100%;border-collapse:collapse;font-size:13.3px;}
-  .summary-table td{padding:8px 4px;border-top:1px solid #f0ece1;}
-  .summary-table td:last-child{text-align:right;font-weight:600;}
-  .summary-table tr.total td{font-weight:800;font-size:15px;color:var(--brown);border-top:2px solid var(--border);}
-  .summary-table tr.unit td{font-weight:800;font-size:16px;color:var(--orange);}
-  .disclaimer{font-size:11.5px;color:#a39a89;font-style:italic;margin:10px 2px 0;}
+  .brand-row{display:grid;grid-template-columns:2fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
+  table.data{width:100%;border-collapse:collapse;font-size:12.8px;}
+  table.data th{text-align:left;background:var(--cream);color:#8a8072;font-size:10.5px;text-transform:uppercase;padding:8px 9px;white-space:nowrap;}
+  table.data td{padding:7px 9px;border-top:1px solid #f0ece1;white-space:nowrap;}
+  table.data tr td:first-child{font-weight:600;color:#3a342c;}
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;}
+  .section-title{font-size:13.5px;font-weight:700;color:var(--brown);margin:18px 0 8px;}
+  .sample-result{background:linear-gradient(135deg,#FFF4EC,#FBF8EF);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:14px;}
+  .sample-result .amt{font-size:24px;font-weight:800;color:var(--brown);}
+  .sample-result .sub{font-size:12px;color:#a39a89;margin-top:2px;}
+  .sample-result .usd{font-size:13px;color:#a39a89;margin-top:6px;}
   .actions{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0;}
   .btn{padding:10px 18px;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;border:none;display:flex;align-items:center;gap:6px;}
   .btn-primary{background:var(--brown);color:#fff;}
@@ -84,81 +78,48 @@
 
   <header>
     <div class="logo">L</div>
-    <h1>InstaBrand Batch Pricing Calculator</h1>
+    <h1>InstaBrand Pricing Data Generator</h1>
   </header>
-  <p class="subtitle">Lueur Cosmetics Lab — batch size drives everything: base price → add-ons → packaging → branding → unit cost</p>
+  <p class="subtitle">Back-office reference tables — one product, every batch size, all in one place for the developer</p>
 
-  <!-- STEP 1: CATEGORY / PRODUCT -->
+  <!-- CATEGORY / PRODUCT -->
   <section class="panel">
-    <h2><span class="step-num">1</span>Category &amp; product</h2>
+    <h2>Category &amp; product</h2>
     <div class="grid grid-2">
-      <div>
-        <label>Category</label>
-        <select id="categorySelect"></select>
-      </div>
-      <div>
-        <label>Product</label>
-        <select id="productSelect"></select>
-      </div>
+      <div><label>Category</label><select id="categorySelect"></select></div>
+      <div><label>Product</label><select id="productSelect"></select></div>
     </div>
   </section>
 
-  <!-- STEP 2: BATCH SIZE + REFERENCE COSTS -->
+  <!-- REFERENCE COSTS -->
   <section class="panel">
-    <h2><span class="step-num">2</span>Batch size &amp; reference costs</h2>
-    <p class="hint">Set your known cost at one batch size — everything scales from it automatically.</p>
-    <div class="grid grid-4">
-      <div>
-        <label>Reference batch size</label>
-        <select id="refBatchSize"></select>
-      </div>
-      <div>
-        <label>Ingredient cost at that size (GHS)</label>
-        <input id="refIngredientCost" type="number" placeholder="0" />
-      </div>
-      <div>
-        <label>Labor cost at that size (GHS)</label>
-        <input id="refLaborCost" type="number" placeholder="0" />
-      </div>
-      <div>
-        <label>Selected batch size (for this quote)</label>
-        <select id="selectedBatchSize"></select>
-      </div>
-    </div>
-  </section>
-
-  <!-- STEP 3: BASE PRICE -->
-  <section class="panel">
-    <h2><span class="step-num">3</span>Base price</h2>
-    <p class="hint">Ingredients (scaled + overage) + labor (scaled) + markup — before add-ons, packaging or branding.</p>
-    <div class="grid grid-3">
-      <div>
-        <label>Overage %</label>
-        <input id="overagePercent" type="number" value="10" />
-      </div>
-      <div>
-        <label>Markup</label>
+    <h2>Reference cost (fill in for one batch size — the rest generate automatically)</h2>
+    <p class="hint">Cost scales symmetrically: if 1 kg = GHS 20, 2 kg = GHS 40.</p>
+    <div class="grid grid-5">
+      <div><label>Reference batch size</label><select id="refBatchSize"></select></div>
+      <div><label>Ingredient cost (GHS)</label><input id="refIngredientCost" type="number" placeholder="0" /></div>
+      <div><label>Labor cost (GHS)</label><input id="refLaborCost" type="number" placeholder="0" /></div>
+      <div><label>Overage %</label><input id="overagePercent" type="number" value="10" /></div>
+      <div><label>Markup</label>
         <div class="row-inline">
           <input id="markupValue" type="number" value="0" />
           <select id="markupType"><option value="percent">%</option><option value="flat">flat</option></select>
         </div>
       </div>
-      <div>
-        <label>Exchange rate (GHS per 1 USD)</label>
-        <input id="exchangeRate" type="number" placeholder="e.g. 15" />
-      </div>
-    </div>
-    <div class="base-price-card">
-      <div class="amt" id="basePriceAmt">GHS 0.00</div>
-      <div class="sub" id="basePriceSub">for this batch size</div>
     </div>
   </section>
 
-  <!-- STEP 4: ADD-ONS / EXTRA INGREDIENTS -->
+  <!-- BASE PRICE TABLE -->
+  <section class="panel">
+    <h2>Base price — all batch sizes</h2>
+    <div class="table-wrap"><table class="data" id="baseTable"></table></div>
+  </section>
+
+  <!-- EXTRA INGREDIENTS -->
   <section class="panel no-print">
     <div class="panel-header" id="extraHeader">
-      <div><h2 style="display:inline;"><span class="step-num">4</span>Add-ons / extra ingredients</h2>
-      <span class="hint" style="margin-left:8px;">each priced at its own reference batch size, auto-scaled — shared database, editable anytime</span></div>
+      <div><h2 style="display:inline;">Add-on / extra ingredients</h2>
+      <span class="hint" style="margin-left:8px;">shared database — each priced at its own reference batch, auto-scaled</span></div>
       <span class="chevron" id="extraChevron">▶</span>
     </div>
     <div class="panel-body" id="extraBody">
@@ -167,12 +128,16 @@
       <button class="link-btn" id="addExtraBtn">+ Add ingredient</button>
     </div>
   </section>
+  <section class="panel">
+    <h2>Extra ingredient cost — all batch sizes</h2>
+    <div class="table-wrap"><table class="data" id="extraTable"></table></div>
+  </section>
 
-  <!-- STEP 5: PACKAGING -->
+  <!-- PACKAGING -->
   <section class="panel no-print">
     <div class="panel-header" id="packHeader">
-      <div><h2 style="display:inline;"><span class="step-num">5</span>Packaging catalog</h2>
-      <span class="hint" style="margin-left:8px;">type + cost per fill volume — build this out as your packaging options are finalized</span></div>
+      <div><h2 style="display:inline;">Packaging catalog</h2>
+      <span class="hint" style="margin-left:8px;">cost per unit, by fill volume — batch-independent</span></div>
       <span class="chevron" id="packChevron">▶</span>
     </div>
     <div class="panel-body" id="packBody">
@@ -181,42 +146,36 @@
       <button class="link-btn" id="addPackBtn">+ Add packaging type</button>
     </div>
   </section>
-
   <section class="panel">
-    <h2>Selected packaging &amp; fill volume</h2>
-    <div class="grid grid-2">
-      <div>
-        <label>Packaging type</label>
-        <select id="packagingTypeSelect"></select>
-      </div>
-      <div>
-        <label>Fill volume</label>
-        <select id="fillVolumeSelect"></select>
-      </div>
-    </div>
+    <h2>Yield — units produced per batch size, by fill volume</h2>
+    <div class="table-wrap"><table class="data" id="yieldTable"></table></div>
+    <p class="section-title">Packaging cost per unit — this product's fill volumes</p>
+    <div class="table-wrap"><table class="data" id="packagingUnitTable"></table></div>
   </section>
 
-  <!-- STEP 6: BRANDING -->
+  <!-- BRANDING -->
   <section class="panel no-print">
-    <h2><span class="step-num">6</span>Branding &amp; finishing</h2>
-    <p class="hint">Prices are per finished unit. Set them here — they're remembered automatically.</p>
-    <div class="brand-options" id="brandOptions"></div>
-    <div class="box-toggle">
-      <input type="checkbox" id="boxingEnabled" />
-      <label style="margin:0;flex:1;text-transform:none;font-weight:600;font-size:13px;color:#3a342c;">Individually box each finished product</label>
-      <input class="bo-price" type="number" id="boxingPrice" placeholder="Price/unit" />
-    </div>
+    <h2>Branding &amp; finishing — cost per unit</h2>
+    <p class="hint">Batch-independent. Multiply by yield above to get a total for any batch/fill-volume combo.</p>
+    <div id="brand-list"></div>
   </section>
 
-  <!-- STEP 7: SUMMARY -->
+  <!-- SAMPLE CALCULATION -->
   <section class="panel">
-    <h2><span class="step-num">7</span>Summary</h2>
-    <div class="print-only" style="margin-bottom:10px;">
-      <div style="font-size:19px;font-weight:800;color:var(--brown);" id="printTitle"></div>
-      <div style="font-size:11px;color:#8a8072;" id="printDate"></div>
+    <h2>Sample calculation <span class="hint" style="text-transform:none;">— sanity-check one full combination</span></h2>
+    <div class="grid grid-5">
+      <div><label>Batch size</label><select id="sampleBatch"></select></div>
+      <div><label>Fill volume</label><select id="sampleFill"></select></div>
+      <div><label>Packaging type</label><select id="samplePack"></select></div>
+      <div><label>Branding</label><select id="sampleBrand"></select></div>
+      <div><label>Exchange rate (GHS/USD)</label><input id="exchangeRate" type="number" placeholder="e.g. 15" /></div>
     </div>
-    <table class="summary-table" id="summaryTable"></table>
-    <p class="disclaimer">Prices stated are exclusive of shipping fees to the client — shipping is determined once the client's full delivery address is confirmed.</p>
+    <div class="sample-result">
+      <div class="amt" id="sampleTotal">GHS 0.00</div>
+      <div class="sub" id="sampleSub">total production cost</div>
+      <div class="amt" id="sampleUnit" style="font-size:18px;margin-top:8px;">GHS 0.00 / unit</div>
+      <div class="usd" id="sampleUsd"></div>
+    </div>
   </section>
 
   <div class="actions no-print">
@@ -277,7 +236,6 @@ Object.keys(CATALOG).forEach(cat => {
   const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat;
   categorySelect.appendChild(opt);
 });
-
 function populateProducts(){
   productSelect.innerHTML = '';
   CATALOG[categorySelect.value].products.forEach(p => {
@@ -286,69 +244,56 @@ function populateProducts(){
   });
 }
 populateProducts();
+function currentProduct(){ return CATALOG[categorySelect.value].products.find(p => p.name === productSelect.value); }
+function currentBatchSizes(){ return CATALOG[categorySelect.value].batchSizes; }
 
-function currentProduct(){
-  return CATALOG[categorySelect.value].products.find(p => p.name === productSelect.value);
-}
-
-function populateBatchSizes(){
-  const sizes = CATALOG[categorySelect.value].batchSizes;
-  [document.getElementById('refBatchSize'), document.getElementById('selectedBatchSize')].forEach(sel => {
-    const prev = sel.value;
-    sel.innerHTML = '';
-    sizes.forEach(s => {
-      const opt = document.createElement('option'); opt.value = s; opt.textContent = s + ' L';
-      sel.appendChild(opt);
-    });
-    if(sizes.includes(Number(prev))) sel.value = prev;
-  });
-}
-populateBatchSizes();
-
-function populateFillVolumes(){
-  const p = currentProduct();
-  const sel = document.getElementById('fillVolumeSelect');
+function populateRefBatchSelect(){
+  const sel = document.getElementById('refBatchSize');
+  const prev = sel.value;
   sel.innerHTML = '';
-  p.fillVolumes.forEach(v => {
-    const opt = document.createElement('option'); opt.value = v; opt.textContent = v + ' ' + p.unit;
+  currentBatchSizes().forEach(s => {
+    const opt = document.createElement('option'); opt.value = s; opt.textContent = s + ' L';
     sel.appendChild(opt);
   });
+  if(currentBatchSizes().includes(Number(prev))) sel.value = prev;
 }
-populateFillVolumes();
+populateRefBatchSelect();
 
 // ---------------- Persisted per-product reference costs ----------------
-const PRODUCT_REF_KEY = 'instabrand_productrefs_v1';
+const PRODUCT_REF_KEY = 'instabrand_be_productrefs_v1';
 function loadProductRefs(){ try{ return JSON.parse(localStorage.getItem(PRODUCT_REF_KEY)) || {}; }catch(e){ return {}; } }
 function saveProductRefs(refs){ localStorage.setItem(PRODUCT_REF_KEY, JSON.stringify(refs)); }
 function productKey(){ return categorySelect.value + '|' + productSelect.value; }
-
 function loadCurrentProductRef(){
   const refs = loadProductRefs();
-  const key = productKey();
-  const data = refs[key] || { refBatchSize: CATALOG[categorySelect.value].batchSizes[0], refIngredientCost:'', refLaborCost:'' };
+  const data = refs[productKey()] || { refBatchSize: currentBatchSizes()[0], refIngredientCost:'', refLaborCost:'', overagePercent:10, markupType:'percent', markupValue:0 };
   document.getElementById('refBatchSize').value = data.refBatchSize;
   document.getElementById('refIngredientCost').value = data.refIngredientCost;
   document.getElementById('refLaborCost').value = data.refLaborCost;
+  document.getElementById('overagePercent').value = data.overagePercent;
+  document.getElementById('markupType').value = data.markupType;
+  document.getElementById('markupValue').value = data.markupValue;
 }
-
 function persistCurrentProductRef(){
   const refs = loadProductRefs();
   refs[productKey()] = {
     refBatchSize: Number(document.getElementById('refBatchSize').value),
     refIngredientCost: document.getElementById('refIngredientCost').value,
     refLaborCost: document.getElementById('refLaborCost').value,
+    overagePercent: document.getElementById('overagePercent').value,
+    markupType: document.getElementById('markupType').value,
+    markupValue: document.getElementById('markupValue').value,
   };
   saveProductRefs(refs);
 }
 
-categorySelect.addEventListener('change', () => { populateProducts(); populateBatchSizes(); populateFillVolumes(); loadCurrentProductRef(); renderAll(); });
-productSelect.addEventListener('change', () => { populateFillVolumes(); loadCurrentProductRef(); renderAll(); });
+categorySelect.addEventListener('change', () => { populateProducts(); populateRefBatchSelect(); loadCurrentProductRef(); onProductChange(); });
+productSelect.addEventListener('change', () => { loadCurrentProductRef(); onProductChange(); });
 loadCurrentProductRef();
 
-// ---------------- Extra ingredients (global, own reference batch each) ----------------
+// ---------------- Extra ingredients (global) ----------------
 const extraList = document.getElementById('extra-list');
-const EXTRA_KEY = 'instabrand_extras_v2';
-
+const EXTRA_KEY = 'instabrand_be_extras_v1';
 function createExtraRow(data){
   data = data || { name:'', refBatch:5, refCost:0 };
   const row = document.createElement('div');
@@ -360,10 +305,7 @@ function createExtraRow(data){
     <button class="icon-btn remove-extra" title="Remove">✕</button>
   `;
   row.querySelector('.remove-extra').addEventListener('click', () => { row.remove(); persistExtras(); renderAll(); });
-  row.querySelectorAll('input').forEach(el => {
-    el.addEventListener('input', () => persistExtras());
-    el.addEventListener('change', () => { persistExtras(); renderAll(); });
-  });
+  row.querySelectorAll('input').forEach(el => { el.addEventListener('input', () => persistExtras()); el.addEventListener('change', () => { persistExtras(); renderAll(); }); });
   return row;
 }
 function readExtras(){
@@ -380,14 +322,12 @@ document.getElementById('addExtraBtn').addEventListener('click', () => extraList
 
 // ---------------- Packaging catalog (global) ----------------
 const ALL_FILL_KEYS = (() => {
-  const set = new Map();
-  Object.values(CATALOG).forEach(cat => cat.products.forEach(p => p.fillVolumes.forEach(v => set.set(v+p.unit, {value:v, unit:p.unit}))));
-  return Array.from(set.entries()).map(([k,v]) => ({key:k, label: v.value+' '+v.unit})).sort((a,b)=>a.label.localeCompare(b.label, undefined, {numeric:true}));
+  const map = new Map();
+  Object.values(CATALOG).forEach(cat => cat.products.forEach(p => p.fillVolumes.forEach(v => map.set(v+p.unit, {value:v, unit:p.unit}))));
+  return Array.from(map.entries()).map(([k,v]) => ({key:k, value:v.value, unit:v.unit, label:v.value+' '+v.unit})).sort((a,b)=>a.value-b.value);
 })();
-
 const packList = document.getElementById('pack-list');
-const PACK_KEY = 'instabrand_packaging_v1';
-
+const PACK_KEY = 'instabrand_be_packaging_v1';
 function createPackRow(data){
   data = data || { name:'', prices:{} };
   const row = document.createElement('div');
@@ -400,9 +340,9 @@ function createPackRow(data){
     <div class="persize-grid"></div>
   `;
   row._prices = data.prices || {};
-  row.querySelector('.remove-pack').addEventListener('click', () => { row.remove(); persistPackaging(); refreshPackagingTypeSelect(); renderAll(); });
+  row.querySelector('.remove-pack').addEventListener('click', () => { row.remove(); persistPackaging(); renderAll(); });
   row.querySelector('.pk-name').addEventListener('input', () => persistPackaging());
-  row.querySelector('.pk-name').addEventListener('change', () => { persistPackaging(); refreshPackagingTypeSelect(); renderAll(); });
+  row.querySelector('.pk-name').addEventListener('change', () => { persistPackaging(); renderAll(); });
   renderPackPriceFields(row);
   return row;
 }
@@ -420,27 +360,12 @@ function renderPackPriceFields(row){
   });
 }
 function readPackaging(){
-  return Array.from(packList.querySelectorAll('.pack-row')).map(row => ({
-    name: row.querySelector('.pk-name').value,
-    prices: row._prices || {},
-  })).filter(x => x.name);
+  return Array.from(packList.querySelectorAll('.pack-row')).map(row => ({ name: row.querySelector('.pk-name').value, prices: row._prices || {} })).filter(x => x.name);
 }
 function persistPackaging(){ try{ localStorage.setItem(PACK_KEY, JSON.stringify(readPackaging())); }catch(e){} }
 function loadPackaging(){ try{ return JSON.parse(localStorage.getItem(PACK_KEY)) || []; }catch(e){ return []; } }
 loadPackaging().forEach(d => packList.appendChild(createPackRow(d)));
-document.getElementById('addPackBtn').addEventListener('click', () => { packList.appendChild(createPackRow()); persistPackaging(); refreshPackagingTypeSelect(); });
-
-const packagingTypeSelect = document.getElementById('packagingTypeSelect');
-function refreshPackagingTypeSelect(){
-  const prev = packagingTypeSelect.value;
-  packagingTypeSelect.innerHTML = '';
-  readPackaging().forEach(p => {
-    const opt = document.createElement('option'); opt.value = p.name; opt.textContent = p.name;
-    packagingTypeSelect.appendChild(opt);
-  });
-  if(readPackaging().some(p => p.name === prev)) packagingTypeSelect.value = prev;
-}
-refreshPackagingTypeSelect();
+document.getElementById('addPackBtn').addEventListener('click', () => { packList.appendChild(createPackRow()); persistPackaging(); });
 
 function collapsible(headerId, bodyId, chevronId){
   const header = document.getElementById(headerId), body = document.getElementById(bodyId), chevron = document.getElementById(chevronId);
@@ -449,195 +374,216 @@ function collapsible(headerId, bodyId, chevronId){
 collapsible('extraHeader','extraBody','extraChevron');
 collapsible('packHeader','packBody','packChevron');
 
-// ---------------- Branding options ----------------
-const BRAND_KEY = 'instabrand_branding_v1';
-const brandOptionsEl = document.getElementById('brandOptions');
+// ---------------- Branding (global) ----------------
+const BRAND_KEY = 'instabrand_be_branding_v1';
+const brandListEl = document.getElementById('brand-list');
 function loadBranding(){ try{ return JSON.parse(localStorage.getItem(BRAND_KEY)) || {}; }catch(e){ return {}; } }
 function persistBranding(){
   const prices = {};
-  brandOptionsEl.querySelectorAll('.brand-opt').forEach(el => { prices[el.dataset.name] = el.querySelector('.bo-price').value; });
-  const state = {
-    prices,
-    selected: brandOptionsEl.querySelector('input[type=radio]:checked')?.value || BRAND_OPTIONS[0],
-    boxingEnabled: document.getElementById('boxingEnabled').checked,
-    boxingPrice: document.getElementById('boxingPrice').value,
-  };
-  localStorage.setItem(BRAND_KEY, JSON.stringify(state));
+  brandListEl.querySelectorAll('.brand-row').forEach(el => { prices[el.dataset.name] = el.querySelector('input').value; });
+  localStorage.setItem(BRAND_KEY, JSON.stringify(prices));
 }
-function buildBrandOptions(){
+function buildBrandList(){
   const saved = loadBranding();
-  brandOptionsEl.innerHTML = '';
-  BRAND_OPTIONS.forEach((name, i) => {
-    const wrap = document.createElement('label');
-    wrap.className = 'brand-opt' + ((saved.selected||BRAND_OPTIONS[0]) === name ? ' selected' : '');
-    wrap.dataset.name = name;
-    const price = saved.prices && saved.prices[name] != null ? saved.prices[name] : '';
-    wrap.innerHTML = `
-      <input type="radio" name="brandOpt" value="${name}" ${((saved.selected||BRAND_OPTIONS[0])===name)?'checked':''} />
-      <span>${name}</span>
-      <input class="bo-price no-print-disable" type="number" placeholder="Price/unit" value="${escapeAttr(price)}" />
-    `;
-    wrap.querySelector('input[type=radio]').addEventListener('change', () => {
-      brandOptionsEl.querySelectorAll('.brand-opt').forEach(el => el.classList.remove('selected'));
-      wrap.classList.add('selected');
-      persistBranding(); renderAll();
-    });
-    wrap.querySelector('.bo-price').addEventListener('click', (e) => e.stopPropagation());
-    wrap.querySelector('.bo-price').addEventListener('input', () => persistBranding());
-    wrap.querySelector('.bo-price').addEventListener('change', () => { persistBranding(); renderAll(); });
-    brandOptionsEl.appendChild(wrap);
+  brandListEl.innerHTML = '';
+  [...BRAND_OPTIONS, 'Individual boxing'].forEach(name => {
+    const row = document.createElement('div');
+    row.className = 'brand-row';
+    row.dataset.name = name;
+    const val = saved[name] != null ? saved[name] : '';
+    row.innerHTML = `<div>${name}</div><input type="number" placeholder="Cost per unit (GHS)" value="${escapeAttr(val)}" />`;
+    row.querySelector('input').addEventListener('input', () => persistBranding());
+    row.querySelector('input').addEventListener('change', () => { persistBranding(); renderAll(); });
+    brandListEl.appendChild(row);
   });
-  document.getElementById('boxingEnabled').checked = !!saved.boxingEnabled;
-  document.getElementById('boxingPrice').value = saved.boxingPrice || '';
 }
-buildBrandOptions();
-document.getElementById('boxingEnabled').addEventListener('change', () => { persistBranding(); renderAll(); });
-document.getElementById('boxingPrice').addEventListener('input', () => persistBranding());
-document.getElementById('boxingPrice').addEventListener('change', () => { persistBranding(); renderAll(); });
+buildBrandList();
 
-// ---------------- Exchange rate persistence ----------------
-const RATE_KEY = 'instabrand_exchangerate_v1';
+// ---------------- Exchange rate ----------------
+const RATE_KEY = 'instabrand_be_exchangerate_v1';
 const exchangeRateEl = document.getElementById('exchangeRate');
 exchangeRateEl.value = localStorage.getItem(RATE_KEY) || '';
-exchangeRateEl.addEventListener('input', () => localStorage.setItem(RATE_KEY, exchangeRateEl.value));
+exchangeRateEl.addEventListener('input', () => { localStorage.setItem(RATE_KEY, exchangeRateEl.value); renderSample(); });
 
-// ---------------- Core calculation ----------------
-function calculate(){
-  const product = currentProduct();
-  const refBatch = Number(document.getElementById('refBatchSize').value) || 1;
-  const refIngCost = Number(document.getElementById('refIngredientCost').value) || 0;
-  const refLaborCost = Number(document.getElementById('refLaborCost').value) || 0;
-  const selBatch = Number(document.getElementById('selectedBatchSize').value) || refBatch;
-  const overagePct = Number(document.getElementById('overagePercent').value) || 0;
-  const markup = { type: document.getElementById('markupType').value, value: Number(document.getElementById('markupValue').value) || 0 };
-  const rate = Number(exchangeRateEl.value) || 0;
+// ---------------- Calculation helpers ----------------
+function refConfig(){
+  return {
+    refBatch: Number(document.getElementById('refBatchSize').value) || 1,
+    refIngredientCost: Number(document.getElementById('refIngredientCost').value) || 0,
+    refLaborCost: Number(document.getElementById('refLaborCost').value) || 0,
+    overagePct: Number(document.getElementById('overagePercent').value) || 0,
+    markup: { type: document.getElementById('markupType').value, value: Number(document.getElementById('markupValue').value) || 0 },
+  };
+}
+function basePriceAt(batchSize, cfg){
+  const scale = batchSize / cfg.refBatch;
+  const ingredientCost = cfg.refIngredientCost * scale;
+  const overageCost = ingredientCost * (cfg.overagePct/100);
+  const laborCost = cfg.refLaborCost * scale;
+  const preMarkup = ingredientCost + overageCost + laborCost;
+  const markupAmt = cfg.markup.type === 'percent' ? preMarkup * (cfg.markup.value/100) : cfg.markup.value;
+  return { ingredientCost, overageCost, laborCost, markupAmt, basePrice: preMarkup + markupAmt };
+}
 
-  const scale = selBatch / refBatch;
-  const ingredientScaled = refIngCost * scale;
-  const overageCost = ingredientScaled * (overagePct/100);
-  const laborScaled = refLaborCost * scale;
-  const preMarkup = ingredientScaled + overageCost + laborScaled;
-  const markupAmt = markup.type === 'percent' ? preMarkup * (markup.value/100) : markup.value;
-  const basePriceBatch = preMarkup + markupAmt;
-
-  const extras = readExtras();
-  let extrasTotal = 0;
-  const extraLines = extras.map(ex => {
-    const cost = ex.refCost * (selBatch/ex.refBatch);
-    extrasTotal += cost;
-    return { name: ex.name, cost };
+// ---------------- Render: base price table ----------------
+function renderBaseTable(){
+  const cfg = refConfig();
+  const sizes = currentBatchSizes();
+  let html = '<tr><th>Batch size</th>' + sizes.map(s => `<th>${s} L</th>`).join('') + '</tr>';
+  const rows = [
+    ['Ingredient cost', s => basePriceAt(s,cfg).ingredientCost],
+    ['Overage', s => basePriceAt(s,cfg).overageCost],
+    ['Labor cost', s => basePriceAt(s,cfg).laborCost],
+    ['Markup', s => basePriceAt(s,cfg).markupAmt],
+    ['Base price', s => basePriceAt(s,cfg).basePrice],
+  ];
+  rows.forEach(([label, fn], i) => {
+    html += `<tr${i===4?' style="font-weight:800;border-top:2px solid var(--border);"':''}><td>${label}</td>` + sizes.map(s => `<td>${fmtGHS(fn(s))}</td>`).join('') + '</tr>';
   });
+  document.getElementById('baseTable').innerHTML = html;
+}
 
-  const fillVolume = Number(document.getElementById('fillVolumeSelect').value) || 1;
-  const yieldUnits = (selBatch * 1000) / fillVolume;
+// ---------------- Render: extra ingredients table ----------------
+function renderExtraTable(){
+  const sizes = currentBatchSizes();
+  const extras = readExtras();
+  let html = '<tr><th>Ingredient</th>' + sizes.map(s => `<th>${s} L</th>`).join('') + '</tr>';
+  if(extras.length === 0){
+    html += `<tr><td colspan="${sizes.length+1}" style="color:#a39a89;">No extra ingredients added yet.</td></tr>`;
+  } else {
+    extras.forEach(ex => {
+      html += `<tr><td>${ex.name}</td>` + sizes.map(s => `<td>${fmtGHS(ex.refCost * (s/ex.refBatch))}</td>`).join('') + '</tr>';
+    });
+  }
+  document.getElementById('extraTable').innerHTML = html;
+}
+
+// ---------------- Render: yield + packaging unit cost tables ----------------
+function renderYieldAndPackagingTables(){
+  const product = currentProduct();
+  const sizes = currentBatchSizes();
+  let yh = '<tr><th>Fill volume</th>' + sizes.map(s => `<th>${s} L</th>`).join('') + '</tr>';
+  product.fillVolumes.forEach(v => {
+    yh += `<tr><td>${v} ${product.unit}</td>` + sizes.map(s => `<td>${Math.floor((s*1000)/v).toLocaleString()} units</td>`).join('') + '</tr>';
+  });
+  document.getElementById('yieldTable').innerHTML = yh;
 
   const packaging = readPackaging();
-  const selectedPack = packaging.find(p => p.name === packagingTypeSelect.value);
-  const fillKey = fillVolume + product.unit;
-  const packagingPerUnit = selectedPack ? (Number(selectedPack.prices[fillKey]) || 0) : 0;
+  let ph = '<tr><th>Packaging type</th>' + product.fillVolumes.map(v => `<th>${v} ${product.unit}</th>`).join('') + '</tr>';
+  if(packaging.length === 0){
+    ph += `<tr><td colspan="${product.fillVolumes.length+1}" style="color:#a39a89;">No packaging types added yet.</td></tr>`;
+  } else {
+    packaging.forEach(p => {
+      ph += `<tr><td>${p.name}</td>` + product.fillVolumes.map(v => `<td>${fmtGHS(Number(p.prices[v+product.unit])||0)}</td>`).join('') + '</tr>';
+    });
+  }
+  document.getElementById('packagingUnitTable').innerHTML = ph;
+}
+
+// ---------------- Sample calculation selects ----------------
+function populateSampleSelects(){
+  const product = currentProduct();
+  const sizes = currentBatchSizes();
+  const batchSel = document.getElementById('sampleBatch');
+  batchSel.innerHTML = sizes.map(s => `<option value="${s}">${s} L</option>`).join('');
+  const fillSel = document.getElementById('sampleFill');
+  fillSel.innerHTML = product.fillVolumes.map(v => `<option value="${v}">${v} ${product.unit}</option>`).join('');
+  const packSel = document.getElementById('samplePack');
+  const packaging = readPackaging();
+  packSel.innerHTML = packaging.length ? packaging.map(p => `<option value="${p.name}">${p.name}</option>`).join('') : '<option value="">— none added —</option>';
+  const brandSel = document.getElementById('sampleBrand');
+  brandSel.innerHTML = BRAND_OPTIONS.map(b => `<option value="${b}">${b}</option>`).join('');
+}
+
+function renderSample(){
+  const cfg = refConfig();
+  const product = currentProduct();
+  const batchSize = Number(document.getElementById('sampleBatch').value) || currentBatchSizes()[0];
+  const fillVolume = Number(document.getElementById('sampleFill').value) || product.fillVolumes[0];
+  const packName = document.getElementById('samplePack').value;
+  const brandName = document.getElementById('sampleBrand').value;
+  const rate = Number(exchangeRateEl.value) || 0;
+
+  const base = basePriceAt(batchSize, cfg);
+  const extras = readExtras();
+  const extrasTotal = extras.reduce((s,ex) => s + ex.refCost * (batchSize/ex.refBatch), 0);
+
+  const yieldUnits = (batchSize*1000) / fillVolume;
+  const packaging = readPackaging();
+  const selectedPack = packaging.find(p => p.name === packName);
+  const packagingPerUnit = selectedPack ? (Number(selectedPack.prices[fillVolume+product.unit]) || 0) : 0;
   const packagingTotal = packagingPerUnit * yieldUnits;
 
-  const brandState = loadBranding();
-  const selectedBrand = brandOptionsEl.querySelector('input[type=radio]:checked')?.value || BRAND_OPTIONS[0];
-  const brandingPerUnit = Number((brandState.prices||{})[selectedBrand]) || 0;
-  const boxingOn = document.getElementById('boxingEnabled').checked;
-  const boxingPerUnit = boxingOn ? (Number(document.getElementById('boxingPrice').value) || 0) : 0;
-  const brandingTotal = (brandingPerUnit + boxingPerUnit) * yieldUnits;
+  const brandPrices = loadBranding();
+  const brandingPerUnit = Number(brandPrices[brandName]) || 0;
+  const brandingTotal = brandingPerUnit * yieldUnits;
 
-  const totalProductionCost = basePriceBatch + extrasTotal + packagingTotal + brandingTotal;
-  const costPerUnit = yieldUnits > 0 ? totalProductionCost / yieldUnits : 0;
+  const total = base.basePrice + extrasTotal + packagingTotal + brandingTotal;
+  const perUnit = yieldUnits > 0 ? total / yieldUnits : 0;
 
-  return { product, refBatch, selBatch, ingredientScaled, overageCost, laborScaled, markupAmt, basePriceBatch,
-    extraLines, extrasTotal, fillVolume, yieldUnits, selectedPack, packagingPerUnit, packagingTotal,
-    selectedBrand, brandingPerUnit, boxingOn, boxingPerUnit, brandingTotal, totalProductionCost, costPerUnit, rate };
+  document.getElementById('sampleTotal').textContent = fmtGHS(total);
+  document.getElementById('sampleSub').textContent = `${product.name} — ${batchSize} L, ${fillVolume}${product.unit} fill, ~${Math.floor(yieldUnits).toLocaleString()} units`;
+  document.getElementById('sampleUnit').textContent = fmtGHS(perUnit) + ' / unit';
+  document.getElementById('sampleUsd').textContent = rate > 0 ? `${fmtUSD(total/rate)} total · ${fmtUSD(perUnit/rate)} / unit` : '';
 }
 
+// ---------------- Wiring ----------------
+function onProductChange(){
+  populateRefBatchSelect();
+  populateSampleSelects();
+  renderAll();
+}
 function renderAll(){
-  const r = calculate();
-
-  document.getElementById('basePriceAmt').textContent = fmtGHS(r.basePriceBatch);
-  document.getElementById('basePriceSub').textContent = `${r.selBatch} L batch — ${r.product.name}`;
-
-  refreshPackagingTypeSelect();
-
-  const rows = [];
-  rows.push(['Product', r.product.name]);
-  rows.push(['Batch size', r.selBatch + ' L']);
-  rows.push(['Base product price', fmtGHS(r.basePriceBatch)]);
-  if(r.extraLines.length){
-    r.extraLines.forEach(l => rows.push(['&nbsp;&nbsp;+ ' + (l.name||'Ingredient'), fmtGHS(l.cost)]));
-  }
-  rows.push(['Add-on cost', fmtGHS(r.extrasTotal)]);
-  rows.push(['Packaging', (r.selectedPack ? r.selectedPack.name : '—') + ' · ' + r.fillVolume + ' ' + r.product.unit]);
-  rows.push(['Estimated yield', Math.floor(r.yieldUnits).toLocaleString() + ' units']);
-  rows.push(['Packaging cost', fmtGHS(r.packagingTotal)]);
-  rows.push(['Branding', r.selectedBrand]);
-  rows.push(['Individual boxing', r.boxingOn ? 'Yes' : 'No']);
-  rows.push(['Branding + finishing cost', fmtGHS(r.brandingTotal)]);
-
-  let html = rows.map(([label, val]) => `<tr><td>${label}</td><td>${val}</td></tr>`).join('');
-  html += `<tr class="total"><td>Total production cost</td><td>${fmtGHS(r.totalProductionCost)}</td></tr>`;
-  if(r.rate > 0){
-    html += `<tr class="total"><td>&nbsp;</td><td style="font-size:12px;color:#a39a89;font-weight:600;">${fmtUSD(r.totalProductionCost/r.rate)}</td></tr>`;
-  }
-  html += `<tr class="unit"><td>Cost per unit</td><td>${fmtGHS(r.costPerUnit)}</td></tr>`;
-  if(r.rate > 0){
-    html += `<tr class="unit"><td>&nbsp;</td><td style="font-size:14px;">${fmtUSD(r.costPerUnit/r.rate)}</td></tr>`;
-  }
-  document.getElementById('summaryTable').innerHTML = html;
-
-  document.getElementById('printTitle').textContent = r.product.name + ' — ' + r.selBatch + ' L';
-  document.getElementById('printDate').textContent = 'Generated ' + new Date().toLocaleDateString() + ' — Lueur Cosmetics Lab';
+  renderBaseTable();
+  renderExtraTable();
+  renderYieldAndPackagingTables();
+  populateSampleSelects();
+  renderSample();
 }
 
-document.querySelectorAll('#refBatchSize, #refIngredientCost, #refLaborCost, #selectedBatchSize, #overagePercent, #markupValue, #markupType, #fillVolumeSelect, #packagingTypeSelect, #exchangeRate')
-  .forEach(el => el.addEventListener('change', () => { persistCurrentProductRef(); renderAll(); }));
-document.getElementById('refIngredientCost').addEventListener('input', persistCurrentProductRef);
-document.getElementById('refLaborCost').addEventListener('input', persistCurrentProductRef);
+['refBatchSize','refIngredientCost','refLaborCost','overagePercent','markupValue','markupType'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', persistCurrentProductRef);
+  el.addEventListener('change', () => { persistCurrentProductRef(); renderAll(); });
+});
+['sampleBatch','sampleFill','samplePack','sampleBrand'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderSample);
+});
+
+populateSampleSelects();
+renderAll();
 
 // ---------------- History ----------------
-const HISTORY_KEY = 'instabrand_history_v3';
+const HISTORY_KEY = 'instabrand_be_history_v1';
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){ return []; } }
 function saveHistoryList(list){ localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
-
 function readFullState(){
-  const r = calculate();
   return {
     id: nextId(), savedAt: new Date().toISOString(),
-    productName: r.product.name + ' (' + r.selBatch + ' L)',
+    productName: currentProduct().name + ' — ' + categorySelect.value,
     category: categorySelect.value, product: productSelect.value,
-    refBatchSize: document.getElementById('refBatchSize').value,
-    refIngredientCost: document.getElementById('refIngredientCost').value,
-    refLaborCost: document.getElementById('refLaborCost').value,
-    selectedBatchSize: document.getElementById('selectedBatchSize').value,
-    overagePercent: document.getElementById('overagePercent').value,
-    markupType: document.getElementById('markupType').value,
-    markupValue: document.getElementById('markupValue').value,
-    fillVolume: document.getElementById('fillVolumeSelect').value,
-    packagingType: packagingTypeSelect.value,
-    branding: loadBranding(),
-    totalProductionCost: r.totalProductionCost,
-    costPerUnit: r.costPerUnit,
+    ref: {
+      refBatchSize: document.getElementById('refBatchSize').value,
+      refIngredientCost: document.getElementById('refIngredientCost').value,
+      refLaborCost: document.getElementById('refLaborCost').value,
+      overagePercent: document.getElementById('overagePercent').value,
+      markupType: document.getElementById('markupType').value,
+      markupValue: document.getElementById('markupValue').value,
+    },
   };
 }
 function applyState(snap){
   categorySelect.value = snap.category; populateProducts();
-  productSelect.value = snap.product; populateBatchSizes(); populateFillVolumes();
-  document.getElementById('refBatchSize').value = snap.refBatchSize;
-  document.getElementById('refIngredientCost').value = snap.refIngredientCost;
-  document.getElementById('refLaborCost').value = snap.refLaborCost;
-  document.getElementById('selectedBatchSize').value = snap.selectedBatchSize;
-  document.getElementById('overagePercent').value = snap.overagePercent;
-  document.getElementById('markupType').value = snap.markupType;
-  document.getElementById('markupValue').value = snap.markupValue;
-  document.getElementById('fillVolumeSelect').value = snap.fillVolume;
-  refreshPackagingTypeSelect();
-  packagingTypeSelect.value = snap.packagingType;
-  localStorage.setItem(BRAND_KEY, JSON.stringify(snap.branding || {}));
-  buildBrandOptions();
-  document.getElementById('historyPanel').style.display = 'none';
+  productSelect.value = snap.product; populateRefBatchSelect();
+  document.getElementById('refBatchSize').value = snap.ref.refBatchSize;
+  document.getElementById('refIngredientCost').value = snap.ref.refIngredientCost;
+  document.getElementById('refLaborCost').value = snap.ref.refLaborCost;
+  document.getElementById('overagePercent').value = snap.ref.overagePercent;
+  document.getElementById('markupType').value = snap.ref.markupType;
+  document.getElementById('markupValue').value = snap.ref.markupValue;
   persistCurrentProductRef();
-  renderAll();
+  document.getElementById('historyPanel').style.display = 'none';
+  onProductChange();
 }
 function refreshHistoryUI(){
   const list = loadHistory();
@@ -668,9 +614,7 @@ document.getElementById('historyToggleBtn').addEventListener('click', () => {
 });
 document.getElementById('printBtn').addEventListener('click', () => window.print());
 
-// ---------------- Init ----------------
 refreshHistoryUI();
-renderAll();
 </script>
 </body>
 </html>
