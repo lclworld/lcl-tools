@@ -358,7 +358,7 @@ const CATALOG = {
     {name:'Body Butter', fillVolumes:[100,250,500], unit:'ml'},
     {name:'Body Oil', fillVolumes:[100,250,500], unit:'ml'},
   ]},
-  'Face Care': { batchSizes:[5,10,25,100,500], products:[
+  'Face Care': { batchSizes:[2,5,10,25,100], products:[
     {name:'Cleanser', fillVolumes:[50,100,250], unit:'ml'},
     {name:'Toner', fillVolumes:[50,100,250], unit:'ml'},
     {name:'Serum', fillVolumes:[30,50,100], unit:'ml'},
@@ -830,7 +830,7 @@ function renderSample(){
   const perUnit = yieldUnits > 0 ? total / yieldUnits : 0;
 
   document.getElementById('sampleTotal').textContent = fmtGHS(total);
-  document.getElementById('sampleSub').textContent = `${product.name} — ${batchSize} L, ${fillVolume}${product.unit} fill, ~${Math.floor(yieldUnits).toLocaleString()} units, ${base.markupPct.toFixed(1)}% markup`;
+  document.getElementById('sampleSub').textContent = `${product.name} — ${batchSize} L, ${fillVolume}${product.unit} fill, ~${Math.floor(yieldUnits).toLocaleString()} units, ${base.markupPct.toFixed(1)}% markup, ${selectedNames.length} add-on${selectedNames.length===1?'':'s'} selected`;
   document.getElementById('sampleUnit').textContent = fmtGHS(perUnit) + ' / unit';
   document.getElementById('sampleUsd').textContent = rate > 0 ? `${fmtUSD(total/rate)} total · ${fmtUSD(perUnit/rate)} / unit` : '';
 }
@@ -979,11 +979,16 @@ function buildDevNotesDoc(){
   html += `<div class="doc-section"><div class="doc-section-title">6. Packaging</div>`;
   html += docRow('Packaging material', dv('devPackagingMaterial'));
   html += docRow('Available fill volumes', product.fillVolumes.map(v => v+product.unit).join(', '));
-  const packaging = readPackaging();
-  if(packaging.length){
-    html += `<table class="doc-table"><tr><th>Packaging type</th>${product.fillVolumes.map(v=>`<th>${v}${product.unit}</th>`).join('')}</tr>`;
-    packaging.forEach(p => {
-      html += `<tr><td>${p.name}</td>${product.fillVolumes.map(v=>`<td>${fmtGHS(Number(p.prices[v+product.unit])||0)}/unit</td>`).join('')}</tr>`;
+  const packOpts = productPackagingOptions(product);
+  if(packOpts.isCustom){
+    html += `<p style="font-size:12.5px;color:#a39a89;">Custom packaging — no catalog pricing. See packaging notes below.</p>`;
+  } else {
+    html += `<table class="doc-table"><tr><th>Packaging type</th><th>Colors</th><th>Sizes &amp; cost/unit</th></tr>`;
+    packOpts.options.forEach(opt => {
+      const def = PACKAGING_TYPES[opt.type];
+      const colorText = opt.type === OWN_PACKAGING ? '—' : def.colors.join(' / ');
+      const sizesText = opt.sizes.map(s => `${s}${product.unit}: ${fmtGHS(getPackCost(opt.type, s, product.unit))}`).join(', ');
+      html += `<tr><td>${opt.type}</td><td>${colorText}</td><td>${sizesText}</td></tr>`;
     });
     html += `</table>`;
   }
