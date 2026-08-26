@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LCL Packaging Catalog Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Urbanist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --cream:#FBF8EF;
+    --orange:#FF914D;
+    --yellow:#FFDE59;
+    --black:#1A1512;
+    --brown:#5B4239;
+    --line:#E7DFCF;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--black);
+    font-family:'Urbanist',sans-serif;
+  }
+  header{
+    padding:28px 24px 20px;
+    border-bottom:1px solid var(--line);
+    background:var(--cream);
+  }
+  header .eyebrow{
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--brown);
+    font-weight:700;
+    margin-bottom:4px;
+  }
+  header h1{
+    font-family:'Playfair Display',serif;
+    font-weight:700;
+    font-size:28px;
+    margin:0;
+  }
+  header p{
+    margin:6px 0 0;
+    color:var(--brown);
+    font-size:14px;
+  }
+  .wrap{
+    max-width:1100px;
+    margin:0 auto;
+    padding:24px;
+    display:grid;
+    grid-template-columns:380px 1fr;
+    gap:24px;
+  }
+  @media (max-width:860px){
+    .wrap{grid-template-columns:1fr;}
+  }
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+  }
+  .panel h2{
+    font-family:'Playfair Display',serif;
+    font-size:19px;
+    margin:0 0 14px;
+  }
+  label{
+    display:block;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--brown);
+    margin:14px 0 5px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=number], select, textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    font-family:'Urbanist',sans-serif;
+    font-size:14.5px;
+    background:#fff;
+    color:var(--black);
+  }
+  textarea{resize:vertical;}
+  input:focus, select:focus, textarea:focus{
+    outline:none;
+    border-color:var(--orange);
+  }
+  .file-row{
+    display:flex;
+    gap:10px;
+  }
+  .file-slot{
+    flex:1;
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    padding:10px;
+    text-align:center;
+    cursor:pointer;
+    position:relative;
+    min-height:92px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:#FEFCF7;
+  }
+  .file-slot.filled{border-style:solid; border-color:var(--orange);}
+  .file-slot img{
+    max-width:100%;
+    max-height:60px;
+    border-radius:4px;
+    margin-bottom:4px;
+  }
+  .file-slot span{
+    font-size:11px;
+    color:var(--brown);
+    font-weight:600;
+  }
+  .file-slot input[type=file]{
+    position:absolute;
+    inset:0;
+    opacity:0;
+    cursor:pointer;
+  }
+  .required-tag{color:var(--orange); font-weight:800;}
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:11px 18px;
+    border-radius:9px;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    border:1.5px solid var(--black);
+    background:transparent;
+    color:var(--black);
+    transition:.15s;
+  }
+  .btn:hover{background:var(--black); color:#fff;}
+  .btn-primary{
+    border-color:var(--orange);
+    color:var(--orange);
+  }
+  .btn-primary:hover{background:var(--orange); color:#fff;}
+  .btn-full{width:100%; margin-top:16px;}
+  .btn:disabled{opacity:.4; cursor:not-allowed; pointer-events:none;}
+  .item-count{
+    font-size:13px;
+    color:var(--brown);
+    font-weight:700;
+  }
+  .items-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px,1fr));
+    gap:14px;
+    margin-top:16px;
+  }
+  .item-card{
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .item-card .thumb{
+    width:100%;
+    height:140px;
+    background:#F4EFE2;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .item-card .thumb img{width:100%; height:100%; object-fit:cover;}
+  .item-card .body{padding:12px;}
+  .item-card .ref{
+    display:inline-block;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.03em;
+    background:var(--yellow);
+    color:var(--black);
+    padding:2px 8px;
+    border-radius:6px;
+    margin-bottom:6px;
+  }
+  .item-card h3{
+    font-family:'Playfair Display',serif;
+    font-size:16px;
+    margin:0 0 4px;
+  }
+  .item-card .meta{font-size:12.5px; color:var(--brown); margin:0 0 2px;}
+  .item-card .actions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+  .item-card .actions button{
+    flex:1;
+    font-size:12px;
+    padding:6px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-weight:700;
+    color:var(--brown);
+  }
+  .item-card .actions button.danger{color:#B33A2B; border-color:#EAD0CB;}
+  .empty-state{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--brown);
+  }
+  .empty-state h3{font-family:'Playfair Display',serif; margin:0 0 6px;}
+  .terms-toggle{
+    background:none;
+    border:none;
+    color:var(--brown);
+    font-weight:700;
+    font-size:12.5px;
+    cursor:pointer;
+    text-decoration:underline;
+    padding:0;
+    margin-top:14px;
+  }
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .bottom-actions{
+    display:flex;
+    gap:12px;
+    margin-top:18px;
+  }
+  .bottom-actions .btn{flex:1;}
+  .hint{font-size:12px; color:var(--brown); margin-top:8px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Lueur Cosmetics Lab &middot; Internal Tool</div>
+  <h1>Packaging Catalog Generator</h1>
+  <p>Add sourced packaging items, then export a client ready PDF. Nothing here is saved beyond this browser.</p>
+</header>
+
+<div class="wrap">
+
+  <div class="panel">
+    <h2>Add an item</h2>
+
+    <label>Category</label>
+    <select id="category">
+      <option value="Bottle|BT">Bottle</option>
+      <option value="Jar|JR">Jar</option>
+      <option value="Cap/Closure|CP">Cap / Closure</option>
+      <option value="Tube|TB">Tube</option>
+      <option value="Pouch|PC">Pouch</option>
+      <option value="Label|LB">Label</option>
+      <option value="Dropper|DR">Dropper</option>
+      <option value="Pump|PM">Pump</option>
+      <option value="Box/Carton|BX">Box / Carton</option>
+      <option value="Other|OT">Other</option>
+    </select>
+
+    <div id="customCategoryWrap" style="display:none;">
+      <label>Custom category name</label>
+      <input type="text" id="customCategoryName" placeholder="e.g. Sample Sachet">
+      <label>Custom 2 letter prefix (optional)</label>
+      <input type="text" id="customCategoryPrefix" maxlength="2" placeholder="OT">
+    </div>
+
+    <label>Item name</label>
+    <input type="text" id="itemName" placeholder="e.g. 250ml Amber PET Bottle">
+
+    <label>Price</label>
+    <input type="text" id="itemPrice" placeholder="e.g. GHS 4.50 per unit">
+
+    <label>MOQ</label>
+    <input type="text" id="itemMoq" placeholder="e.g. 500 units">
+
+    <label>Colors available (optional)</label>
+    <input type="text" id="itemColors" placeholder="e.g. Clear, Amber, White">
+
+    <label>Images <span class="required-tag">* first is required</span></label>
+    <div class="file-row">
+      <div class="file-slot" id="slot-req">
+        <span>Required</span>
+        <input type="file" accept="image/*" id="img-req">
+      </div>
+      <div class="file-slot" id="slot-opt1">
+        <span>Optional</span>
+        <input type="file" accept="image/*" id="img-opt1">
+      </div>
+      <div class="file-slot" id="slot-opt2">
+        <span>Optional</span>
+        <input type="file" accept="image/*" id="img-opt2">
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="addBtn">Add item to catalog</button>
+    <p class="hint" id="formError"></p>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <h2 style="margin:0;">Catalog items</h2>
+      <span class="item-count" id="itemCount">0 items</span>
+    </div>
+
+    <div id="itemsGrid" class="items-grid"></div>
+    <div class="empty-state" id="emptyState">
+      <h3>No items yet</h3>
+      <p>Add your first packaging item on the left to get started.</p>
+    </div>
+
+    <button class="terms-toggle" id="termsToggle">Edit terms & conditions page</button>
+    <div id="termsWrap" style="display:none; margin-top:10px;">
+      <textarea id="termsText" rows="10"></textarea>
+      <p class="hint">This text appears as the first page of every exported PDF.</p>
+    </div>
+
+    <div class="bottom-actions">
+      <button class="btn" id="newCatalogBtn">Start new catalog</button>
+      <button class="btn btn-primary" id="exportBtn">Export as PDF</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'lcl_pkg_catalog_state_v1';
+  let state = { items: [], counters: {}, terms: null };
+
+  const DEFAULT_TERMS = [
+    "These packaging items are sourced from a network of external suppliers and are not held in LCL stock. They are only available when proceeding to place a bulk order.",
+    "Since these items are sourced on demand from our supplier network rather than held in stock, availability cannot be guaranteed and may change at any time. Listed items may become unavailable or be substituted with a comparable alternative without notice. Availability is confirmed only at the time of order, not at the time of browsing this catalog.",
+    "Once paid, orders cannot be cancelled or refunded.",
+    "Images are representative of each item. Actual colour, finish, or texture may vary slightly by production batch.",
+    "Prices are subject to change without prior notice due to supplier or currency fluctuations. Confirmed pricing is quoted at the time of order.",
+    "Minimum Order Quantity (MOQ) applies per item unless otherwise stated.",
+    "Lead time varies by supplier and order size and will be communicated at the time of order.",
+    "This catalog is provided for reference and sourcing purposes only and does not constitute a binding offer of sale.",
+    "For pricing confirmation or to place a bulk order, please contact Lueur Cosmetics Lab directly, quoting the reference code(s) of the item(s) required."
+  ].map((t,i)=>(i+1)+". "+t).join("\n\n");
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        state.items = parsed.items || [];
+        state.counters = parsed.counters || {};
+        state.terms = parsed.terms || null;
+      }
+    }catch(e){ console.warn('Could not load saved catalog', e); }
+    if(!state.terms) state.terms = DEFAULT_TERMS;
+    document.getElementById('termsText').value = state.terms;
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(e){
+      console.warn('Could not autosave (storage may be full)', e);
+    }
+  }
+
+  function nextRefCode(prefix){
+    const p = (prefix || 'OT').toUpperCase().slice(0,2) || 'OT';
+    const current = state.counters[p] || 0;
+    const next = current + 1;
+    state.counters[p] = next;
+    return p + String(next).padStart(3,'0');
+  }
+
+  // ---- image handling ----
+  function readAndResize(file, maxDim){
+    return new Promise((resolve, reject)=>{
+      if(!file){ resolve(null); return; }
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error);
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.naturalWidth, h = img.naturalHeight;
+          const scale = Math.min(1, maxDim / Math.max(w,h));
+          w = Math.round(w*scale); h = Math.round(h*scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          resolve({ dataUrl, w, h });
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setupSlotPreview(inputId, slotId){
+    const input = document.getElementById(inputId);
+    const slot = document.getElementById(slotId);
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        slot.classList.add('filled');
+        let img = slot.querySelector('img');
+        if(!img){
+          img = document.createElement('img');
+          slot.insertBefore(img, slot.firstChild);
+        }
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  setupSlotPreview('img-req','slot-req');
+  setupSlotPreview('img-opt1','slot-opt1');
+  setupSlotPreview('img-opt2','slot-opt2');
+
+  document.getElementById('category').addEventListener('change', (e)=>{
+    document.getElementById('customCategoryWrap').style.display =
+      e.target.value.startsWith('Other') ? 'block' : 'none';
+  });
+
+  function clearForm(){
+    document.getElementById('itemName').value = '';
+    document.getElementById('itemPrice').value = '';
+    document.getElementById('itemMoq').value = '';
+    document.getElementById('itemColors').value = '';
+    document.getElementById('customCategoryName').value = '';
+    document.getElementById('customCategoryPrefix').value = '';
+    ['img-req','img-opt1','img-opt2'].forEach(id=>{
+      const input = document.getElementById(id);
+      input.value = '';
+    });
+    ['slot-req','slot-opt1','slot-opt2'].forEach(id=>{
+      const slot = document.getElementById(id);
+      slot.classList.remove('filled');
+      const img = slot.querySelector('img');
+      if(img) img.remove();
+    });
+    document.getElementById('formError').textContent = '';
+  }
+
+  document.getElementById('addBtn').addEventListener('click', async () => {
+    const errEl = document.getElementById('formError');
+    errEl.textContent = '';
+
+    const catRaw = document.getElementById('category').value;
+    let [catLabel, catPrefix] = catRaw.split('|');
+    let isOther = catLabel === 'Other';
+    if(isOther){
+      const customName = document.getElementById('customCategoryName').value.trim();
+      const customPrefix = document.getElementById('customCategoryPrefix').value.trim();
+      if(customName) catLabel = customName;
+      if(customPrefix) catPrefix = customPrefix;
+    }
+
+    const name = document.getElementById('itemName').value.trim();
+    const price = document.getElementById('itemPrice').value.trim();
+    const moq = document.getElementById('itemMoq').value.trim();
+    const colors = document.getElementById('itemColors').value.trim();
+    const reqFile = document.getElementById('img-req').files[0];
+    const opt1File = document.getElementById('img-opt1').files[0];
+    const opt2File = document.getElementById('img-opt2').files[0];
+
+    if(!name || !price || !moq || !reqFile){
+      errEl.textContent = 'Item name, price, MOQ, and the required image are all needed before adding.';
+      return;
+    }
+
+    document.getElementById('addBtn').disabled = true;
+    document.getElementById('addBtn').textContent = 'Adding...';
+
+    try{
+      const [reqImg, opt1Img, opt2Img] = await Promise.all([
+        readAndResize(reqFile, 1400),
+        readAndResize(opt1File, 1000),
+        readAndResize(opt2File, 1000)
+      ]);
+
+      const refCode = nextRefCode(catPrefix);
+
+      state.items.push({
+        id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+        refCode,
+        category: catLabel,
+        name, price, moq, colors,
+        images: { required: reqImg, opt1: opt1Img, opt2: opt2Img }
+      });
+
+      save();
+      renderItems();
+      clearForm();
+    }catch(e){
+      errEl.textContent = 'Something went wrong reading one of the images. Please try that image again.';
+      console.error(e);
+    }finally{
+      document.getElementById('addBtn').disabled = false;
+      document.getElementById('addBtn').textContent = 'Add item to catalog';
+    }
+  });
+
+  function deleteItem(id){
+    state.items = state.items.filter(it => it.id !== id);
+    save();
+    renderItems();
+  }
+
+  function renderItems(){
+    const grid = document.getElementById('itemsGrid');
+    const empty = document.getElementById('emptyState');
+    const count = document.getElementById('itemCount');
+    count.textContent = state.items.length + (state.items.length === 1 ? ' item' : ' items');
+
+    if(state.items.length === 0){
+      grid.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    grid.innerHTML = state.items.map(it => `
+      <div class="item-card">
+        <div class="thumb">
+          <img src="${it.images.required.dataUrl}" alt="${it.name}">
+        </div>
+        <div class="body">
+          <span class="ref">${it.refCode}</span>
+          <h3>${escapeHtml(it.name)}</h3>
+          <p class="meta">${escapeHtml(it.category)}</p>
+          <p class="meta">${escapeHtml(it.price)} &middot; MOQ ${escapeHtml(it.moq)}</p>
+          ${it.colors ? `<p class="meta">Colors: ${escapeHtml(it.colors)}</p>` : ''}
+          <div class="actions">
+            <button class="danger" onclick="window.__deleteItem('${it.id}')">Remove</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+  window.__deleteItem = deleteItem;
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---- terms panel ----
+  document.getElementById('termsToggle').addEventListener('click', () => {
+    const wrap = document.getElementById('termsWrap');
+    wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+  });
+  document.getElementById('termsText').addEventListener('input', (e) => {
+    state.terms = e.target.value;
+    save();
+  });
+
+  // ---- new catalog ----
+  document.getElementById('newCatalogBtn').addEventListener('click', () => {
+    if(state.items.length === 0){
+      resetTermsOnly();
+      return;
+    }
+    const ok = window.confirm('Start a new catalog? This clears all items currently added on this device. This cannot be undone.');
+    if(!ok) return;
+    state = { items: [], counters: {}, terms: DEFAULT_TERMS };
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('termsText').value = DEFAULT_TERMS;
+    renderItems();
+  });
+  function resetTermsOnly(){
+    state = { items: [], counters: {}, terms: DEFAULT_TERMS };
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('termsText').value = DEFAULT_TERMS;
+    renderItems();
+  }
+
+  // ---- PDF export ----
+  document.getElementById('exportBtn').addEventListener('click', async () => {
+    if(state.items.length === 0){
+      alert('Add at least one item before exporting.');
+      return;
+    }
+    const btn = document.getElementById('exportBtn');
+    btn.disabled = true;
+    btn.textContent = 'Building PDF...';
+
+    try{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pageW = 210, pageH = 297;
+
+      // --- cover / terms page ---
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(11);
+      doc.setTextColor(91,66,57);
+      doc.text('LUEUR COSMETICS LAB', 20, 24);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(22);
+      doc.setTextColor(26,21,18);
+      doc.text('Packaging Sourcing Catalog', 20, 36);
+
+      const today = new Date();
+      doc.setFontSize(10);
+      doc.setTextColor(91,66,57);
+      doc.text('Prepared ' + today.toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }), 20, 44);
+
+      doc.setDrawColor(231,223,207);
+      doc.line(20, 50, pageW - 20, 50);
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(12);
+      doc.setTextColor(26,21,18);
+      doc.text('Terms & Conditions', 20, 60);
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10.5);
+      const termsLines = doc.splitTextToSize(state.terms, pageW - 40);
+      doc.text(termsLines, 20, 70, { lineHeightFactor: 1.5 });
+
+      // --- one page per item ---
+      state.items.forEach(it => {
+        doc.addPage();
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(10);
+        doc.setTextColor(91,66,57);
+        doc.text(it.category.toUpperCase(), 20, 22);
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(20);
+        doc.setTextColor(26,21,18);
+        doc.text(it.name, 20, 33, { maxWidth: pageW - 40 });
+
+        doc.setFillColor(255,222,89);
+        doc.roundedRect(20, 40, 28, 9, 2, 2, 'F');
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(26,21,18);
+        doc.text(it.refCode, 34, 46, { align: 'center' });
+
+        // main image, fit within box
+        const boxX = 20, boxY = 55, boxW = pageW - 40, boxH = 150;
+        if(it.images.required){
+          const dim = fitDims(it.images.required.w, it.images.required.h, boxW, boxH);
+          const dx = boxX + (boxW - dim.w)/2;
+          const dy = boxY + (boxH - dim.h)/2;
+          doc.addImage(it.images.required.dataUrl, 'JPEG', dx, dy, dim.w, dim.h);
+        }
+
+        // optional thumbnails
+        let ty = boxY + boxH + 10;
+        const opts = [it.images.opt1, it.images.opt2].filter(Boolean);
+        if(opts.length){
+          const thumbSize = 32;
+          let tx = 20;
+          opts.forEach(img => {
+            const dim = fitDims(img.w, img.h, thumbSize, thumbSize);
+            const dx = tx + (thumbSize - dim.w)/2;
+            const dy = ty + (thumbSize - dim.h)/2;
+            doc.setDrawColor(231,223,207);
+            doc.roundedRect(tx, ty, thumbSize, thumbSize, 2, 2);
+            doc.addImage(img.dataUrl, 'JPEG', dx, dy, dim.w, dim.h);
+            tx += thumbSize + 8;
+          });
+          ty += thumbSize + 10;
+        } else {
+          ty += 4;
+        }
+
+        doc.setDrawColor(231,223,207);
+        doc.line(20, ty, pageW - 20, ty);
+        ty += 10;
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(11);
+        doc.setTextColor(91,66,57);
+        doc.text('PRICE', 20, ty);
+        doc.text('MOQ', 110, ty);
+
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(13);
+        doc.setTextColor(26,21,18);
+        doc.text(it.price, 20, ty + 7, { maxWidth: 85 });
+        doc.text(it.moq, 110, ty + 7, { maxWidth: 80 });
+
+        if(it.colors){
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(11);
+          doc.setTextColor(91,66,57);
+          doc.text('COLORS AVAILABLE', 20, ty + 18);
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(13);
+          doc.setTextColor(26,21,18);
+          doc.text(it.colors, 20, ty + 25, { maxWidth: pageW - 40 });
+        }
+
+        // footer
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(150,140,130);
+        doc.text('Lueur Cosmetics Lab \u2014 Packaging Sourcing Catalog', 20, pageH - 12);
+      });
+
+      // page numbers
+      const pageCount = doc.internal.getNumberOfPages();
+      for(let i=1; i<=pageCount; i++){
+        doc.setPage(i);
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(150,140,130);
+        doc.text(String(i) + ' / ' + pageCount, pageW - 22, pageH - 12);
+      }
+
+      const filename = 'LCL-Packaging-Catalog-' + today.toISOString().slice(0,10) + '.pdf';
+      doc.save(filename);
+    }catch(e){
+      console.error(e);
+      alert('The PDF could not be built. Please try again.');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = 'Export as PDF';
+    }
+  });
+
+  function fitDims(natW, natH, maxW, maxH){
+    const scale = Math.min(maxW/natW, maxH/natH);
+    return { w: natW*scale, h: natH*scale };
+  }
+
+  load();
+  renderItems();
+})();
+</script>
+
+</body>
+</html>
