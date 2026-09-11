@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payslip Generator — LCL Tools</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --brown:#5B4239;
+    --brown-dark:#3E2C26;
+    --orange:#FF914D;
+    --cream:#FBF8EF;
+    --yellow:#FFDE59;
+    --ink:#1C1410;
+    --line:#E4DCD0;
+    --muted:#8A7B6E;
+    --danger:#B3452C;
+    --ok:#3E6B4F;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height:1.45;
+  }
+  header.top{
+    background:var(--brown-dark);
+    color:var(--cream);
+    padding:22px 24px 18px;
+  }
+  header.top .brandrow{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  header.top h1{
+    margin:0;
+    font-size:1.35rem;
+    letter-spacing:.02em;
+    font-weight:700;
+  }
+  header.top .sub{
+    color:#D8C9BC;
+    font-size:.85rem;
+    margin-top:4px;
+  }
+  nav.tabs{
+    display:flex;
+    gap:2px;
+    background:var(--brown);
+    padding:0 24px;
+    overflow-x:auto;
+  }
+  nav.tabs button{
+    background:transparent;
+    border:none;
+    color:#EDE2D6;
+    padding:13px 16px;
+    font-size:.88rem;
+    font-weight:600;
+    cursor:pointer;
+    border-bottom:3px solid transparent;
+    white-space:nowrap;
+  }
+  nav.tabs button.active{
+    color:#fff;
+    border-bottom:3px solid var(--orange);
+  }
+  main{
+    max-width:920px;
+    margin:0 auto;
+    padding:26px 20px 80px;
+  }
+  .view{display:none;}
+  .view.active{display:block;}
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:18px;
+  }
+  .card h2{
+    margin:0 0 4px;
+    font-size:1.05rem;
+  }
+  .card .hint{
+    color:var(--muted);
+    font-size:.82rem;
+    margin-bottom:16px;
+  }
+  label{
+    display:block;
+    font-size:.78rem;
+    font-weight:600;
+    color:var(--brown);
+    margin:12px 0 5px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+  label.first{margin-top:0;}
+  input[type=text], input[type=number], input[type=date], select{
+    width:100%;
+    padding:9px 11px;
+    border:1px solid #D6CCBF;
+    border-radius:7px;
+    font-size:.92rem;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  input:focus, select:focus{
+    outline:2px solid var(--orange);
+    outline-offset:1px;
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:0 14px;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 14px;}
+  @media(max-width:600px){.grid2,.grid3{grid-template-columns:1fr;}}
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--brown-dark);
+    color:#fff;
+    border:none;
+    padding:10px 18px;
+    border-radius:7px;
+    font-size:.88rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn.primary{background:var(--orange); color:#2A1B12;}
+  .btn.ghost{background:transparent; color:var(--brown-dark); border:1px solid #D6CCBF;}
+  .btn.danger{background:transparent; color:var(--danger); border:1px solid #E3B6A6;}
+  .btn.small{padding:6px 12px; font-size:.8rem;}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .lineitem{
+    display:grid;
+    grid-template-columns:1fr 130px 34px;
+    gap:8px;
+    margin-bottom:8px;
+    align-items:center;
+  }
+  .lineitem input{margin:0;}
+  .remove-line{
+    background:none; border:none; color:var(--danger);
+    font-size:1.1rem; cursor:pointer; padding:0;
+    width:34px; text-align:center;
+  }
+  .section-title{
+    font-size:.8rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--brown);
+    margin:18px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--line);
+  }
+  .totals-box{
+    background:var(--cream);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+    margin-top:16px;
+  }
+  .totals-box .line{
+    display:flex; justify-content:space-between;
+    font-size:.9rem; padding:3px 0;
+  }
+  .totals-box .line.net{
+    font-weight:700; font-size:1.05rem;
+    border-top:1px solid var(--line); margin-top:6px; padding-top:8px;
+  }
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--cream); border:1px solid var(--line);
+    border-radius:8px; padding:12px 14px; margin-top:14px;
+  }
+  .toggle-row .label-block strong{display:block; font-size:.85rem;}
+  .toggle-row .label-block span{font-size:.76rem; color:var(--muted);}
+  .switch{
+    position:relative; width:42px; height:24px; flex:0 0 auto;
+  }
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{
+    position:absolute; cursor:pointer; inset:0;
+    background:#D6CCBF; border-radius:24px; transition:.15s;
+  }
+  .slider:before{
+    content:""; position:absolute; height:18px; width:18px;
+    left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.15s;
+  }
+  input:checked + .slider{background:var(--ok);}
+  input:checked + .slider:before{transform:translateX(18px);}
+  .statutory-note{
+    font-size:.76rem; color:var(--danger); background:#FBEEE8;
+    border:1px solid #EBCBBA; border-radius:6px; padding:8px 10px; margin-top:10px;
+    display:none;
+  }
+  .statutory-note.show{display:block;}
+  table.emp-table{width:100%; border-collapse:collapse; font-size:.86rem;}
+  table.emp-table th{
+    text-align:left; font-size:.74rem; text-transform:uppercase;
+    color:var(--muted); border-bottom:1px solid var(--line); padding:8px 6px;
+  }
+  table.emp-table td{padding:9px 6px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  table.emp-table tr:last-child td{border-bottom:none;}
+  .pill{
+    display:inline-block; font-size:.72rem; padding:2px 8px;
+    border-radius:20px; background:var(--cream); color:var(--brown); border:1px solid var(--line);
+  }
+  .empty{
+    text-align:center; color:var(--muted); padding:30px 10px; font-size:.88rem;
+  }
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(28,20,16,.45);
+    align-items:center; justify-content:center; z-index:50; padding:16px;
+  }
+  .modal-backdrop.show{display:flex;}
+  .modal{
+    background:#fff; border-radius:12px; padding:22px; max-width:440px; width:100%;
+    max-height:88vh; overflow-y:auto;
+  }
+  .modal h3{margin-top:0;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
+  select#gen-employee{margin-bottom:2px;}
+  .history-item{
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    margin-bottom:10px; flex-wrap:wrap;
+  }
+  .history-item .meta strong{display:block; font-size:.92rem;}
+  .history-item .meta span{font-size:.78rem; color:var(--muted);}
+  .history-actions{display:flex; gap:6px;}
+  #pin-gate{
+    position:fixed; inset:0; background:var(--brown-dark); color:#fff;
+    display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  #pin-gate .box{max-width:320px; width:100%; text-align:center;}
+  #pin-gate input{text-align:center; letter-spacing:.4em; font-size:1.2rem;}
+  #pin-gate .btn{width:100%; margin-top:12px; justify-content:center;}
+  #pin-error{color:#FFC2A8; font-size:.8rem; margin-top:8px; min-height:1em;}
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    background:var(--brown-dark); color:#fff; padding:11px 18px; border-radius:8px;
+    font-size:.86rem; opacity:0; pointer-events:none; transition:.2s; z-index:80;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="pin-gate">
+  <div class="box">
+    <h2 style="margin-bottom:4px;">Payslip Generator</h2>
+    <p style="color:#D8C9BC; font-size:.85rem; margin-top:0;">Enter the LCL Tools PIN to continue</p>
+    <input type="text" inputmode="numeric" id="pin-input" placeholder="••••" maxlength="8">
+    <button class="btn primary" onclick="checkPin()">Unlock</button>
+    <div id="pin-error"></div>
+    <p style="font-size:.72rem; color:#B4A499; margin-top:18px;">Uses the same PIN pattern as your other LCL Tools.</p>
+  </div>
+</div>
+
+<header class="top">
+  <div class="brandrow">
+    <h1>Payslip Generator</h1>
+    <span class="sub">Lueur Cosmetics Lab · LCL Tools</span>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-view="employees">Employees</button>
+  <button class="tab-btn" data-view="generate">New Payslip</button>
+  <button class="tab-btn" data-view="history">History</button>
+</nav>
+
+<main>
+
+  <!-- EMPLOYEES VIEW -->
+  <section class="view active" id="view-employees">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <h2>Employees</h2>
+          <div class="hint">Profiles are reused every month, so you only enter bank and role details once.</div>
+        </div>
+        <button class="btn primary" onclick="openEmployeeModal()">+ Add Employee</button>
+      </div>
+      <table class="emp-table" id="emp-table">
+        <thead>
+          <tr><th>Name</th><th>Role</th><th>Dept</th><th>ID</th><th>Pay basis</th><th>Statutory</th><th></th></tr>
+        </thead>
+        <tbody id="emp-tbody"></tbody>
+      </table>
+      <div class="empty" id="emp-empty" style="display:none;">No employees yet. Add your first one above.</div>
+    </div>
+  </section>
+
+  <!-- GENERATE VIEW -->
+  <section class="view" id="view-generate">
+    <div class="card">
+      <h2>New Payslip</h2>
+      <div class="hint">Pick an employee, their profile autofills. Add or remove earning and deduction lines freely.</div>
+
+      <label class="first">Employee</label>
+      <select id="gen-employee" onchange="onEmployeeSelected()"></select>
+
+      <div class="grid2">
+        <div>
+          <label>Pay period (e.g. "December 2025" or "Nov 15 – Dec 14 2025")</label>
+          <input type="text" id="gen-period" placeholder="December 2025">
+        </div>
+        <div>
+          <label>Pay date</label>
+          <input type="date" id="gen-paydate">
+        </div>
+      </div>
+
+      <label id="worked-label">Worked</label>
+      <input type="text" id="gen-worked" placeholder="e.g. 19/20 worked days, or 140/160 hours">
+
+      <div class="section-title">Earnings</div>
+      <div id="earnings-list"></div>
+      <button class="btn ghost small" onclick="addLine('earnings')">+ Add earning line</button>
+
+      <div class="section-title">Deductions</div>
+      <div id="deductions-list"></div>
+      <button class="btn ghost small" onclick="addLine('deductions')">+ Add deduction line</button>
+
+      <div class="toggle-row">
+        <div class="label-block">
+          <strong>Include SSNIT &amp; PAYE (statutory)</strong>
+          <span>Off by default. Turn on when you're ready to run formal payroll.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="gen-statutory" onchange="renderTotals()">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="statutory-note" id="statutory-note">
+        SSNIT (5.5% employee) and PAYE are calculated from a built-in bracket table that may be out of date.
+        Verify current rates with GRA / SSNIT or your accountant before relying on this for real payroll.
+      </div>
+
+      <div class="totals-box" id="totals-box"></div>
+
+      <div class="row" style="margin-top:18px;">
+        <button class="btn primary" onclick="generatePayslip()">Generate PDF &amp; Save</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORY VIEW -->
+  <section class="view" id="view-history">
+    <div class="card">
+      <h2>Payslip History</h2>
+      <div class="hint">Every generated payslip is saved here, filed under the employee.</div>
+      <label class="first">Filter by employee</label>
+      <select id="history-filter" onchange="renderHistory()"></select>
+      <div id="history-list" style="margin-top:14px;"></div>
+      <div class="empty" id="history-empty" style="display:none;">No payslips generated yet.</div>
+    </div>
+  </section>
+
+</main>
+
+<!-- EMPLOYEE MODAL -->
+<div class="modal-backdrop" id="emp-modal">
+  <div class="modal">
+    <h3 id="emp-modal-title">Add Employee</h3>
+    <input type="hidden" id="emp-edit-id">
+    <label class="first">Full name</label>
+    <input type="text" id="emp-name">
+    <div class="grid2">
+      <div>
+        <label>Role / Position</label>
+        <input type="text" id="emp-role">
+      </div>
+      <div>
+        <label>Employee ID</label>
+        <input type="text" id="emp-id" placeholder="e.g. EKDV25-09">
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label>Department</label>
+        <input type="text" id="emp-dept" placeholder="e.g. Production">
+      </div>
+      <div>
+        <label>Filename code</label>
+        <input type="text" id="emp-filecode" placeholder="e.g. EKD07 — used in downloaded file names">
+      </div>
+    </div>
+    <label>Pay basis</label>
+    <select id="emp-basis">
+      <option value="days">Days</option>
+      <option value="hours">Hours</option>
+    </select>
+    <div class="grid2">
+      <div>
+        <label>Bank name</label>
+        <input type="text" id="emp-bank">
+      </div>
+      <div>
+        <label>Account number</label>
+        <input type="text" id="emp-account">
+      </div>
+    </div>
+    <label>Default basic salary (GHS)</label>
+    <input type="number" id="emp-basic" placeholder="0">
+    <div class="toggle-row" style="margin-top:14px;">
+      <div class="label-block">
+        <strong>Default statutory to ON for this employee</strong>
+        <span>You can still override per payslip.</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="emp-statutory-default">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeEmployeeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveEmployee()">Save Employee</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ CONFIG ============ */
+const PIN_CODE = "2635";
+const COMPANY_NAME = "Lueur Cosmetics Lab";
+
+/* ============ PIN GATE ============ */
+function checkPin(){
+  const val = document.getElementById('pin-input').value.trim();
+  if(val === PIN_CODE){
+    document.getElementById('pin-gate').style.display = 'none';
+  } else {
+    document.getElementById('pin-error').textContent = "Incorrect PIN, try again.";
+  }
+}
+document.getElementById('pin-input').addEventListener('keydown', e=>{ if(e.key === 'Enter') checkPin(); });
+
+/* ============ DATA LAYER ============ */
+const STORE_EMP = 'lcl_payslip_employees';
+const STORE_HISTORY = 'lcl_payslip_history';
+
+function loadEmployees(){ return JSON.parse(localStorage.getItem(STORE_EMP) || '[]'); }
+function saveEmployees(list){ localStorage.setItem(STORE_EMP, JSON.stringify(list)); }
+function loadHistory(){ return JSON.parse(localStorage.getItem(STORE_HISTORY) || '[]'); }
+function saveHistory(list){ localStorage.setItem(STORE_HISTORY, JSON.stringify(list)); }
+
+function seedIfEmpty(){
+  const emp = loadEmployees();
+  if(emp.length === 0){
+    saveEmployees([{
+      id: 'EKDV25-08',
+      name: 'Gloria Enam Deku',
+      role: 'Production Associate',
+      department: 'Production',
+      fileCode: 'EKD08',
+      basis: 'days',
+      bank: 'Fidelity Bank Ghana, Bolgatanga Branch',
+      account: '2100367361116',
+      basic: 1400,
+      statutoryDefault: false
+    }]);
+  }
+}
+seedIfEmpty();
+
+/* ============ TABS ============ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    if(btn.dataset.view === 'employees') renderEmployees();
+    if(btn.dataset.view === 'generate') populateEmployeeSelect();
+    if(btn.dataset.view === 'history') { populateHistoryFilter(); renderHistory(); }
+  });
+});
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+/* ============ EMPLOYEES ============ */
+function renderEmployees(){
+  const emp = loadEmployees();
+  const tbody = document.getElementById('emp-tbody');
+  tbody.innerHTML = '';
+  document.getElementById('emp-empty').style.display = emp.length ? 'none' : 'block';
+  emp.forEach(e=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${e.name}</td>
+      <td>${e.role}</td>
+      <td>${e.department || '\u2014'}</td>
+      <td>${e.id}</td>
+      <td><span class="pill">${e.basis === 'hours' ? 'Hourly' : 'Daily'}</span></td>
+      <td><span class="pill">${e.statutoryDefault ? 'On' : 'Off'}</span></td>
+      <td>
+        <button class="btn ghost small" onclick="openEmployeeModal('${e.id}')">Edit</button>
+        <button class="btn danger small" onclick="deleteEmployee('${e.id}')">Delete</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openEmployeeModal(id){
+  document.getElementById('emp-modal').classList.add('show');
+  if(id){
+    const e = loadEmployees().find(x=>x.id === id);
+    document.getElementById('emp-modal-title').textContent = 'Edit Employee';
+    document.getElementById('emp-edit-id').value = e.id;
+    document.getElementById('emp-name').value = e.name;
+    document.getElementById('emp-role').value = e.role;
+    document.getElementById('emp-id').value = e.id;
+    document.getElementById('emp-dept').value = e.department || '';
+    document.getElementById('emp-filecode').value = e.fileCode || '';
+    document.getElementById('emp-basis').value = e.basis;
+    document.getElementById('emp-bank').value = e.bank;
+    document.getElementById('emp-account').value = e.account;
+    document.getElementById('emp-basic').value = e.basic;
+    document.getElementById('emp-statutory-default').checked = !!e.statutoryDefault;
+  } else {
+    document.getElementById('emp-modal-title').textContent = 'Add Employee';
+    ['emp-edit-id','emp-name','emp-role','emp-id','emp-dept','emp-filecode','emp-bank','emp-account','emp-basic'].forEach(id2=>document.getElementById(id2).value = '');
+    document.getElementById('emp-basis').value = 'days';
+    document.getElementById('emp-statutory-default').checked = false;
+  }
+}
+function closeEmployeeModal(){ document.getElementById('emp-modal').classList.remove('show'); }
+
+function saveEmployee(){
+  const name = document.getElementById('emp-name').value.trim();
+  const role = document.getElementById('emp-role').value.trim();
+  const id = document.getElementById('emp-id').value.trim();
+  const department = document.getElementById('emp-dept').value.trim();
+  const fileCode = document.getElementById('emp-filecode').value.trim() || id.replace(/[^A-Za-z0-9]/g,'');
+  const basis = document.getElementById('emp-basis').value;
+  const bank = document.getElementById('emp-bank').value.trim();
+  const account = document.getElementById('emp-account').value.trim();
+  const basic = parseFloat(document.getElementById('emp-basic').value) || 0;
+  const statutoryDefault = document.getElementById('emp-statutory-default').checked;
+  if(!name || !id){ toast('Name and Employee ID are required'); return; }
+
+  const editId = document.getElementById('emp-edit-id').value;
+  let list = loadEmployees();
+  if(editId){
+    list = list.map(e=> e.id === editId ? {id,name,role,department,fileCode,basis,bank,account,basic,statutoryDefault} : e);
+  } else {
+    if(list.find(e=>e.id === id)){ toast('That Employee ID already exists'); return; }
+    list.push({id,name,role,department,fileCode,basis,bank,account,basic,statutoryDefault});
+  }
+  saveEmployees(list);
+  closeEmployeeModal();
+  renderEmployees();
+  toast('Employee saved');
+}
+
+function deleteEmployee(id){
+  if(!confirm('Remove this employee? Their saved payslip history stays intact.')) return;
+  saveEmployees(loadEmployees().filter(e=>e.id !== id));
+  renderEmployees();
+}
+
+/* ============ LINE ITEMS (Generate form) ============ */
+function addLine(section, label='', amount=''){
+  const wrap = document.getElementById(section + '-list');
+  const row = document.createElement('div');
+  row.className = 'lineitem';
+  row.innerHTML = `
+    <input type="text" placeholder="Description" class="line-label" value="${label}">
+    <input type="number" placeholder="GHS 0" class="line-amount" value="${amount}" oninput="renderTotals()">
+    <button class="remove-line" onclick="this.parentElement.remove(); renderTotals();">×</button>`;
+  wrap.appendChild(row);
+}
+
+function populateEmployeeSelect(){
+  const sel = document.getElementById('gen-employee');
+  const emp = loadEmployees();
+  sel.innerHTML = '<option value="">Select employee…</option>' +
+    emp.map(e=>`<option value="${e.id}">${e.name} — ${e.role}</option>`).join('');
+}
+
+function onEmployeeSelected(){
+  const id = document.getElementById('gen-employee').value;
+  document.getElementById('earnings-list').innerHTML = '';
+  document.getElementById('deductions-list').innerHTML = '';
+  if(!id){ renderTotals(); return; }
+  const e = loadEmployees().find(x=>x.id === id);
+  document.getElementById('worked-label').textContent = e.basis === 'hours' ? 'Worked (e.g. "19/20 worked days, 140/160 hours")' : 'Worked (e.g. "20/20 worked days")';
+  document.getElementById('gen-statutory').checked = !!e.statutoryDefault;
+  addLine('earnings', 'Basic Salary', e.basic || '');
+  renderTotals();
+}
+
+/* ============ PAYE / SSNIT (approximate — verify before real use) ============ */
+// Monthly graduated bands, editable. Verify against current GRA publication before enabling for real payroll.
+const PAYE_BANDS = [
+  {upTo: 490, rate: 0},
+  {upTo: 600, rate: 0.05},
+  {upTo: 730, rate: 0.10},
+  {upTo: 3896.67, rate: 0.175},
+  {upTo: 20000, rate: 0.25},
+  {upTo: 50000, rate: 0.30},
+  {upTo: Infinity, rate: 0.35}
+];
+function calcPAYE(taxable){
+  let tax = 0, lower = 0;
+  for(const band of PAYE_BANDS){
+    if(taxable > lower){
+      const slice = Math.min(taxable, band.upTo) - lower;
+      tax += slice * band.rate;
+      lower = band.upTo;
+    } else break;
+  }
+  return Math.round(tax * 100) / 100;
+}
+function calcSSNIT(gross){ return Math.round(gross * 0.055 * 100) / 100; }
+
+/* ============ TOTALS ============ */
+function getLines(section){
+  return Array.from(document.querySelectorAll(`#${section}-list .lineitem`)).map(row=>({
+    label: row.querySelector('.line-label').value.trim(),
+    amount: parseFloat(row.querySelector('.line-amount').value) || 0
+  })).filter(l=>l.label !== '' || l.amount !== 0);
+}
+
+function renderTotals(){
+  const earnings = getLines('earnings');
+  const deductions = getLines('deductions');
+  const gross = earnings.reduce((s,l)=>s+l.amount, 0);
+  const manualDeductions = deductions.reduce((s,l)=>s+l.amount, 0);
+  const statutoryOn = document.getElementById('gen-statutory').checked;
+  document.getElementById('statutory-note').classList.toggle('show', statutoryOn);
+
+  let ssnit = 0, paye = 0;
+  if(statutoryOn){
+    ssnit = calcSSNIT(gross);
+    paye = calcPAYE(gross - ssnit);
+  }
+  const totalDeductions = manualDeductions + ssnit + paye;
+  const net = gross - totalDeductions;
+
+  const box = document.getElementById('totals-box');
+  let html = `<div class="line"><span>Gross Pay</span><strong>GHS ${gross.toFixed(2)}</strong></div>`;
+  if(statutoryOn){
+    html += `<div class="line"><span>SSNIT (5.5%)</span><span>− GHS ${ssnit.toFixed(2)}</span></div>`;
+    html += `<div class="line"><span>PAYE (estimate)</span><span>− GHS ${paye.toFixed(2)}</span></div>`;
+  }
+  if(manualDeductions > 0){
+    html += `<div class="line"><span>Other Deductions</span><span>− GHS ${manualDeductions.toFixed(2)}</span></div>`;
+  }
+  html += `<div class="line net"><span>Net Pay</span><span>GHS ${net.toFixed(2)}</span></div>`;
+  box.innerHTML = html;
+
+  return {earnings, deductions, gross, ssnit, paye, manualDeductions, totalDeductions, net};
+}
+document.getElementById('gen-statutory').addEventListener('change', renderTotals);
+
+/* ============ NUMBER TO WORDS (Ghana Cedis) ============ */
+function numberToWords(num){
+  const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+    'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function chunk(n){
+    let s = '';
+    if(n >= 100){ s += ones[Math.floor(n/100)] + ' Hundred '; n %= 100; }
+    if(n >= 20){ s += tens[Math.floor(n/10)] + ' '; n %= 10; }
+    if(n > 0) s += ones[n] + ' ';
+    return s.trim();
+  }
+  let whole = Math.floor(Math.abs(num));
+  const pesewas = Math.round((Math.abs(num) - whole) * 100);
+  if(whole === 0) return 'Zero Ghana Cedis' + (pesewas ? ` and ${pesewas} Pesewas` : '');
+  const parts = [];
+  const million = Math.floor(whole / 1000000); whole %= 1000000;
+  const thousand = Math.floor(whole / 1000); whole %= 1000;
+  if(million) parts.push(chunk(million) + ' Million');
+  if(thousand) parts.push(chunk(thousand) + ' Thousand');
+  if(whole) parts.push(chunk(whole));
+  let words = parts.join(' ') + ' Ghana Cedis';
+  if(pesewas) words += ` and ${pesewas} Pesewas`;
+  return words;
+}
+
+/* ============ PDF GENERATION (colored payroll slip layout) ============ */
+const PDF_BROWN = [91,66,57];
+const PDF_ORANGE = [255,145,77];
+const PDF_YELLOW = [255,222,89];
+const PDF_CREAM = [251,248,239];
+const PDF_INK = [28,20,16];
+
+function buildPdf(slip, emp){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const marginX = 50;
+  const rightX = pageW - marginX;
+  let y = 0;
+
+  // Header band
+  doc.setFillColor(...PDF_BROWN);
+  doc.rect(0, 0, pageW, 92, 'F');
+  doc.setFillColor(...PDF_ORANGE);
+  // simple decorative dot cluster, top-left of band
+  [[40,26,9],[62,20,6],[80,32,5],[54,44,4]].forEach(([dx,dy,r])=> doc.circle(dx, dy, r, 'F'));
+  // simple brand mark, top-right of band (two-tone dot motif, stands in for the LCL logo)
+  doc.setFillColor(...PDF_ORANGE);
+  doc.circle(rightX - 34, 30, 7, 'F');
+  doc.setFillColor(255,255,255);
+  doc.circle(rightX - 20, 44, 10, 'F');
+  doc.setFillColor(...PDF_BROWN);
+  doc.circle(rightX - 12, 62, 6, 'F');
+
+  y = 122;
+  doc.setTextColor(...PDF_INK);
+  doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text('Payroll Slip \u2013 ' + slip.period, marginX, y);
+  y += 20;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+  doc.text('Company: ' + COMPANY_NAME, marginX, y);
+  y += 15;
+  doc.text('Payroll Period: ' + slip.period, marginX, y);
+  y += 28;
+
+  function sectionLabel(text){
+    doc.setFillColor(...PDF_ORANGE);
+    const w = doc.getTextWidth(text) + 16;
+    doc.rect(marginX - 4, y - 12, w, 18, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.setTextColor(...PDF_INK);
+    doc.text(text, marginX + 4, y);
+    y += 26;
+  }
+
+  function twoColTable(rows, boldLastRow){
+    const colSplit = pageW * 0.52;
+    const rowH = 20;
+    // header row
+    doc.setFillColor(...PDF_BROWN);
+    doc.rect(marginX, y, rightX - marginX, rowH, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.text(rows.headerLeft, marginX + 8, y + 14);
+    doc.text(rows.headerRight, colSplit + 8, y + 14);
+    y += rowH;
+    doc.setDrawColor(210);
+    rows.data.forEach((r, i)=>{
+      const isLast = boldLastRow && i === rows.data.length - 1;
+      doc.setFillColor(255,255,255);
+      doc.rect(marginX, y, rightX - marginX, rowH, 'F');
+      doc.setTextColor(...PDF_INK);
+      doc.setFont('helvetica', isLast ? 'bold' : 'normal'); doc.setFontSize(9.5);
+      doc.text(r.label, marginX + 8, y + 14);
+      doc.text(r.value, colSplit + 8, y + 14);
+      doc.rect(marginX, y, rightX - marginX, rowH); // border
+      doc.line(colSplit, y, colSplit, y + rowH);
+      y += rowH;
+    });
+    y += 18;
+  }
+
+  // Employee Information
+  sectionLabel('Employee Information');
+  twoColTable({
+    headerLeft: 'Field', headerRight: 'Details',
+    data: [
+      {label:'Name', value: emp.name},
+      {label:'Employee ID', value: emp.id},
+      {label:'Department', value: emp.department || '\u2014'},
+      {label:'Position', value: emp.role},
+      {label:'Pay Date', value: slip.payDate ? formatDate(slip.payDate) : '\u2014'}
+    ]
+  }, false);
+
+  // Earnings
+  sectionLabel('Earnings');
+  const earningRows = slip.earnings.map(l=>({label:l.label, value:'GHS ' + l.amount.toFixed(2)}));
+  earningRows.push({label:'Total Earnings', value:'GHS ' + slip.gross.toFixed(2)});
+  twoColTable({headerLeft:'Description', headerRight:'Amount', data: earningRows}, true);
+
+  // Deductions
+  sectionLabel('Deductions');
+  const deductionRows = slip.deductions.map(l=>({label:l.label, value:'GHS ' + l.amount.toFixed(2)}));
+  if(slip.statutoryOn){
+    deductionRows.push({label:'SSNIT (5.5%)', value:'GHS ' + slip.ssnit.toFixed(2)});
+    deductionRows.push({label:'PAYE Income Tax', value:'GHS ' + slip.paye.toFixed(2)});
+  }
+  if(deductionRows.length === 0) deductionRows.push({label:'\u2014', value:'GHS 0.00'});
+  deductionRows.push({label:'Total Deductions', value:'GHS ' + slip.totalDeductions.toFixed(2)});
+  twoColTable({headerLeft:'Description', headerRight:'Amount', data: deductionRows}, true);
+
+  // Net Pay box
+  const boxH = 108;
+  doc.setFillColor(...PDF_YELLOW);
+  doc.rect(0, y, pageW, boxH, 'F');
+  let by = y + 26;
+  doc.setTextColor(...PDF_INK);
+  doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text('Net Pay', marginX, by);
+  by += 18;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+  doc.text('Net Salary', marginX, by);
+  doc.text('GHS ' + slip.net.toFixed(2), marginX + 220, by);
+  by += 20;
+  doc.setDrawColor(...PDF_INK);
+  doc.line(marginX, by, rightX, by);
+  by += 16;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('Authorized By:', marginX, by);
+  by += 16;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+  doc.text('Efua K. Dwamena', marginX, by);
+  by += 14;
+  doc.text('Managing Director', marginX, by);
+  y += boxH + 22;
+
+  // Amount in words + bank details
+  doc.setFont('helvetica','italic'); doc.setFontSize(9.5);
+  doc.setTextColor(...PDF_INK);
+  doc.text(numberToWords(slip.net), marginX, y, {maxWidth: rightX - marginX});
+  y += 22;
+  if(slip.worked){
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    doc.setTextColor(120,108,98);
+    doc.text(slip.worked, marginX, y);
+    y += 16;
+  }
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  doc.setTextColor(120,108,98);
+  doc.text('Payable to ' + (emp.account || '') + ' \u00b7 ' + (emp.bank || ''), marginX, y);
+
+  return doc;
+}
+
+function extractMonthAbbrev(period){
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const found = months.find(m => period.toLowerCase().includes(m.toLowerCase()));
+  return found || period.replace(/[^A-Za-z0-9]/g,'').slice(0,6) || 'Payslip';
+}
+
+function formatDate(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+
+/* ============ GENERATE + SAVE + SHARE ============ */
+function generatePayslip(){
+  const empId = document.getElementById('gen-employee').value;
+  if(!empId){ toast('Select an employee first'); return; }
+  const emp = loadEmployees().find(e=>e.id === empId);
+  const period = document.getElementById('gen-period').value.trim();
+  if(!period){ toast('Enter a pay period'); return; }
+
+  const totals = renderTotals();
+  const slip = {
+    id: 'PS-' + Date.now(),
+    employeeId: emp.id,
+    period,
+    payDate: document.getElementById('gen-paydate').value,
+    worked: document.getElementById('gen-worked').value.trim(),
+    earnings: totals.earnings,
+    deductions: totals.deductions,
+    statutoryOn: document.getElementById('gen-statutory').checked,
+    gross: totals.gross,
+    ssnit: totals.ssnit,
+    paye: totals.paye,
+    net: totals.net,
+    generatedAt: new Date().toISOString()
+  };
+
+  const history = loadHistory();
+  history.unshift(slip);
+  saveHistory(history);
+
+  const doc = buildPdf(slip, emp);
+  const code = emp.fileCode || emp.id.replace(/[^A-Za-z0-9]/g,'');
+  const filename = `${code}_${extractMonthAbbrev(period)}_Payslip.pdf`;
+  downloadAndShare(doc, filename);
+  toast('Payslip generated and saved to history');
+}
+
+function downloadAndShare(doc, filename){
+  const blob = doc.output('blob');
+  // Trigger a standard download first
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+
+  // Then offer the native share sheet if available (works on most mobile browsers)
+  if(navigator.canShare){
+    const file = new File([blob], filename, {type:'application/pdf'});
+    if(navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title: filename}).catch(()=>{});
+    }
+  }
+}
+
+/* ============ HISTORY ============ */
+function populateHistoryFilter(){
+  const sel = document.getElementById('history-filter');
+  const emp = loadEmployees();
+  sel.innerHTML = '<option value="">All employees</option>' +
+    emp.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+}
+
+function renderHistory(){
+  const filter = document.getElementById('history-filter').value;
+  let history = loadHistory();
+  if(filter) history = history.filter(h=>h.employeeId === filter);
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  document.getElementById('history-empty').style.display = history.length ? 'none' : 'block';
+  const empMap = {};
+  loadEmployees().forEach(e=> empMap[e.id] = e);
+
+  history.forEach(slip=>{
+    const emp = empMap[slip.employeeId] || {name:'(removed employee)', role:'', id:slip.employeeId, bank:'', account:''};
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="meta">
+        <strong>${emp.name} — ${slip.period}</strong>
+        <span>Net GHS ${slip.net.toFixed(2)} · Generated ${new Date(slip.generatedAt).toLocaleDateString('en-GB')}</span>
+      </div>
+      <div class="history-actions">
+        <button class="btn ghost small" onclick="redownload('${slip.id}')">Download</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function redownload(slipId){
+  const slip = loadHistory().find(s=>s.id === slipId);
+  const emp = loadEmployees().find(e=>e.id === slip.employeeId) || {name:'Former Employee', role:'', id: slip.employeeId, bank:'', account:''};
+  const doc = buildPdf(slip, emp);
+  const code = emp.fileCode || (emp.id || '').replace(/[^A-Za-z0-9]/g,'');
+  const filename = `${code}_${extractMonthAbbrev(slip.period)}_Payslip.pdf`;
+  downloadAndShare(doc, filename);
+}
+
+/* ============ INIT ============ */
+renderEmployees();
+populateEmployeeSelect();
+renderTotals();
+</script>
+</body>
+</html>
