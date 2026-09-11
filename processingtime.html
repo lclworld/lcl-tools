@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LCL — Processing Time Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #F07D3A;
+      --yellow: #F5C842;
+      --cream: #F9F5EE;
+      --brown: #3D2B1F;
+      --brown-light: #7A5C4A;
+      --muted: #B09A8A;
+      --white: #FFFFFF;
+      --border: #DDD0C4;
+      --error: #B94040;
+    }
+
+    body {
+      background: var(--cream);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      color: var(--brown);
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 460px;
+    }
+
+    /* Header */
+    .header {
+      margin-bottom: 28px;
+    }
+
+    .brand-tag {
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--orange);
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 34px;
+      line-height: 1.15;
+      color: var(--brown);
+      margin-bottom: 6px;
+    }
+
+    .title em {
+      font-style: italic;
+      color: var(--brown-light);
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Card */
+    .card {
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 24px;
+      box-shadow: 0 4px 24px rgba(61,43,31,0.07);
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brown-light);
+      margin-bottom: 7px;
+      letter-spacing: 0.3px;
+    }
+
+    input[type="date"],
+    input[type="number"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--brown);
+      background: var(--white);
+      outline: none;
+      transition: border-color 0.18s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input:focus {
+      border-color: var(--orange);
+    }
+
+    input::placeholder { color: var(--muted); }
+
+    .duration-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .duration-row .half { flex: 1; }
+
+    .separator {
+      font-size: 20px;
+      color: var(--muted);
+      padding-bottom: 11px;
+      flex-shrink: 0;
+    }
+
+    .sub-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: block;
+      font-weight: 500;
+    }
+
+    .error-msg {
+      font-size: 12px;
+      color: var(--error);
+      margin-top: -12px;
+      margin-bottom: 16px;
+      font-style: italic;
+    }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+
+    /* Result block */
+    .result {
+      background: #FEF9F1;
+      border: 1.5px solid var(--orange);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .result.visible { display: block; }
+
+    .result-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--orange);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .date-range {
+      font-family: 'DM Serif Display', serif;
+      font-size: 21px;
+      line-height: 1.35;
+      color: var(--brown);
+    }
+
+    .date-sep {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-style: normal;
+      margin: 2px 0;
+    }
+
+    .result-meta {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Empty state */
+    .empty {
+      text-align: center;
+      padding: 16px 0 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-style: italic;
+      display: block;
+    }
+
+    .empty.hidden { display: none; }
+
+    /* Copy button */
+    .copy-btn {
+      display: none;
+      width: 100%;
+      padding: 13px;
+      background: var(--yellow);
+      color: var(--brown);
+      border: 1.5px solid var(--brown);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, transform 0.12s;
+    }
+
+    .copy-btn.visible { display: block; }
+    .copy-btn:hover { background: var(--orange); color: #fff; }
+    .copy-btn.success { background: var(--brown); color: #fff; }
+
+    /* Footer */
+    .footer-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <header class="header">
+      <span class="brand-tag">Lueur Cosmetics Lab</span>
+      <h1 class="title">Processing <em>Time</em><br>Calculator</h1>
+      <p class="subtitle">Excludes weekends and Ghana public holidays.</p>
+    </header>
+
+    <div class="card">
+
+      <div class="field">
+        <label for="paymentDate">Date of Payment</label>
+        <input type="date" id="paymentDate" />
+      </div>
+
+      <div class="field">
+        <label>Processing Duration (working days)</label>
+        <div class="duration-row">
+          <div class="half">
+            <span class="sub-label">Minimum</span>
+            <input type="number" id="minDays" placeholder="e.g. 5" min="1" />
+          </div>
+          <div class="separator">–</div>
+          <div class="half">
+            <span class="sub-label">Maximum</span>
+            <input type="number" id="maxDays" placeholder="e.g. 10" min="1" />
+          </div>
+        </div>
+      </div>
+
+      <p class="error-msg" id="errorMsg" style="display:none;">Maximum must be equal to or greater than minimum.</p>
+
+      <hr class="divider" />
+
+      <div class="result" id="result">
+        <div class="result-label">Estimated Completion Window</div>
+        <div class="date-range" id="dateRange"></div>
+        <div class="result-meta" id="resultMeta"></div>
+      </div>
+
+      <span class="empty" id="emptyState">Fill in the fields above to calculate.</span>
+
+      <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy for Invoice</button>
+    </div>
+
+    <p class="footer-note">Ghana public holidays included &middot; 2024–2028</p>
+  </div>
+
+  <script>
+    // Ghana Public Holidays
+    function getEaster(year) {
+      const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+      const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+      const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4), k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7;
+      const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const month = Math.floor((h + l - 7 * m + 114) / 31);
+      const day = ((h + l - 7 * m + 114) % 31) + 1;
+      return new Date(year, month - 1, day);
+    }
+
+    function dateKey(d) {
+      return d.toISOString().slice(0, 10);
+    }
+
+    function getGhanaHolidays(year) {
+      const h = new Set();
+      const add = (m, d) => h.add(`${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+
+      add(1, 1);   // New Year's Day
+      add(3, 6);   // Independence Day
+      add(5, 1);   // Workers' Day
+      add(7, 1);   // Republic Day
+      add(8, 4);   // Founders' Day
+      add(9, 21);  // Kwame Nkrumah Memorial Day
+      add(12, 25); // Christmas
+      add(12, 26); // Boxing Day
+
+      // Easter-based
+      const easter = getEaster(year);
+      const gf = new Date(easter); gf.setDate(gf.getDate() - 2);
+      const em = new Date(easter); em.setDate(em.getDate() + 1);
+      h.add(dateKey(gf));
+      h.add(dateKey(em));
+
+      // Islamic holidays (approximate fixed dates per year)
+      const eidFitr  = { 2024:"04-10", 2025:"03-30", 2026:"03-20", 2027:"03-09", 2028:"02-26" };
+      const eidAdha  = { 2024:"06-16", 2025:"06-06", 2026:"05-27", 2027:"05-17", 2028:"05-05" };
+      if (eidFitr[year])  h.add(`${year}-${eidFitr[year]}`);
+      if (eidAdha[year])  h.add(`${year}-${eidAdha[year]}`);
+
+      return h;
+    }
+
+    // Cache holidays for encountered years
+    const holidayCache = {};
+    function isHoliday(date) {
+      const y = date.getFullYear();
+      if (!holidayCache[y]) holidayCache[y] = getGhanaHolidays(y);
+      return holidayCache[y].has(dateKey(date));
+    }
+
+    function addWorkingDays(startDate, days) {
+      const d = new Date(startDate);
+      let added = 0;
+      while (added < days) {
+        d.setDate(d.getDate() + 1);
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6 && !isHoliday(d)) added++;
+      }
+      return new Date(d);
+    }
+
+    function fmt(date) {
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function fmtShort(date) {
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    // State
+    let copyText = '';
+
+    function calculate() {
+      const paymentVal = document.getElementById('paymentDate').value;
+      const minVal     = document.getElementById('minDays').value;
+      const maxVal     = document.getElementById('maxDays').value;
+      const errorMsg   = document.getElementById('errorMsg');
+      const resultEl   = document.getElementById('result');
+      const emptyEl    = document.getElementById('emptyState');
+      const copyBtn    = document.getElementById('copyBtn');
+
+      errorMsg.style.display = 'none';
+
+      if (!paymentVal || !minVal || !maxVal) {
+        resultEl.classList.remove('visible');
+        copyBtn.classList.remove('visible');
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      const min = parseInt(minVal);
+      const max = parseInt(maxVal);
+
+      if (isNaN(min) || isNaN(max) || min < 1) return;
+
+      if (max < min) {
+        errorMsg.style.display = 'block';
+        resultEl.classList.remove('visible');
+        copyBtn.classList.remove('visible');
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      const start  = new Date(paymentVal);
+      const endMin = addWorkingDays(start, min);
+      const endMax = addWorkingDays(start, max);
+
+      document.getElementById('dateRange').innerHTML =
+        `${fmt(endMin)}<span class="date-sep">to</span>${fmt(endMax)}`;
+
+      document.getElementById('resultMeta').textContent =
+        `Payment: ${fmt(start)} · ${min}–${max} working days`;
+
+      copyText =
+        `Processing Time: ${min}–${max} working days\n` +
+        `Estimated Completion: ${fmtShort(endMin)} – ${fmtShort(endMax)}`;
+
+      resultEl.classList.add('visible');
+      emptyEl.classList.add('hidden');
+      copyBtn.classList.add('visible');
+      copyBtn.textContent = 'Copy for Invoice';
+      copyBtn.classList.remove('success');
+    }
+
+    function copyToClipboard() {
+      if (!copyText) return;
+      navigator.clipboard.writeText(copyText).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '✓ Copied!';
+        btn.classList.add('success');
+        setTimeout(() => {
+          btn.textContent = 'Copy for Invoice';
+          btn.classList.remove('success');
+        }, 2200);
+      });
+    }
+
+    // Set today as default min date
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('paymentDate').min = today;
+
+    // Listeners
+    ['paymentDate', 'minDays', 'maxDays'].forEach(id => {
+      document.getElementById(id).addEventListener('input', calculate);
+    });
+  </script>
+</body>
+</html>
