@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LCL Help Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Urbanist:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: the Operations Centre look. Black "L" topbar, sticky search, category cards on cream, question rows that open to a short answer. */
+:root {
+  --bg: #FBF8EF;
+  --card: #FFFFFF;
+  --fg: #17130F;
+  --brown: #5B4239;
+  --border: rgba(91,66,57,0.16);
+  --orange: #FF914D;
+  --orange-soft: rgba(255,145,77,0.16);
+  --yellow: #FFDE59;
+  --on-yellow: #17130F;
+  --mark-bg: #17130F;
+  --mark-fg: #FBF8EF;
+  --shadow: 0 6px 20px rgba(23,19,15,0.07);
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Urbanist", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17130F; --card: #221C17; --fg: #FBF8EF; --brown: #C9B3A8;
+    --border: rgba(251,248,239,0.12); --orange: #FF914D; --orange-soft: rgba(255,145,77,0.18);
+    --yellow: #FFDE59; --on-yellow: #17130F; --mark-bg: #FBF8EF; --mark-fg: #17130F;
+    --shadow: 0 6px 20px rgba(0,0,0,0.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17130F; --card: #221C17; --fg: #FBF8EF; --brown: #C9B3A8;
+  --border: rgba(251,248,239,0.12); --orange: #FF914D; --orange-soft: rgba(255,145,77,0.18);
+  --yellow: #FFDE59; --on-yellow: #17130F; --mark-bg: #FBF8EF; --mark-fg: #17130F;
+  --shadow: 0 6px 20px rgba(0,0,0,0.35); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); border-bottom: 1.5px solid var(--border);
+}
+.topbar-in { max-width: 760px; margin-inline: auto; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.mark { height: 30px; width: 30px; border-radius: 8px; background: var(--mark-bg); color: var(--mark-fg); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 800; font-size: 0.9rem; flex: none; }
+.word { font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; }
+.word span { color: var(--orange); font-style: italic; }
+.screen-label { margin-left: auto; font-size: 0.66rem; font-weight: 700; color: var(--brown); text-transform: uppercase; letter-spacing: 0.05em; }
+#q {
+  width: 100%; font: inherit; font-size: 16px; color: var(--fg);
+  background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; outline: none;
+}
+#q:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-soft); }
+#q::placeholder { color: var(--brown); opacity: 0.8; }
+
+.wrap { max-width: 760px; margin-inline: auto; padding-inline: 16px; padding-block: 18px 56px; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line-height: 1.15; margin: 0; text-wrap: balance; }
+.sub { color: var(--brown); font-size: 0.9rem; margin: 6px 0 18px; max-width: 62ch; }
+
+#list { display: flex; flex-direction: column; gap: 12px; }
+.cat { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding-inline: 16px; }
+.cat > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+  padding: 16px 0; min-height: 56px;
+}
+.cat > summary::-webkit-details-marker { display: none; }
+.cat > summary .t { flex: 1; min-width: 0; font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
+.cat > summary .n { font-size: 0.62rem; font-weight: 700; padding: 4px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.03em; background: var(--orange-soft); color: var(--brown); white-space: nowrap; }
+.cat > summary::after { content: "+"; font-size: 1.4rem; font-weight: 500; color: var(--orange); width: 18px; text-align: center; }
+.cat[open] > summary::after { content: "\2212"; }
+.items { border-top: 1px solid var(--border); padding-bottom: 6px; }
+.item { border-top: 1px solid var(--border); }
+.item:first-child { border-top: 0; }
+.item > summary {
+  list-style: none; cursor: pointer; padding: 13px 0; font-size: 0.95rem; font-weight: 700; line-height: 1.4;
+  display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; min-height: 48px;
+}
+.item > summary::-webkit-details-marker { display: none; }
+.item > summary .qt { flex: 1; min-width: 0; }
+.item[open] > summary .qt { color: var(--orange); }
+.flag {
+  flex: none; background: var(--yellow); color: var(--on-yellow); font-size: 0.62rem; font-weight: 800;
+  padding: 4px 9px; border-radius: 20px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 1px;
+}
+.body { padding: 0 0 16px; display: flex; flex-direction: column; gap: 12px; }
+.lab2 { margin: 0 0 5px; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--brown); }
+.ans { margin: 0; font-size: 0.95rem; line-height: 1.6; max-width: 62ch; }
+.client { background: var(--orange-soft); border-radius: 12px; padding: 12px 14px; }
+.client .lab2 { color: var(--fg); }
+.doc {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  border-top: 1.5px dashed var(--border); padding-top: 12px; font-size: 0.85rem;
+}
+.doc .lab { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--brown); }
+.doc .nm { font-weight: 700; flex: 1; min-width: 0; }
+.doc a {
+  border: 1.5px solid var(--fg); color: var(--fg); text-decoration: none; font-weight: 700; font-size: 0.82rem;
+  padding: 8px 14px; border-radius: 12px;
+}
+a:focus-visible, summary:focus-visible, #q:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+.empty { padding: 24px 0; color: var(--brown); text-align: center; }
+.foot { margin-top: 18px; padding: 14px 16px; background: var(--yellow); color: var(--on-yellow); border-radius: 16px; font-size: 0.85rem; }
+@media (prefers-reduced-motion: no-preference) { .cat > summary::after { transition: transform .15s; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand"><div class="mark">L</div><div class="word">LCL <span>Help Desk</span></div><div class="screen-label">Lueur Cosmetics Lab</div></div>
+    <input id="q" type="search" placeholder="Search, for example MOQ, refund, sample" autocomplete="off" aria-label="Search questions">
+  </div>
+</div>
+<div class="wrap">
+  <h1>Help Desk</h1>
+  <p class="sub">Search a word and tap a question. Each answer has two parts: what it means for you, and wording you can send to the client. Edit the wording to fit the conversation.</p>
+  <main id="list"></main>
+  <p class="empty" id="none" hidden>Nothing found. Try one word, or ask Dr. Efua.</p>
+  <div class="foot"><b>Not on this page?</b> Tell the client you will confirm with the relevant manager (production, sales and so on) and revert, then ask Dr. Efua.</div>
+</div>
+
+<script>
+var DOCS = {
+  brief: { name: "Product Development Brief", url: "" },
+  catalog: { name: "Product Catalog (PDF)", url: "" },
+  rates: { name: "Consultation Rate Card", url: "" },
+  agreement: { name: "Manufacturing Agreement", url: "" }
+};
+
+var ESC = "Thank you for your message. I will review this with our production manager and revert to you shortly.";
+
+// f = what it means for you. s = wording for the client. esc = escalate to Dr. Efua.
+var DATA = [
+{ cat: "Before you reply", items: [
+ { q: "Replying on WhatsApp or Instagram", k: "whatsapp instagram message chat short reply beeper", f: "Answer each question as its own short message. Keep each reply brief and professional, one point at a time." },
+ { q: "Replying to an email", k: "email gmail reply order cohesive one email", f: "Answer every question the client asked in one single email, in the same order they asked them. Join the answers together so it reads smoothly. Do not send several emails for one enquiry." }
+]},
+{ cat: "Getting started", items: [
+ { q: "How does a client get started?", k: "start begin process first step new", f: "Ask for a Product Development Brief for each product and send them the document to fill in. We give no price or timeline before it comes back.", s: "Thank you for reaching out to Lueur Cosmetics Lab. To begin, please complete the attached Product Development Brief for each product you would like us to develop. Once we receive it, we will take you through the next steps.", doc: "brief" },
+ { q: "What do we need from the client to quote?", k: "information requirements details quotation", f: "The same brief. It covers everything we need, one per product.", s: "We prepare our quotations from the completed Product Development Brief, as it captures everything we need to scope your product accurately. Please complete one brief for each product.", doc: "brief" },
+ { q: "What happens after the brief is sent?", k: "next step quote after brief submitted", f: "Private Label: a written quote within 24 to 48 business hours. Custom Formulation: a free 15 minute call with our cosmetic scientist to discuss whether the formula is feasible, then the quote within 24 to 48 business hours.", s: "Once we receive your brief, our team will review it and issue a written quotation within 24 to 48 business hours. For Custom Formulation projects, we first schedule a complimentary 15 minute call with our cosmetic scientist to discuss the feasibility of your formula, and your quotation follows after that call." },
+ { q: "Is the first call free?", k: "consultation discovery call free missed reschedule", f: "The 15 minute call is free for Custom Formulation clients. If they miss it and want to reschedule, it costs GHS 300. Private Label clients ideally do not get a call, but if one insists, accommodate them without making a point of it.", s: "Our complimentary 15 minute call is part of the Custom Formulation process. If a scheduled call is missed, a rescheduling fee of GHS 300 applies. For Private Label projects, your quotation is prepared directly from your brief, and we are happy to arrange a short call if you would like to discuss anything further." },
+ { q: "What should the client do before the call?", k: "prepare before call", f: "Send the brief first. The call goes over what is already in it.", s: "Please submit your completed brief before the call, so that our cosmetic scientist can review it in advance and make the best use of your time." },
+ { q: "Can a client start with just one product?", k: "single hero one product line", f: "Yes. There is no minimum number of products.", s: "Yes, certainly. There is no minimum number of products, and many of our clients begin with a single hero product." },
+ { q: "Does the client need their own formula?", k: "formula own existing scratch", f: "No. Private Label uses our base formula. Custom Formulation is built from scratch. A client with a finished formula can use Contract Manufacturing.", s: "You do not need a formula to begin. We can customise one of our existing base formulas under Private Label, or develop a formula from scratch for you. If you already have a finished formula, we can also manufacture it for you." },
+ { q: "Will we keep the client's idea confidential?", k: "nda confidentiality secret privacy protect idea", f: "Yes. The brief has a confidentiality clause built in. We also sign an NDA, ours or theirs, before they share a full formula. We never reveal who our clients are.", s: "Your information is treated as confidential from the moment you submit your brief, and it is used only to cost your project. If you need to share a full formula, we are glad to sign a mutually agreeable NDA beforehand. As a manufacturer, we also never disclose the identity of our clients." },
+ { q: "Can we meet in person?", k: "in person virtual online meeting strategy session consultation", f: "Ideally no. In person consultations are for specific clients and depend on the cosmetic scientist's availability. Say she is booked for the next two months. If the client insists, say you will check whether we can fit them in. Otherwise offer a call. The paid rate is GHS 3,000 for 2 hours.", s: "Our in person consultations are subject to the availability of our cosmetic scientist, whose calendar is currently booked for the next two months. If you would like, we can confirm whether we are able to fit you in. Alternatively, we can schedule a virtual call to go through everything you need.", doc: "rates" },
+ { q: "Can the client visit the lab?", k: "visit lab laboratory tour come see facility", f: "No. Nobody comes into the lab except employees and authorised maintenance people. Do not let anyone in, even if they say they are outside the building.", s: "Thank you for your interest. Unfortunately, we do not currently allow visits to our laboratory, as production is ongoing and we maintain strict confidentiality for all our clients. We would be glad to arrange a call instead." },
+ { q: "Where is the lab located?", k: "location address where dansoman map directions", f: "Say Dansoman only. Never give the exact location, even though it is on Google Maps.", s: "Our laboratory is located in Dansoman, Accra." },
+ { q: "Which phone number do we give clients?", k: "phone number contact whatsapp call", f: "Give this number only. Never give any other number, and never Dr. Efua's personal number.", s: "You can reach us on (+233) 024 627 8188." }
+]},
+{ cat: "Services and ownership", items: [
+ { q: "What is the difference between Private Label and Custom Formulation?", k: "services private label custom formulation difference types", f: "Private Label: our proven base formula, customised with 1 or 2 highlight ingredients plus fragrance and colour. Faster and cheaper. The formula stays ours. Custom Formulation: built from scratch to the client's brief. Slower, costs more, and the formula can be bought out.", s: "We offer two pathways. With Private Label, we customise one of our proven base formulas with one or two highlight ingredients that tell your brand's story, along with your choice of fragrance and colour. It is faster and more cost effective. With Custom Formulation, we develop a formula from scratch around your brief, which suits products that our existing bases cannot deliver.", doc: "catalog" },
+ { q: "Do you do white label?", k: "white label rebrand unchanged", f: "No. We never sell an unchanged base formula. Private Label always includes customisation.", s: "We do not offer unmodified white label products. Every Private Label product is customised so that your brand stands apart in the market." },
+ { q: "The client already has a finished formula.", k: "contract manufacturing own formula manufacture", f: "This is Contract Manufacturing. We make it exactly as given, with no changes. We need an NDA and the full details: ingredients with percentages, pH and process. A paid test run comes first, and its cost is credited towards the first order.", s: "Yes, we can manufacture your formula exactly as supplied, without substitution or reformulation. We will sign an NDA first, and we will need the full formula details, including ingredients with percentages, pH and process. A paid test run is completed before full production, which is credited towards your first order." },
+ { q: "What is the minimum order for Contract Manufacturing?", k: "moq contract manufacturing minimum", f: "Same as Private Label, by bulk volume: face care 2 litres, hair care and body care 5 litres, lip care 0.5 litre.", s: "Our minimum order for Contract Manufacturing is based on bulk volume. Face care starts from 2 litres, body care and hair care from 5 litres, and lip care from 0.5 litre." },
+ { q: "The client wants a very large order.", k: "mass manufacturing bulk wholesale large scale big", esc: true, f: "Large orders are scoped one by one. Do not quote. Pass the details to Dr. Efua, as a production matter.", s: "Orders of that scale are scoped individually. I will review your requirements with our production manager and get back to you." },
+ { q: "The client wants to change the brief after the sample.", k: "change brief after sample new ingredients formula optimization", f: "If no ingredients change, we can accommodate it and find something that works. New ingredients or a new idea for the product make it a totally new product with totally new fees. A client formula that failed testing and needs reworking is a paid Formula Optimization.", s: "We are happy to adjust your formula where the ingredients remain the same. If the changes involve new ingredients or a new product concept, it would be treated as a new product with its own fees." },
+ { q: "Who owns the formula?", k: "ownership formula ip rights exclusive", f: "We keep it. The client gets exclusive use for as long as production stays with us, at no extra cost. Private Label formulas can never be bought.", s: "Lueur Cosmetics Lab retains the intellectual property in the formula. You receive exclusive use of it for as long as your production remains with us, at no additional cost, and we will not supply the same formula to any other client." },
+ { q: "Can the client buy the formula?", k: "buyout buy formula own cost", f: "Custom Formulation only. From USD 1,500, and it can be higher. 10% off when buying 2 or more at once. Never charged upfront. Offered after the sample is approved.", s: "Full ownership of a Custom Formulation formula is available through a Formula Buyout. It starts from USD 1,500, depending on the testing and documentation required, with a 10% discount when two or more formulas are bought together. It is offered once your sample has been approved. Private Label base formulas are not available for buyout." },
+ { q: "Can you copy a product the client likes?", k: "benchmark copy duplicate competitor reference match", f: "We never copy a formula. We use the product as a reference for how it looks and performs. Below a 70% match we do not call it similar. Reference photos must show real products, not AI images.", s: "We do not duplicate another company's formulation. We use your reference product as a guide for look, feel and performance, and we develop our own formula to meet your objectives. Please share reference images of real products rather than AI generated images, so that we work from something we can actually source." },
+ { q: "Will you agree not to serve competitors?", k: "exclusivity non compete competitors category", f: "No. We do not agree to category exclusivity. Our promise is only that we will not sell the identical formula to another client.", s: "We are not able to agree to category exclusivity, as we serve several brands. We do guarantee that your exact formula will not be sold or supplied to any other client." },
+ { q: "Do we sign a contract?", k: "contract agreement sign legal", f: "For production, yes. We send a manufacturing agreement with our part already signed, and the client countersigns.", s: "For production, we send a manufacturing agreement with our portion already signed, for you to complete and countersign.", doc: "agreement" }
+]},
+{ cat: "Prices and samples", items: [
+ { q: "What is the minimum order quantity?", k: "moq minimum order quantity least litres", f: "By bulk volume, not by units. Face care 2 litres. Hair care and body care 5 litres. Lip care 0.5 litre. A smaller bottle size gives more units from the same batch.", s: "Our minimum order is based on bulk volume. Face care starts from 2 litres, body care and hair care from 5 litres, and lip care from 0.5 litre. You may choose your preferred packaging size, and a smaller size simply gives you more finished units from the same batch.", doc: "catalog" },
+ { q: "How much is a sample?", k: "sample cost price private label custom", f: "Private Label samples cost the same for face, body and hair care: GHS 450 for 100g or 100ml, GHS 750 for 250ml. Delivery is extra. Custom Formulation samples are quoted per project after the brief is submitted.", s: "Private Label samples are GHS 450 for 100g or 100ml and GHS 750 for 250ml, excluding delivery. Custom Formulation samples are quoted per project, and your quotation will follow once we have reviewed your brief." },
+ { q: "Why is a sample dearer per unit than production?", k: "sample expensive why higher", f: "A small batch uses the same ingredients and labour as a big one, with no volume savings.", s: "Sample batches use the same specialised ingredients and labour as larger runs, without the cost sharing that volume brings. Your cost per unit comes down once you move into production." },
+ { q: "How many changes can the client ask for on a sample?", k: "revision revisions changes rounds free", f: "Private Label: one free minor change. Custom Formulation: up to two free rounds. Changes must stay within the brief. Changing the product type, for example cream to gel, is a new project.", s: "Private Label includes one minor revision of your sample, and Custom Formulation includes up to two revision rounds, provided the changes stay within your original brief. A change of product type, for example from a cream to a gel, would be a new project." },
+ { q: "How is the production price worked out?", k: "pricing production quote packaging included", f: "Two ways. Full service includes packaging, printing and a finished product in one price. Or product cost only, when the client handles their own packaging. Delivery is always separate.", s: "We quote in one of two ways. Our full service price covers the product, the sourcing and printing of packaging and labels, delivered as a finished product. If you handle your own packaging, we quote the product cost only. Delivery is always quoted separately." },
+ { q: "Is there a charge for fragrance?", k: "fragrance scent perfume fee custom blend", f: "No charge within our usual range. A custom fragrance blend starts from GHS 500 per scent, per batch, depending on the blend.", s: "Fragrance within our standard range carries no additional charge. For a custom fragrance blend, the cost starts from GHS 500 per scent, per batch, and depends on the blend and the concentration required." },
+ { q: "How long is a quote valid?", k: "quote validity expire valid old quote price change", f: "Three months. After that the price must be reconfirmed. Check any old quote before the client pays.", s: "Our quotations are valid for three months. After that, please contact us to reconfirm the current pricing before proceeding." },
+ { q: "What do consultations and training cost?", k: "rate card consultation training workshop speaking fee", f: "Use the rate card. Only give these when the client asks for a paid service.", s: "Our rates are as follows. A Client Discovery Call of 60 minutes is GHS 1,000. A Private Strategy Session in person of 2 hours is GHS 3,000. A Corporate Workshop and Training session of 3 hours is GHS 4,000 for up to 10 people, with GHS 450 for each additional person. A Speaking Engagement of 4 hours is GHS 5,000.", doc: "rates" },
+ { q: "What does FDA registration cost?", k: "fda registration cost fee ghana", f: "There are two parts: the FDA's own fee, and our admin fee for registering under our licence.", s: "Registration involves the FDA's fee of GHS 300 per product for regular processing or GHS 900 for fast track, valid for 3 years, plus our administration fee for registering under our licence. The administration fee is GHS 350 for one product or GHS 650 for two on regular processing, and GHS 500 or GHS 800 on fast track." },
+ { q: "The client asks for a discount.", k: "discount waive negotiate cheaper exception lower price", esc: true, f: "Do not agree to anything. Pass the request to Dr. Efua, as a pricing matter.", s: "Thank you for your message. I will review your request with our sales manager and revert to you." }
+]},
+{ cat: "Timelines and production", items: [
+ { q: "How long will it take?", k: "how long timeline lead time days weeks turnaround", f: "Private Label: 5 to 10 working days, up to 15. Custom Formulation: first sample in 2 to 4 weeks, then 10 to 15 working days to produce. Contract Manufacturing: 10 to 15 working days. Large orders: about 4 to 6 weeks. Weekends and holidays are not counted.", s: "For Private Label, sample and production together take 5 to 10 working days, and up to 15 for some products. For Custom Formulation, your first sample takes about 2 to 4 weeks, followed by 10 to 15 working days of production once approved. Large volume orders take about 4 to 6 weeks. These timelines exclude weekends and public holidays." },
+ { q: "When does the clock start?", k: "start production begin deposit packaging arrive late delay", f: "Only after the deposit is paid and the packaging has reached us. Both must happen first.", s: "Our production timeline begins once your deposit has been received and your packaging has arrived at our facility." },
+ { q: "What are the steps of an order?", k: "steps stages order process approval", f: "Each step needs the client's written go ahead before the next one begins.", s: "Each stage moves forward only with your written approval. We confirm your preferences, produce your sample, you review and approve it, we issue the final production quote, you confirm and make payment, and production begins." },
+ { q: "The client wants to change a product already on sale.", k: "reformulation feedback post launch customers complaint adjust", f: "This is free. The client shares what customers did not like. We make a small test batch. Once approved it becomes the standard. 5 to 10 working days.", s: "We are happy to help. Please share your customers' feedback, and we will prepare a small revised batch at no cost. Once you approve it, the updated formula becomes the standard for all future batches. This takes 5 to 10 working days." },
+ { q: "The client says the product feels different.", k: "quality complaint dispute different batch", esc: true, f: "We keep a retained sample of every product and test against it. Do not promise any outcome. Pass the details to Dr. Efua, as a production matter.", s: "Thank you for raising this with us. We retain a sample of every product we make, and I will have our production manager test against it and revert to you." },
+ { q: "The client paused their project and wants to restart.", k: "pause reactivate restart stopped resume", f: "The fee depends on time since last contact: 3 to 5 months 30%, 6 to 8 months 40%, 9 to 12 months 50% of the original charge. After 12 months it is a new project.", s: "Projects paused for 3 to 5 months can be reactivated at 30% of the original charge, 6 to 8 months at 40%, and 9 to 12 months at 50%. After 12 months, the project is treated as new, with new fees." },
+ { q: "The client stopped after the sample.", k: "stop cancel after sample not proceed keep", f: "We keep our own records. If the formula buyout was already paid, we send everything developed so far.", s: "We retain our own records and proprietary data. If you have purchased the formula buyout, we will compile everything developed so far and send it to you." },
+ { q: "What papers come with the finished product?", k: "pif coa certificate analysis documents ingredient list inci", f: "A Product Information Document with the full ingredient list comes as standard. A Certificate of Analysis from an outside lab costs extra.", s: "Each finished product comes with a Product Information Document, which includes the full ingredient list. A Certificate of Analysis from an independent laboratory is available at an additional cost." },
+ { q: "Are we closed at any time of year?", k: "holiday break closed annual shutdown cutoff", f: "About one month a year. The month changes, and we announce it ahead with order cutoff dates.", s: "We take an annual break of about one month for training and rest. The dates vary, and we announce them well in advance, together with our last order dates." }
+]},
+{ cat: "Packaging and labels", items: [
+ { q: "Can the client bring their own packaging?", k: "own packaging bottles jars supply source", f: "Yes. Either they send their own, or we source it. Settle this first, as it decides how we quote.", s: "You may supply your own packaging, or we can source it for you. We will confirm your preference at the start, as it determines how we quote." },
+ { q: "How many pieces of packaging can we source?", k: "packaging moq pieces minimum units sizes available size tube", f: "We source at about 100 units. Always start from 100. For some clients we can get less. If the supplier agrees, email the client the quantity and the price for their first order. Sizes depend on what the supplier stocks.", s: "Our packaging is sourced through our supplier network, with a minimum of 100 units per design. If our supplier agrees to a lower quantity for your first order, we will confirm the quantity and price with you by email." },
+ { q: "What boxes can we offer?", k: "box boxes custom outer retail carton", f: "We only do custom boxes. We give the box dimensions, the client's designer prepares the artwork, and we send it to the supplier. The cost depends on the box and the supplier.", s: "We produce custom boxes. We provide the box dimensions, your designer prepares the artwork, and we send it to our supplier for printing. The cost depends on the box and your chosen specifications." },
+ { q: "How do labels work?", k: "label labels printing artwork design", f: "We print labels from the final approved artwork once the packaging is final. The artwork must match real packaging.", s: "We print your labels from your final approved artwork, once your packaging is confirmed and the label dimensions are final." },
+ { q: "Why is the jar not filled to the top?", k: "fill level headspace jar full empty volume", f: "We fill to specific volumes. Always check whether the packaging volume matches the product volume. A 100ml product may go in a 150ml container to leave room for expansion. Know this well. Pass the details to Dr. Efua if the client is unhappy.", s: "We fill to a specific volume and deliberately leave headspace in the container. For example, a 100ml product may be packed in a 150ml container so that it has room to expand and does not leak or burst in transit." },
+ { q: "Do we offer refill packaging?", k: "refill refillable sustainable eco", f: "Yes. The client shares the designs they have in mind and we ask the supplier for a quote.", s: "Yes, we offer refill packaging. Please share the designs you have in mind, and we will request a quotation from our supplier." }
+]},
+{ cat: "Payment, shipping and rules", items: [
+ { q: "How much is paid upfront?", k: "deposit payment upfront sample terms installments", f: "Always 100% upfront. Production is the only exception.", s: "Payment for samples and formulation work is made in full upfront." },
+ { q: "What deposit is needed for production?", k: "production deposit 60 percent balance due", f: "A minimum of 60% to start sourcing ingredients. The balance is due before production starts, not when it is completed. Remember this.", s: "For production, a minimum deposit of 60% is required so that we can begin sourcing your ingredients, and the balance is due before production begins." },
+ { q: "How can the client pay?", k: "payment methods visa card usd currency bank transfer momo mobile money lcl pay international", f: "Bank transfer in USD, bank transfer in Ghana cedis, mobile money, and LCL Pay for Visa cards. LCL Pay takes Ghana cedis only. The payment details are in the price quote.", s: "You can pay by bank transfer in USD or Ghana cedis, by mobile money, or by Visa card through our LCL Pay platform. The payment details are included in your quotation." },
+ { q: "Is shipping included?", k: "shipping delivery dhl cost included", f: "No. The cost depends on the courier, the location and the size of the order. Always send the client the cost so they can plan.", s: "Shipping is not included in our prices. The cost depends on the courier, your location and the size of your order, and we will always send you the delivery cost in advance so that you can plan for it." },
+ { q: "Do we ship outside Ghana?", k: "international abroad overseas export ship", f: "Yes, through DHL.", s: "Yes, we ship internationally through DHL." },
+ { q: "Can the client cancel or get a refund?", k: "refund cancel cancellation money back return", f: "No. No refunds and no cancellations once paid.", s: "Please note that payments are final. We do not offer refunds, and orders cannot be cancelled once payment has been made, so we encourage you to be certain before confirming." },
+ { q: "The client asks about their payment or order confirmation.", k: "payment history portal confirmation receipt balance account statement", f: "Do not mention the client portal. It is only for clients who order regularly. A payment and order confirmation is emailed within 24 hours of payment.", s: "Once your payment is received, a payment and order confirmation will be sent to the email address you gave us within 24 hours. Please check your inbox, and your spam folder if you do not see it." },
+ { q: "Does the client need FDA registration?", k: "fda registration needed required ghana mandatory", f: "Every client must register the product with the FDA before selling. Registering through us is the optional part.", s: "Registration with the Ghana FDA is required before a cosmetic product can be sold in Ghana. You may register through us, which is optional, or handle it yourself. We register under our manufacturing licence, and basic label and packaging guidance is included in every project." },
+ { q: "Can you register the product in another country?", k: "other countries eu export registration abroad regulatory", f: "We advise only. The client appoints a local agent in that country to register.", s: "We can advise on the regulatory considerations for other markets, but registration outside Ghana is handled by a responsible local agent that you appoint in the target country." },
+ { q: "Are your products FDA or EU compliant?", k: "compliance standards eu gmp certified", f: "We formulate by careful, science based practice in line with Ghana FDA and EU principles. We never promise EU registration.", s: "Our formulations are developed using rigorous, science based practice, consistent with Ghana FDA and EU Cosmetic Regulation principles. We do not handle EU registration." },
+ { q: "Can the client say 100% natural?", k: "natural claim label marketing organic", f: "We advise against it. It is rarely accurate.", s: "We advise against absolute claims such as 100% natural, as they are rarely accurate in a regulatory sense. We recommend wording such as naturally derived instead." },
+ { q: "Does the client need approval to advertise?", k: "advertising social media instagram approval fda ads", f: "Not for regular social media posts. Yes for TV, radio, billboard and print.", s: "Regular social media posts do not require FDA approval. Advertising through television, radio, billboards and print does require it." }
+]}
+];
+
+var list = document.getElementById("list");
+var none = document.getElementById("none");
+var box = document.getElementById("q");
+var cats = [], items = [];
+
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
+
+DATA.forEach(function (c) {
+  var d = el("details", "cat");
+  var s = el("summary");
+  s.appendChild(el("span", "t", c.cat));
+  s.appendChild(el("span", "n", c.items.length + (c.items.length === 1 ? " question" : " questions")));
+  d.appendChild(s);
+  var wrap = el("div", "items");
+  c.items.forEach(function (it) {
+    var r = el("details", "item");
+    var rs = el("summary");
+    rs.appendChild(el("span", "qt", it.q));
+    if (it.esc) rs.appendChild(el("span", "flag", "Escalate"));
+    r.appendChild(rs);
+    var b = el("div", "body");
+    var f = el("div");
+    f.appendChild(el("p", "lab2", it.s ? "For you" : "How to"));
+    f.appendChild(el("p", "ans", it.f));
+    b.appendChild(f);
+    if (it.s) {
+      var cl = el("div", "client");
+      cl.appendChild(el("p", "lab2", "Say to the client"));
+      cl.appendChild(el("p", "ans", it.s));
+      b.appendChild(cl);
+    }
+    if (it.doc && DOCS[it.doc]) {
+      var dd = DOCS[it.doc];
+      var row = el("div", "doc");
+      row.appendChild(el("span", "lab", "NB: attach"));
+      row.appendChild(el("span", "nm", dd.name));
+      if (dd.url) {
+        var a = el("a", null, "Open");
+        a.href = dd.url; a.target = "_blank"; a.rel = "noopener";
+        row.appendChild(a);
+      }
+      b.appendChild(row);
+    }
+    r.appendChild(b);
+    wrap.appendChild(r);
+    items.push({ node: r, hay: (it.q + " " + (it.k || "") + " " + it.f + " " + (it.s || "")).toLowerCase() });
+  });
+  d.appendChild(wrap);
+  list.appendChild(d);
+  cats.push(d);
+});
+
+function run() {
+  var terms = box.value.toLowerCase().split(/\s+/).filter(Boolean);
+  var shown = 0;
+  items.forEach(function (i) {
+    var ok = terms.every(function (t) { return i.hay.indexOf(t) !== -1; });
+    i.node.hidden = !ok;
+    if (ok) shown++;
+  });
+  cats.forEach(function (c) {
+    var any = c.querySelectorAll(".item:not([hidden])").length > 0;
+    c.hidden = !any;
+    if (terms.length) c.open = any;
+  });
+  if (!terms.length) {
+    cats.forEach(function (c) { c.open = false; });
+    items.forEach(function (i) { i.node.open = false; });
+  }
+  none.hidden = shown > 0;
+}
+box.addEventListener("input", run);
+</script>
+</body>
+</html>
