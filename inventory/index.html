@@ -736,7 +736,7 @@ function isConfigured() {
 async function callBackend(action, payload) {
   if (!isConfigured()) throw new Error("SCRIPT_URL not set yet");
   let url = SCRIPT_URL + "?action=" + encodeURIComponent(action);
-  if ((action === "clearLowStockExclusion" || action === "excludeFromLowStock") && payload && payload.code) {
+  if (["clearLowStockExclusion", "excludeFromLowStock", "markDiscontinued", "clearDiscontinued"].indexOf(action) !== -1 && payload && payload.code) {
     url += "&code=" + encodeURIComponent(payload.code);
   }
   const res = await fetch(url, {
@@ -779,7 +779,7 @@ async function trySync() {
     const seenFlagActions = new Set();
     const deduped = [];
     queue.forEach(item => {
-      if (item.type === "clearLowStockExclusion" || item.type === "excludeFromLowStock") {
+      if (["clearLowStockExclusion", "excludeFromLowStock", "markDiscontinued", "clearDiscontinued"].indexOf(item.type) !== -1) {
         const key = item.type + ":" + (item.payload && item.payload.code);
         if (seenFlagActions.has(key)) return; // drop the duplicate, no network call needed
         seenFlagActions.add(key);
@@ -804,7 +804,14 @@ async function trySync() {
         // item queued after it. This is what made restock failures
         // invisible before: the loop stopped dead on the first error and
         // nothing ever told you why.
-        lastSyncError = (item.type + ": " + err.message);
+        // A backend that predates Discontinued doesn't know these two
+        // actions. Drop them rather than retrying forever; the label is
+        // still kept on this device (see DISCONTINUED_KEY).
+        if ((item.type === "markDiscontinued" || item.type === "clearDiscontinued") && /Unknown (POST|GET) action/.test(err.message)) {
+          saveQueue(loadQueue().filter(q => q.id !== item.id));
+        } else {
+          lastSyncError = (item.type + ": " + err.message);
+        }
       }
       // A short pause between each request — sending dozens of requests
       // back to back with zero delay is what tripped Google's own rate
@@ -815,6 +822,7 @@ async function trySync() {
     if (data.status === "ok") {
       const cache = loadCache();
       cache.ingredients = data.ingredients;
+      cache.backendHasDiscontinued = data.ingredients.some(i => i.discontinued !== undefined);
       cache.containers = data.containers || [];
       cache.lastSynced = new Date().toISOString();
       saveCache(cache);
@@ -1074,10 +1082,11 @@ function thresholdFor(ing) {
   return 50;
 }
 
-// Items marked Discontinued on the Low Stock list. Hiding them uses the same
-// shared "excludeFromLowStock" save as Move to Normal, so they drop off the
-// list on every device. The Discontinued label itself is kept on this device
-// until the Inventory backend has a field for it.
+// Items marked Discontinued on the Low Stock list. The backend stores the
+// flag in the item's NOTES (shared across devices). This device also keeps
+// its own list, so the label still works against an older backend that
+// doesn't know markDiscontinued yet; excludeFromLowStock is sent too so the
+// item drops off Low Stock everywhere either way.
 const DISCONTINUED_KEY = "lcl_inv_discontinued_v1";
 function loadDiscontinued() { try { return JSON.parse(localStorage.getItem(DISCONTINUED_KEY)) || []; } catch (e) { return []; } }
 function saveDiscontinued(codes) { localStorage.setItem(DISCONTINUED_KEY, JSON.stringify(codes)); }
@@ -1101,12 +1110,23 @@ function buildDashboard() {
     }
   });
   if (clearedAny) saveCache(cache);
-  // A discontinued item that's been restocked is back in use.
-  const discontinued = loadDiscontinued().filter(code => {
-    const ing = cache.ingredients.find(i => i.code === code);
-    return ing && ing.qty < thresholdFor(ing);
+  // A discontinued item that's been restocked is back in use. Once the
+  // backend reports the flag itself, it's the only source of truth (so an
+  // Undo on another phone shows here too); this device's own list is only
+  // the fallback for an older backend.
+  const localDisc = cache.backendHasDiscontinued ? [] : loadDiscontinued();
+  const discontinued = [];
+  cache.ingredients.forEach(ing => {
+    if (!ing.discontinued && localDisc.indexOf(ing.code) < 0) return;
+    if (ing.qty < thresholdFor(ing)) { discontinued.push(ing.code); return; }
+    if (ing.discontinued) {
+      ing.discontinued = false;
+      clearedAny = true;
+      enqueue("clearDiscontinued", { code: ing.code });
+    }
   });
-  saveDiscontinued(discontinued);
+  if (clearedAny) saveCache(cache);
+  saveDiscontinued(localDisc.filter(code => discontinued.indexOf(code) >= 0));
 
   const low = cache.ingredients.filter(ing => !ing.lowStockExcluded && discontinued.indexOf(ing.code) < 0 && ing.qty < thresholdFor(ing));
   document.getElementById("statLow").textContent = low.length;
@@ -1136,8 +1156,13 @@ function buildDashboard() {
         if (ing) {
           ing.lowStockExcluded = true;
           saveCache(cache2);
+          if (btn.dataset.act === "discontinued") {
+            ing.discontinued = true;
+            saveCache(cache2);
+            saveDiscontinued(loadDiscontinued().concat([code]));
+            enqueue("markDiscontinued", { code: code });
+          }
           enqueue("excludeFromLowStock", { code: code });
-          if (btn.dataset.act === "discontinued") saveDiscontinued(loadDiscontinued().concat([code]));
           buildDashboard();
         }
       });
@@ -1156,7 +1181,8 @@ function buildDashboard() {
       saveDiscontinued(loadDiscontinued().filter(c => c !== code));
       const cache2 = loadCache();
       const ing = cache2.ingredients.find(i => i.code === code);
-      if (ing) { ing.lowStockExcluded = false; saveCache(cache2); }
+      if (ing) { ing.lowStockExcluded = false; ing.discontinued = false; saveCache(cache2); }
+      enqueue("clearDiscontinued", { code: code });
       enqueue("clearLowStockExclusion", { code: code });
       buildDashboard();
     }));
