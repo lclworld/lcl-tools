@@ -124,6 +124,11 @@
   .pill.ing { background: rgba(255,145,77,0.18); color: var(--brown); }
   .pill.pack { background: rgba(91,66,57,0.10); color: var(--brown); }
   .qty { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 0.9rem; }
+  .staff-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 280px; }
+  .staff-pick .btn { margin-top: 0; padding: 16px 12px; font-size: 1rem; }
+  .row-btns { display: flex; gap: 6px; flex: none; }
+  details.disc-list { margin-top: 12px; border-top: 1.5px dashed var(--border); padding-top: 4px; }
+  details.disc-list > summary { cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--brown); padding: 10px 0 4px; }
   .icon-btn { background: none; border: 1px solid var(--border); border-radius: 8px; font-size: 0.62rem; font-weight: 700; padding: 4px 7px; color: var(--brown); cursor: pointer; }
 
   .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 6px; }
@@ -294,8 +299,7 @@
       <img id="workerLogo" alt="LCL mark">
       <div class="word">LCL Inventory</div>
       <div style="font-size:0.95rem; font-weight:700; margin-bottom:16px; text-align:center;">Who's working here today?</div>
-      <input id="workerNameInput" placeholder="First name" style="text-align:center; font-size:1rem; padding:12px; max-width:240px;">
-      <button class="btn primary" id="startWorking" style="max-width:240px;">Start Working</button>
+      <div class="staff-pick" id="staffPick"></div>
     </div>
   </div>
 
@@ -917,23 +921,25 @@ document.addEventListener("keydown", (e) => {
 });
 
 const WORKER_KEY = "lcl_inv_worker_name";
+// Same staff list as Operations Centre: picked, never typed.
+const STAFF = ["Gloria", "Efua", "Rosemary", "Dorcas"];
 let currentWorker = "";
 
 function goToWorkerPrompt() {
   document.getElementById("pin").classList.remove("active");
   document.getElementById("workerPrompt").classList.add("active");
   const last = localStorage.getItem(WORKER_KEY) || "";
-  const input = document.getElementById("workerNameInput");
-  input.value = last;
-  setTimeout(() => input.select(), 50);
+  document.getElementById("staffPick").innerHTML = STAFF.map(n =>
+    '<button class="btn ' + (n === last ? "primary" : "dark") + '" data-name="' + n + '">' + n + '</button>').join("");
 }
 
-document.getElementById("startWorking").addEventListener("click", startWorking);
-document.getElementById("workerNameInput").addEventListener("keydown", (e) => { if (e.key === "Enter") startWorking(); });
+document.getElementById("staffPick").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-name]");
+  if (btn) startWorking(btn.dataset.name);
+});
 
-function startWorking() {
-  const name = document.getElementById("workerNameInput").value.trim();
-  if (!name) { document.getElementById("workerNameInput").focus(); return; }
+function startWorking(name) {
+  if (!name) return;
   currentWorker = name;
   localStorage.setItem(WORKER_KEY, name);
   const badge = document.getElementById("workerBadge");
@@ -1068,6 +1074,14 @@ function thresholdFor(ing) {
   return 50;
 }
 
+// Items marked Discontinued on the Low Stock list. Hiding them uses the same
+// shared "excludeFromLowStock" save as Move to Normal, so they drop off the
+// list on every device. The Discontinued label itself is kept on this device
+// until the Inventory backend has a field for it.
+const DISCONTINUED_KEY = "lcl_inv_discontinued_v1";
+function loadDiscontinued() { try { return JSON.parse(localStorage.getItem(DISCONTINUED_KEY)) || []; } catch (e) { return []; } }
+function saveDiscontinued(codes) { localStorage.setItem(DISCONTINUED_KEY, JSON.stringify(codes)); }
+
 function buildDashboard() {
   const cache = loadCache();
   const list = document.getElementById("dashList");
@@ -1087,8 +1101,14 @@ function buildDashboard() {
     }
   });
   if (clearedAny) saveCache(cache);
+  // A discontinued item that's been restocked is back in use.
+  const discontinued = loadDiscontinued().filter(code => {
+    const ing = cache.ingredients.find(i => i.code === code);
+    return ing && ing.qty < thresholdFor(ing);
+  });
+  saveDiscontinued(discontinued);
 
-  const low = cache.ingredients.filter(ing => !ing.lowStockExcluded && ing.qty < thresholdFor(ing));
+  const low = cache.ingredients.filter(ing => !ing.lowStockExcluded && discontinued.indexOf(ing.code) < 0 && ing.qty < thresholdFor(ing));
   document.getElementById("statLow").textContent = low.length;
 
   if (!cache.ingredients.length) {
@@ -1102,7 +1122,8 @@ function buildDashboard() {
       row.style.cursor = "pointer";
       row.innerHTML =
         '<div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + escapeHtml(ing.func || itemType(ing)) + ' · ' + fmtQty(ing.qty) + (itemType(ing) === "Packaging" ? '' : 'g') + '</div></div>' +
-        '<button class="icon-btn" data-code="' + ing.code + '">Move to Normal</button>';
+        '<div class="row-btns"><button class="icon-btn" data-act="normal" data-code="' + ing.code + '">Move to Normal</button>' +
+        '<button class="icon-btn" data-act="discontinued" data-code="' + ing.code + '">Discontinued</button></div>';
       row.querySelector(".ing-row-info").addEventListener("click", () => openIngCard([ing]));
       list.appendChild(row);
     });
@@ -1116,10 +1137,29 @@ function buildDashboard() {
           ing.lowStockExcluded = true;
           saveCache(cache2);
           enqueue("excludeFromLowStock", { code: code });
+          if (btn.dataset.act === "discontinued") saveDiscontinued(loadDiscontinued().concat([code]));
           buildDashboard();
         }
       });
     });
+  }
+  const discItems = discontinued.map(code => cache.ingredients.find(i => i.code === code)).filter(Boolean);
+  if (discItems.length) {
+    const box = document.createElement("details");
+    box.className = "disc-list";
+    box.innerHTML = '<summary>Discontinued (' + discItems.length + ')</summary>' + discItems.map(ing =>
+      '<div class="ing-row"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + fmtQty(ing.qty) + (itemType(ing) === "Packaging" ? '' : 'g') + '</div></div>' +
+      '<button class="icon-btn" data-code="' + ing.code + '">Undo</button></div>').join("");
+    list.appendChild(box);
+    box.querySelectorAll(".icon-btn").forEach(btn => btn.addEventListener("click", () => {
+      const code = btn.dataset.code;
+      saveDiscontinued(loadDiscontinued().filter(c => c !== code));
+      const cache2 = loadCache();
+      const ing = cache2.ingredients.find(i => i.code === code);
+      if (ing) { ing.lowStockExcluded = false; saveCache(cache2); }
+      enqueue("clearLowStockExclusion", { code: code });
+      buildDashboard();
+    }));
   }
 
   renderAllItemsList();
