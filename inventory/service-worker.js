@@ -1,5 +1,5 @@
 // Bump this whenever index.html changes so installed apps pick up the new version.
-const CACHE_NAME = "lcl-inventory-shell-v3";
+const CACHE_NAME = "lcl-inventory-shell-v4";
 const SHELL_FILES = ["./index.html", "./manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -21,8 +21,8 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// App shell (index.html, manifest): served from cache instantly, then refreshed
-// in the background so the next open has the latest version.
+// App shell (index.html, manifest): network first so every open shows the latest
+// version; the cached copy is used when offline or the network takes over 3 seconds.
 // Fonts and pdf.js (versioned, never change): cache-first.
 // Apps Script calls: never touched — the app's own localStorage queue handles offline.
 self.addEventListener("fetch", (event) => {
@@ -42,17 +42,16 @@ self.addEventListener("fetch", (event) => {
         // Page loads ("/inventory/", "/inventory/index.html?x") all share the index.html entry.
         const key = req.mode === "navigate" ? "./index.html" : req;
         const cached = await cache.match(key, { ignoreSearch: true });
-        const network = fetch(req)
-          .then((res) => {
-            if (res.ok) cache.put(key, res.clone());
-            return res;
-          })
-          .catch(() => cached);
-        if (cached) {
-          event.waitUntil(network);
-          return cached;
-        }
-        return network;
+        // A navigate Request cannot be re-issued with options, so fetch by URL.
+        const network = fetch(req.url, { cache: "no-store" }).then((res) => {
+          if (res.ok) cache.put(key, res.clone());
+          return res;
+        });
+        if (!cached) return network;
+        // Slow network: show the cached copy now; the fetch still finishes and updates the cache.
+        const slow = new Promise((resolve) => setTimeout(() => resolve(cached), 3000));
+        event.waitUntil(network.catch(() => {}));
+        return Promise.race([network.catch(() => cached), slow]);
       })
     );
     return;

@@ -164,5 +164,16 @@ a:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
   <p class="credit">LCL Gateway &middot; Lueur Cosmetics Lab</p>
 </div>
 
+<script>
+// Each tap asks for a fresh copy, so the browser and GitHub's servers can't hand back an old version.
+document.querySelectorAll("a.tile").forEach(function (a) {
+  var base = a.getAttribute("href");
+  function fresh() { a.href = base + (base.indexOf("?") < 0 ? "?" : "&") + "fresh=" + Date.now(); }
+  a.addEventListener("pointerdown", fresh);
+  a.addEventListener("keydown", fresh);
+  a.addEventListener("click", fresh);
+});
+</script>
+
 </body>
 </html>
