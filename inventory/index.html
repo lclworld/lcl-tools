@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LCL Inventory</title>
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Urbanist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --cream: #FBF8EF;
@@ -2332,13 +2333,30 @@ document.addEventListener("click", (e) => {
 });
 
 // ---------- PDF import (Planning Mode) ----------
-if (typeof pdfjsLib !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+// pdf.js is only loaded the first time a PDF is picked, so it doesn't slow app start-up.
+const PDFJS_BASE = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+let pdfJsLoading = null;
+function loadPdfJs() {
+  if (typeof pdfjsLib !== "undefined") return Promise.resolve();
+  if (!pdfJsLoading) {
+    pdfJsLoading = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = PDFJS_BASE + "pdf.min.js";
+      s.onload = () => {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + "pdf.worker.min.js";
+        resolve();
+      };
+      s.onerror = () => { pdfJsLoading = null; reject(new Error("pdf.js failed to load")); };
+      document.head.appendChild(s);
+    });
+  }
+  return pdfJsLoading;
 }
 let pdfMatchedRows = [];
 document.getElementById("planPdfInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
-  if (!file || typeof pdfjsLib === "undefined") return;
+  if (!file) return;
+  try { await loadPdfJs(); } catch (err) { alert("Couldn't load the PDF reader. Check your connection and try again."); return; }
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   let fullText = "";
@@ -2556,7 +2574,7 @@ if (isConfigured()) { trySync(); }
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).catch(() => {});
   });
 }
 </script>

@@ -1,9 +1,13 @@
-const CACHE_NAME = "lcl-inventory-shell-v1";
+// Bump this whenever index.html changes so installed apps pick up the new version.
+const CACHE_NAME = "lcl-inventory-shell-v2";
 const SHELL_FILES = ["./index.html", "./manifest.json"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES))
+    caches.open(CACHE_NAME).then((cache) =>
+      // cache: "reload" skips the browser's HTTP cache so a new version is really fetched.
+      cache.addAll(SHELL_FILES.map((f) => new Request(f, { cache: "reload" })))
+    )
   );
   self.skipWaiting();
 });
@@ -17,34 +21,70 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// App shell (index.html, manifest): cache-first, so it loads offline instantly.
-// Everything else (Apps Script calls, Google Fonts): network-first, falling
-// back to cache if there's no connection. Data calls are never cached — the
-// app's own localStorage queue/cache handles that, not the service worker.
+// App shell (index.html, manifest): served from cache instantly, then refreshed
+// in the background so the next open has the latest version.
+// Fonts and pdf.js (versioned, never change): cache-first.
+// Apps Script calls: never touched — the app's own localStorage queue handles offline.
 self.addEventListener("fetch", (event) => {
-  const url = event.request.url;
-  const isShellFile = SHELL_FILES.some((f) => url.endsWith(f.replace("./", "")));
+  const req = event.request;
+  if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  if (url.hostname.endsWith("script.google.com") || url.hostname.endsWith("googleusercontent.com")) return;
+
+  const isShellFile =
+    req.mode === "navigate" ||
+    SHELL_FILES.some((f) => url.pathname.endsWith(f.replace("./", "")));
 
   if (isShellFile) {
     event.respondWith(
-      caches.match(event.request).then((cached) => cached || fetch(event.request))
+      caches.open(CACHE_NAME).then(async (cache) => {
+        // Page loads ("/inventory/", "/inventory/index.html?x") all share the index.html entry.
+        const key = req.mode === "navigate" ? "./index.html" : req;
+        const cached = await cache.match(key, { ignoreSearch: true });
+        const network = fetch(req)
+          .then((res) => {
+            if (res.ok) cache.put(key, res.clone());
+            return res;
+          })
+          .catch(() => cached);
+        if (cached) {
+          event.waitUntil(network);
+          return cached;
+        }
+        return network;
+      })
     );
     return;
   }
 
-  if (url.includes("script.google.com")) {
-    // Never intercept backend calls — let them fail naturally offline so the
-    // app's own queue/retry logic handles it.
+  const isStatic =
+    url.hostname === "fonts.googleapis.com" ||
+    url.hostname === "fonts.gstatic.com" ||
+    url.hostname === "cdnjs.cloudflare.com";
+
+  if (isStatic) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(req);
+        if (cached) return cached;
+        const res = await fetch(req);
+        if (res.ok || res.type === "opaque") cache.put(req, res.clone());
+        return res;
+      })
+    );
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
+    fetch(req)
       .then((res) => {
-        const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        }
         return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(req))
   );
 });
