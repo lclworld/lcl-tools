@@ -879,6 +879,7 @@ setInterval(trySync, 60000);
 
 // ---------- employee PIN gate ----------
 let enteredPin = "";
+let loginAsManager = false;
 function updatePinDots() {
   document.querySelectorAll("#pinDots span").forEach((d, i) => d.classList.toggle("filled", i < enteredPin.length));
 }
@@ -890,7 +891,9 @@ function pressPinKey(key) {
   updatePinDots();
   document.getElementById("pinError").textContent = "";
   if (enteredPin.length === 4) {
-    if (enteredPin === LOGIN_PIN) {
+    if (enteredPin === LOGIN_PIN || enteredPin === MANAGER_PIN) {
+      // Manager PIN at the door skips the second Manager gate once inside.
+      loginAsManager = enteredPin === MANAGER_PIN;
       goToWorkerPrompt();
     } else {
       document.getElementById("pinError").textContent = "Incorrect PIN";
@@ -962,6 +965,7 @@ function unlockApp() {
 
   buildDashboard();
   trySync();
+  if (loginAsManager) { loginAsManager = false; enterManagerMode(); }
 }
 
 // ---------- manager PIN gate ----------
@@ -979,28 +983,31 @@ function pressMgrPinKey(key) {
   document.getElementById("mgrPinError").textContent = "";
   if (mgrEnteredPin.length === 4) {
     if (mgrEnteredPin === MANAGER_PIN) {
-      isManager = true;
       mgrEnteredPin = "";
       updateMgrPinDots();
-      document.getElementById("mgrStatTotal").textContent = document.getElementById("statTotal").textContent;
-      const cache = loadCache();
-      const totalValue = cache.ingredients.reduce((sum, ing) => {
-        const cost = parseFloat(ing.costPerKg) || 0;
-        if (!ing.moq || ing.moq <= 0) return sum; // MOQ not filled in yet — skip rather than guess
-        return sum + (ing.qty * (cost / ing.moq));
-      }, 0);
-      document.getElementById("mgrStatValue").textContent = "GHS " + totalValue.toFixed(2);
-      goToScreen("managerHome", "Manager");
-      if (!document.getElementById("mgrBadgeEl")) {
-        const b = document.createElement("span");
-        b.className = "mgr-badge"; b.id = "mgrBadgeEl"; b.textContent = "Manager";
-        document.getElementById("topbar").appendChild(b);
-      }
+      enterManagerMode();
     } else {
       document.getElementById("mgrPinError").textContent = "Incorrect PIN";
       mgrEnteredPin = "";
       updateMgrPinDots();
     }
+  }
+}
+function enterManagerMode() {
+  isManager = true;
+  document.getElementById("mgrStatTotal").textContent = document.getElementById("statTotal").textContent;
+  const cache = loadCache();
+  const totalValue = cache.ingredients.reduce((sum, ing) => {
+    const cost = parseFloat(ing.costPerKg) || 0;
+    if (!ing.moq || ing.moq <= 0) return sum; // MOQ not filled in yet — skip rather than guess
+    return sum + (ing.qty * (cost / ing.moq));
+  }, 0);
+  document.getElementById("mgrStatValue").textContent = "GHS " + totalValue.toFixed(2);
+  goToScreen("managerHome", "Manager");
+  if (!document.getElementById("mgrBadgeEl")) {
+    const b = document.createElement("span");
+    b.className = "mgr-badge"; b.id = "mgrBadgeEl"; b.textContent = "Manager";
+    document.getElementById("topbar").appendChild(b);
   }
 }
 document.getElementById("mgrPinPad").addEventListener("click", (e) => {
