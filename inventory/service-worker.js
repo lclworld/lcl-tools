@@ -1,5 +1,5 @@
 // Bump this whenever index.html changes so installed apps pick up the new version.
-const CACHE_NAME = "lcl-inventory-shell-v4";
+const CACHE_NAME = "lcl-inventory-shell-v5";
 const SHELL_FILES = ["./index.html", "./manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -32,9 +32,16 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.hostname.endsWith("script.google.com") || url.hostname.endsWith("googleusercontent.com")) return;
 
-  const isShellFile =
-    req.mode === "navigate" ||
-    SHELL_FILES.some((f) => url.pathname.endsWith(f.replace("./", "")));
+  // Only the app's own page and manifest are the shell. Any other page in
+  // this folder (e.g. apps-script/copy.html) is passed straight through:
+  // treating every navigation as the app used to save that other page as
+  // the app's offline copy, so a slow or offline open showed it instead.
+  const scopePath = new URL(self.registration.scope).pathname;
+  const isAppPage = url.origin === self.location.origin &&
+    (url.pathname === scopePath || url.pathname === scopePath + "index.html");
+  const isShellFile = isAppPage ||
+    (url.origin === self.location.origin && SHELL_FILES.some((f) => url.pathname === scopePath + f.replace("./", "")));
+  if (req.mode === "navigate" && !isAppPage) return;
 
   if (isShellFile) {
     event.respondWith(
