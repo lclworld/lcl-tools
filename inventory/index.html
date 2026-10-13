@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LCL Inventory</title>
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Urbanist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --cream: #FBF8EF;
@@ -123,6 +124,11 @@
   .pill.ing { background: rgba(255,145,77,0.18); color: var(--brown); }
   .pill.pack { background: rgba(91,66,57,0.10); color: var(--brown); }
   .qty { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 0.9rem; }
+  .staff-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 280px; }
+  .staff-pick .btn { margin-top: 0; padding: 16px 12px; font-size: 1rem; }
+  .row-btns { display: flex; gap: 6px; flex: none; }
+  details.disc-list { margin-top: 12px; border-top: 1.5px dashed var(--border); padding-top: 4px; }
+  details.disc-list > summary { cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--brown); padding: 10px 0 4px; }
   .icon-btn { background: none; border: 1px solid var(--border); border-radius: 8px; font-size: 0.62rem; font-weight: 700; padding: 4px 7px; color: var(--brown); cursor: pointer; }
 
   .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 6px; }
@@ -293,8 +299,7 @@
       <img id="workerLogo" alt="LCL mark">
       <div class="word">LCL Inventory</div>
       <div style="font-size:0.95rem; font-weight:700; margin-bottom:16px; text-align:center;">Who's working here today?</div>
-      <input id="workerNameInput" placeholder="First name" style="text-align:center; font-size:1rem; padding:12px; max-width:240px;">
-      <button class="btn primary" id="startWorking" style="max-width:240px;">Start Working</button>
+      <div class="staff-pick" id="staffPick"></div>
     </div>
   </div>
 
@@ -731,7 +736,7 @@ function isConfigured() {
 async function callBackend(action, payload) {
   if (!isConfigured()) throw new Error("SCRIPT_URL not set yet");
   let url = SCRIPT_URL + "?action=" + encodeURIComponent(action);
-  if ((action === "clearLowStockExclusion" || action === "excludeFromLowStock") && payload && payload.code) {
+  if (["clearLowStockExclusion", "excludeFromLowStock", "markDiscontinued", "clearDiscontinued"].indexOf(action) !== -1 && payload && payload.code) {
     url += "&code=" + encodeURIComponent(payload.code);
   }
   const res = await fetch(url, {
@@ -774,7 +779,7 @@ async function trySync() {
     const seenFlagActions = new Set();
     const deduped = [];
     queue.forEach(item => {
-      if (item.type === "clearLowStockExclusion" || item.type === "excludeFromLowStock") {
+      if (["clearLowStockExclusion", "excludeFromLowStock", "markDiscontinued", "clearDiscontinued"].indexOf(item.type) !== -1) {
         const key = item.type + ":" + (item.payload && item.payload.code);
         if (seenFlagActions.has(key)) return; // drop the duplicate, no network call needed
         seenFlagActions.add(key);
@@ -799,7 +804,14 @@ async function trySync() {
         // item queued after it. This is what made restock failures
         // invisible before: the loop stopped dead on the first error and
         // nothing ever told you why.
-        lastSyncError = (item.type + ": " + err.message);
+        // A backend that predates Discontinued doesn't know these two
+        // actions. Drop them rather than retrying forever; the label is
+        // still kept on this device (see DISCONTINUED_KEY).
+        if ((item.type === "markDiscontinued" || item.type === "clearDiscontinued") && /Unknown (POST|GET) action/.test(err.message)) {
+          saveQueue(loadQueue().filter(q => q.id !== item.id));
+        } else {
+          lastSyncError = (item.type + ": " + err.message);
+        }
       }
       // A short pause between each request — sending dozens of requests
       // back to back with zero delay is what tripped Google's own rate
@@ -810,6 +822,7 @@ async function trySync() {
     if (data.status === "ok") {
       const cache = loadCache();
       cache.ingredients = data.ingredients;
+      cache.backendHasDiscontinued = data.ingredients.some(i => i.discontinued !== undefined);
       cache.containers = data.containers || [];
       cache.lastSynced = new Date().toISOString();
       saveCache(cache);
@@ -878,6 +891,7 @@ setInterval(trySync, 60000);
 
 // ---------- employee PIN gate ----------
 let enteredPin = "";
+let loginAsManager = false;
 function updatePinDots() {
   document.querySelectorAll("#pinDots span").forEach((d, i) => d.classList.toggle("filled", i < enteredPin.length));
 }
@@ -889,7 +903,9 @@ function pressPinKey(key) {
   updatePinDots();
   document.getElementById("pinError").textContent = "";
   if (enteredPin.length === 4) {
-    if (enteredPin === LOGIN_PIN) {
+    if (enteredPin === LOGIN_PIN || enteredPin === MANAGER_PIN) {
+      // Manager PIN at the door skips the second Manager gate once inside.
+      loginAsManager = enteredPin === MANAGER_PIN;
       goToWorkerPrompt();
     } else {
       document.getElementById("pinError").textContent = "Incorrect PIN";
@@ -913,23 +929,25 @@ document.addEventListener("keydown", (e) => {
 });
 
 const WORKER_KEY = "lcl_inv_worker_name";
+// Same staff list as Operations Centre: picked, never typed.
+const STAFF = ["Gloria", "Efua", "Rosemary", "Dorcas"];
 let currentWorker = "";
 
 function goToWorkerPrompt() {
   document.getElementById("pin").classList.remove("active");
   document.getElementById("workerPrompt").classList.add("active");
   const last = localStorage.getItem(WORKER_KEY) || "";
-  const input = document.getElementById("workerNameInput");
-  input.value = last;
-  setTimeout(() => input.select(), 50);
+  document.getElementById("staffPick").innerHTML = STAFF.map(n =>
+    '<button class="btn ' + (n === last ? "primary" : "dark") + '" data-name="' + n + '">' + n + '</button>').join("");
 }
 
-document.getElementById("startWorking").addEventListener("click", startWorking);
-document.getElementById("workerNameInput").addEventListener("keydown", (e) => { if (e.key === "Enter") startWorking(); });
+document.getElementById("staffPick").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-name]");
+  if (btn) startWorking(btn.dataset.name);
+});
 
-function startWorking() {
-  const name = document.getElementById("workerNameInput").value.trim();
-  if (!name) { document.getElementById("workerNameInput").focus(); return; }
+function startWorking(name) {
+  if (!name) return;
   currentWorker = name;
   localStorage.setItem(WORKER_KEY, name);
   const badge = document.getElementById("workerBadge");
@@ -961,6 +979,7 @@ function unlockApp() {
 
   buildDashboard();
   trySync();
+  if (loginAsManager) { loginAsManager = false; enterManagerMode(); }
 }
 
 // ---------- manager PIN gate ----------
@@ -978,28 +997,31 @@ function pressMgrPinKey(key) {
   document.getElementById("mgrPinError").textContent = "";
   if (mgrEnteredPin.length === 4) {
     if (mgrEnteredPin === MANAGER_PIN) {
-      isManager = true;
       mgrEnteredPin = "";
       updateMgrPinDots();
-      document.getElementById("mgrStatTotal").textContent = document.getElementById("statTotal").textContent;
-      const cache = loadCache();
-      const totalValue = cache.ingredients.reduce((sum, ing) => {
-        const cost = parseFloat(ing.costPerKg) || 0;
-        if (!ing.moq || ing.moq <= 0) return sum; // MOQ not filled in yet — skip rather than guess
-        return sum + (ing.qty * (cost / ing.moq));
-      }, 0);
-      document.getElementById("mgrStatValue").textContent = "GHS " + totalValue.toFixed(2);
-      goToScreen("managerHome", "Manager");
-      if (!document.getElementById("mgrBadgeEl")) {
-        const b = document.createElement("span");
-        b.className = "mgr-badge"; b.id = "mgrBadgeEl"; b.textContent = "Manager";
-        document.getElementById("topbar").appendChild(b);
-      }
+      enterManagerMode();
     } else {
       document.getElementById("mgrPinError").textContent = "Incorrect PIN";
       mgrEnteredPin = "";
       updateMgrPinDots();
     }
+  }
+}
+function enterManagerMode() {
+  isManager = true;
+  document.getElementById("mgrStatTotal").textContent = document.getElementById("statTotal").textContent;
+  const cache = loadCache();
+  const totalValue = cache.ingredients.reduce((sum, ing) => {
+    const cost = parseFloat(ing.costPerKg) || 0;
+    if (!ing.moq || ing.moq <= 0) return sum; // MOQ not filled in yet — skip rather than guess
+    return sum + (ing.qty * (cost / ing.moq));
+  }, 0);
+  document.getElementById("mgrStatValue").textContent = "GHS " + totalValue.toFixed(2);
+  goToScreen("managerHome", "Manager");
+  if (!document.getElementById("mgrBadgeEl")) {
+    const b = document.createElement("span");
+    b.className = "mgr-badge"; b.id = "mgrBadgeEl"; b.textContent = "Manager";
+    document.getElementById("topbar").appendChild(b);
   }
 }
 document.getElementById("mgrPinPad").addEventListener("click", (e) => {
@@ -1060,6 +1082,15 @@ function thresholdFor(ing) {
   return 50;
 }
 
+// Items marked Discontinued on the Low Stock list. The backend stores the
+// flag in the item's NOTES (shared across devices). This device also keeps
+// its own list, so the label still works against an older backend that
+// doesn't know markDiscontinued yet; excludeFromLowStock is sent too so the
+// item drops off Low Stock everywhere either way.
+const DISCONTINUED_KEY = "lcl_inv_discontinued_v1";
+function loadDiscontinued() { try { return JSON.parse(localStorage.getItem(DISCONTINUED_KEY)) || []; } catch (e) { return []; } }
+function saveDiscontinued(codes) { localStorage.setItem(DISCONTINUED_KEY, JSON.stringify(codes)); }
+
 function buildDashboard() {
   const cache = loadCache();
   const list = document.getElementById("dashList");
@@ -1079,8 +1110,25 @@ function buildDashboard() {
     }
   });
   if (clearedAny) saveCache(cache);
+  // A discontinued item that's been restocked is back in use. Once the
+  // backend reports the flag itself, it's the only source of truth (so an
+  // Undo on another phone shows here too); this device's own list is only
+  // the fallback for an older backend.
+  const localDisc = cache.backendHasDiscontinued ? [] : loadDiscontinued();
+  const discontinued = [];
+  cache.ingredients.forEach(ing => {
+    if (!ing.discontinued && localDisc.indexOf(ing.code) < 0) return;
+    if (ing.qty < thresholdFor(ing)) { discontinued.push(ing.code); return; }
+    if (ing.discontinued) {
+      ing.discontinued = false;
+      clearedAny = true;
+      enqueue("clearDiscontinued", { code: ing.code });
+    }
+  });
+  if (clearedAny) saveCache(cache);
+  saveDiscontinued(localDisc.filter(code => discontinued.indexOf(code) >= 0));
 
-  const low = cache.ingredients.filter(ing => !ing.lowStockExcluded && ing.qty < thresholdFor(ing));
+  const low = cache.ingredients.filter(ing => !ing.lowStockExcluded && discontinued.indexOf(ing.code) < 0 && ing.qty < thresholdFor(ing));
   document.getElementById("statLow").textContent = low.length;
 
   if (!cache.ingredients.length) {
@@ -1094,7 +1142,8 @@ function buildDashboard() {
       row.style.cursor = "pointer";
       row.innerHTML =
         '<div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + escapeHtml(ing.func || itemType(ing)) + ' · ' + fmtQty(ing.qty) + (itemType(ing) === "Packaging" ? '' : 'g') + '</div></div>' +
-        '<button class="icon-btn" data-code="' + ing.code + '">Move to Normal</button>';
+        '<div class="row-btns"><button class="icon-btn" data-act="normal" data-code="' + ing.code + '">Move to Normal</button>' +
+        '<button class="icon-btn" data-act="discontinued" data-code="' + ing.code + '">Discontinued</button></div>';
       row.querySelector(".ing-row-info").addEventListener("click", () => openIngCard([ing]));
       list.appendChild(row);
     });
@@ -1107,11 +1156,36 @@ function buildDashboard() {
         if (ing) {
           ing.lowStockExcluded = true;
           saveCache(cache2);
+          if (btn.dataset.act === "discontinued") {
+            ing.discontinued = true;
+            saveCache(cache2);
+            saveDiscontinued(loadDiscontinued().concat([code]));
+            enqueue("markDiscontinued", { code: code });
+          }
           enqueue("excludeFromLowStock", { code: code });
           buildDashboard();
         }
       });
     });
+  }
+  const discItems = discontinued.map(code => cache.ingredients.find(i => i.code === code)).filter(Boolean);
+  if (discItems.length) {
+    const box = document.createElement("details");
+    box.className = "disc-list";
+    box.innerHTML = '<summary>Discontinued (' + discItems.length + ')</summary>' + discItems.map(ing =>
+      '<div class="ing-row"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + fmtQty(ing.qty) + (itemType(ing) === "Packaging" ? '' : 'g') + '</div></div>' +
+      '<button class="icon-btn" data-code="' + ing.code + '">Undo</button></div>').join("");
+    list.appendChild(box);
+    box.querySelectorAll(".icon-btn").forEach(btn => btn.addEventListener("click", () => {
+      const code = btn.dataset.code;
+      saveDiscontinued(loadDiscontinued().filter(c => c !== code));
+      const cache2 = loadCache();
+      const ing = cache2.ingredients.find(i => i.code === code);
+      if (ing) { ing.lowStockExcluded = false; ing.discontinued = false; saveCache(cache2); }
+      enqueue("clearDiscontinued", { code: code });
+      enqueue("clearLowStockExclusion", { code: code });
+      buildDashboard();
+    }));
   }
 
   renderAllItemsList();
@@ -2332,13 +2406,30 @@ document.addEventListener("click", (e) => {
 });
 
 // ---------- PDF import (Planning Mode) ----------
-if (typeof pdfjsLib !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+// pdf.js is only loaded the first time a PDF is picked, so it doesn't slow app start-up.
+const PDFJS_BASE = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+let pdfJsLoading = null;
+function loadPdfJs() {
+  if (typeof pdfjsLib !== "undefined") return Promise.resolve();
+  if (!pdfJsLoading) {
+    pdfJsLoading = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = PDFJS_BASE + "pdf.min.js";
+      s.onload = () => {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + "pdf.worker.min.js";
+        resolve();
+      };
+      s.onerror = () => { pdfJsLoading = null; reject(new Error("pdf.js failed to load")); };
+      document.head.appendChild(s);
+    });
+  }
+  return pdfJsLoading;
 }
 let pdfMatchedRows = [];
 document.getElementById("planPdfInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
-  if (!file || typeof pdfjsLib === "undefined") return;
+  if (!file) return;
+  try { await loadPdfJs(); } catch (err) { alert("Couldn't load the PDF reader. Check your connection and try again."); return; }
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
   let fullText = "";
@@ -2555,8 +2646,16 @@ renderSyncStatus();
 if (isConfigured()) { trySync(); }
 
 if ("serviceWorker" in navigator) {
+  // When a new version's service worker takes over an open app, reload once so it shows straight away.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    location.reload();
+  });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).catch(() => {});
   });
 }
 </script>
