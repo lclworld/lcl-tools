@@ -6,8 +6,9 @@
 <title>LCL Gateway</title>
 <link rel="icon" type="image/png" href="icon.png?v=1">
 <link rel="apple-touch-icon" href="icon.png?v=1">
-<link rel="manifest" href="manifest.json?v=1">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<!-- Opens as a normal Safari tab from the Home Screen (not a single-window web app),
+     so Inventory and Operations Centre can each open in their own window side by side. -->
+<link rel="manifest" href="manifest.json?v=2">
 <meta name="apple-mobile-web-app-title" content="Gateway">
 <meta name="theme-color" content="#FBF8EF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#17130F" media="(prefers-color-scheme: dark)">
@@ -160,7 +161,7 @@ a:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
     </div>
   </main>
 
-  <div class="foot"><b>Tip:</b> add this page to your home screen so every LCL tool is one tap away.</div>
+  <div class="foot"><b>Tip:</b> add this page to your home screen so every LCL tool is one tap away. On an iPad, touch and hold a card and choose <b>Open in New Window</b> to use two apps side by side.</div>
   <p class="credit">LCL Gateway &middot; Lueur Cosmetics Lab</p>
 </div>
 

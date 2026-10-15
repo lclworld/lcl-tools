@@ -2,7 +2,7 @@
   "name": "LCL Gateway",
   "short_name": "Gateway",
   "start_url": "./",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#FBF8EF",
   "theme_color": "#FBF8EF",
   "icons": [
