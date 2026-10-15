@@ -845,6 +845,23 @@ function updateQueueBadge() {
 function itemType(item) { return item.type || "Ingredient"; }
 
 // ---------- network ----------
+// Every request to Google gets a time limit. Without one, a request that
+// stalls never finishes, and everything waiting on it (sync, Start Count Day)
+// waits forever too.
+async function fetchWithTimeout(url, options, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, Object.assign({}, options || {}, { signal: ctrl.signal }));
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Google didn't answer within " + Math.round(ms / 1000) + " seconds");
+    // "Load failed" / "Failed to fetch": no internet, or Google sent a sign-in page the browser blocked.
+    if (err instanceof TypeError) throw new Error("Couldn't reach Google (" + err.message + "). Check the internet, and that the script's deployment access is set to Anyone");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 function isConfigured() {
   return SCRIPT_URL && SCRIPT_URL.indexOf("http") === 0;
 }
@@ -855,11 +872,11 @@ async function callBackend(action, payload) {
   if (["clearLowStockExclusion", "excludeFromLowStock", "markDiscontinued", "clearDiscontinued"].indexOf(action) !== -1 && payload && payload.code) {
     url += "&code=" + encodeURIComponent(payload.code);
   }
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: "POST",
     body: JSON.stringify(payload || {}),
     headers: { "Content-Type": "text/plain;charset=utf-8" }
-  });
+  }, 90000);
   const text = await res.text();
   try {
     return JSON.parse(text);
@@ -874,7 +891,7 @@ async function callBackend(action, payload) {
 
 async function fetchIngredients() {
   if (!isConfigured()) throw new Error("SCRIPT_URL not set yet");
-  const res = await fetch(SCRIPT_URL + "?action=getIngredients");
+  const res = await fetchWithTimeout(SCRIPT_URL + "?action=getIngredients", {}, 90000);
   return res.json();
 }
 
@@ -948,7 +965,7 @@ async function trySync() {
     // Production batches and planning records now come from the backend too,
     // not just this device's own local storage — this is what makes a push
     // on one device actually visible on every other device.
-    const prodRes = await fetch(SCRIPT_URL + "?action=getProductionData");
+    const prodRes = await fetchWithTimeout(SCRIPT_URL + "?action=getProductionData", {}, 90000);
     const prodData = await prodRes.json();
     if (prodData.status === "ok") {
       saveBatches(prodData.batches || []);
@@ -2802,14 +2819,21 @@ function countEnqueue(type, payload) {
 function countRenderSoon() { setTimeout(renderCount, 0); }
 
 async function countPost(action, payload) {
-  const res = await fetch(COUNT_SCRIPT_URL + "?action=" + encodeURIComponent(action), {
+  const res = await fetchWithTimeout(COUNT_SCRIPT_URL + "?action=" + encodeURIComponent(action), {
     method: "POST",
     body: JSON.stringify(payload || {}),
     headers: { "Content-Type": "text/plain;charset=utf-8" }
-  });
-  const text = await res.text();
+  }, 60000);
+  return countParse(await res.text());
+}
+// A Google sign-in or error page instead of JSON means the Count Day script
+// isn't deployed for "Anyone", or the link is for the wrong deployment.
+function countParse(text) {
   try { return JSON.parse(text); }
-  catch (e) { throw new Error("Couldn't reach the Count Day sheet — will retry"); }
+  catch (e) {
+    if (/accounts\.google|sign in|signin/i.test(text)) throw new Error("Google asked for a sign-in. Set the Count Day deployment's access to Anyone");
+    throw new Error("The Count Day sheet sent back a page instead of data. Check the script is deployed as a web app");
+  }
 }
 
 let countSyncing = false;
@@ -2836,8 +2860,8 @@ async function syncCount() {
         break;
       }
     }
-    const res = await fetch(COUNT_SCRIPT_URL + "?action=getState");
-    const data = await res.json();
+    const res = await fetchWithTimeout(COUNT_SCRIPT_URL + "?action=getState", {}, 30000);
+    const data = countParse(await res.text());
     if (data.status === "ok") {
       data.fetchedAt = new Date().toISOString();
       saveCountState(data);
@@ -3251,7 +3275,10 @@ function renderCountAudit(v) {
     html = '<div class="card"><div class="ing-name" style="margin-bottom:6px;">No Count Day running</div>' +
       '<div class="hint">Starting a Count Day freezes the stock on record right now. Every count is compared with that frozen figure, so avoid logging usage or restocks until the count is approved.</div>' +
       (v.lastClosed ? '<div class="hint">Last Count Day closed ' + escapeHtml(v.lastClosed.closedAt ? new Date(v.lastClosed.closedAt).toLocaleString() : "") + (v.lastClosed.closedBy ? " by " + escapeHtml(v.lastClosed.closedBy) : "") + '.</div>' : "") +
-      '<button class="btn primary" id="countStartBtn"' + (countStarting ? " disabled" : "") + '>' + (countStarting ? "Starting…" : "Start Count Day") + '</button><div class="hint" id="countStartMsg"></div></div>';
+      '<button class="btn primary" id="countStartBtn"' + (countStarting ? " disabled" : "") + '>' + (countStarting ? "Starting…" : "Start Count Day") + '</button>' +
+      (countStartStep ? '<div class="hint" style="font-weight:700;">' + escapeHtml(countStartStep) + '</div>' : "") +
+      (countStartError ? '<div class="count-banner" style="margin-top:10px;">Couldn\'t start: ' + escapeHtml(countStartError) + '</div>' : "") +
+      '<button class="btn ghost" id="countTestBtn">Test Count Day connection</button><div class="hint" style="font-weight:700;">' + escapeHtml(countTestResult) + '</div></div>';
   } else {
     const rows = countRows(v);
     const done = rows.filter(r => r.status !== "uncounted").length;
@@ -3288,15 +3315,26 @@ function renderCountAudit(v) {
   body.innerHTML = html;
 }
 
+let countStartStep = "";
+let countStartError = "";
+function countStep(text) {
+  countStartStep = text;
+  renderCount();
+}
 async function countStart() {
-  const msg = () => document.getElementById("countStartMsg");
-  if (!navigator.onLine) { msg().textContent = "You need to be online to start a Count Day."; return; }
+  countStartError = "";
+  if (!navigator.onLine) { countStartError = "You need to be online to start a Count Day."; renderCount(); return; }
   if (!confirm("Start Count Day now?\n\nThe stock on record right now will be frozen and every count is compared with it. Avoid logging usage or restocks until the count is approved.")) return;
   countStarting = true;
-  renderCount();
   try {
     // The frozen figures must include everything already logged on this phone.
-    while (syncing) await new Promise(r => setTimeout(r, 300));
+    countStep("Step 1 of 3: sending this phone's usage and restocks…");
+    const waitStart = Date.now();
+    while (syncing) {
+      if (Date.now() - waitStart > 45000) throw new Error("The inventory sync on this phone is stuck. Close the app completely, reopen it, and try again.");
+      await new Promise(r => setTimeout(r, 300));
+    }
+    countStep("Step 2 of 3: getting the latest stock from the Sheet…");
     await trySync();
     if (loadQueue().length) throw new Error(loadQueue().length + " usage/restock entr" + (loadQueue().length === 1 ? "y" : "ies") + " on this phone haven't reached the Sheet yet. Wait for them to sync, then try again.");
     if (lastSyncError) throw new Error("Couldn't refresh stock from the Sheet (" + lastSyncError + "). Try again.");
@@ -3306,17 +3344,37 @@ async function countStart() {
     const items = cache.ingredients
       .filter(i => !((i.discontinued || localDisc.indexOf(i.code) >= 0) && (parseFloat(i.qty) || 0) <= 0))
       .map(i => ({ code: i.code, name: i.name, type: itemType(i), recorded: round2(i.qty) }));
+    if (!items.length) throw new Error("No items found to count. Check the inventory has synced.");
+    countStep("Step 3 of 3: freezing " + items.length + " items on the Count Day sheet…");
     const sessionId = "CD-" + new Date().toISOString().slice(0, 10) + "-" + Math.random().toString(36).slice(2, 6);
     const r = await countPost("startSession", { sessionId: sessionId, by: countWho(), items: items });
     if (r.status !== "ok") throw new Error(r.message || "Couldn't start Count Day");
     countStarting = false;
+    countStartStep = "";
     await syncCount();
   } catch (err) {
     countStarting = false;
+    countStartStep = "";
+    countStartError = err.message;
     renderCount();
-    const el = msg();
-    if (el) el.textContent = err.message;
   }
+}
+
+// Shows exactly what the Count Day sheet sends back, to check the setup.
+let countTestResult = "";
+async function countTestConnection() {
+  countTestResult = "Testing…";
+  renderCount();
+  try {
+    const res = await fetchWithTimeout(COUNT_SCRIPT_URL + "?action=getState", {}, 30000);
+    const data = countParse(await res.text());
+    countTestResult = data.status === "ok"
+      ? "✓ Connected to the Count Day sheet." + (data.session ? " A Count Day is open." : " No Count Day open yet.")
+      : "✗ The Count Day sheet replied with an error: " + (data.message || "unknown");
+  } catch (err) {
+    countTestResult = "✗ " + err.message;
+  }
+  renderCount();
 }
 
 // ---------- events ----------
@@ -3417,6 +3475,7 @@ document.getElementById("countSubmit").addEventListener("click", countSubmit);
 document.getElementById("countAuditBody").addEventListener("click", (e) => {
   const t = e.target;
   if (t.id === "countStartBtn") { countStart(); return; }
+  if (t.id === "countTestBtn") { countTestConnection(); return; }
   if (t.id === "countOpenCounting") { goToScreen("countDay", "Count Day"); return; }
   if (t.id === "countCloseBtn") {
     const v = countView();
