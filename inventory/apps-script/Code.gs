@@ -1,7 +1,8 @@
 /**
  * LCL Inventory — Backend (Google Apps Script)
  * Deploy this attached to your Master Items Google Sheet.
- * Tabs: Master Items, Use Log, Restock Log, Current Inventory, Login Log.
+ * Tabs: Master Items, Use Log, Restock Log, Current Inventory, Login Log,
+ * Count Adjustments (approved Count Day changes).
  * Pricing (cost per kg, shipping) lives directly on Master Items — there is
  * no separate Master Pricing tab. There is no Actual Measurement tab either;
  * the Weigh Calculator logs straight to Use Log like every other usage event.
@@ -133,6 +134,7 @@ function doPost(e) {
       case 'savePlanningRecord': result = savePlanningRecord_(payload); break;
       case 'pushToProduction': result = pushToProduction_(payload); break;
       case 'completeProductionBatch': result = completeProductionBatch_(payload); break;
+      case 'applyCountAdjustment': result = applyCountAdjustment_(payload); break;
       default: return jsonOut_({ status: 'error', message: 'Unknown POST action: ' + action });
     }
     if (actionId && action !== 'login' && result && result.status === 'ok') {
@@ -432,5 +434,38 @@ function completeProductionBatch_(p) {
       break;
     }
   }
+  return { status: 'ok' };
+}
+
+// ---------- Count Day: manager-approved stock count adjustments ----------
+// Current Inventory is Restocks minus Usage (SUMIF formulas), so an approved
+// count is applied as one Use Log row for the difference: positive when stock
+// was missing, negative when more was found. Nothing about the existing
+// formulas changes. Each change is also written to Count Adjustments so the
+// before and after numbers and who approved them stay on record.
+// adjustment = counted − recorded, where recorded is the stock frozen when
+// that Count Day started, so usage logged during the count isn't lost.
+function applyCountAdjustment_(p) {
+  const items = typeof p.items === 'string' ? JSON.parse(p.items) : (p.items || []);
+  if (!items.length) return { status: 'ok' };
+  const now = new Date();
+  const useRows = [];
+  const auditRows = [];
+  items.forEach(it => {
+    const adj = Number(it.adjustment) || 0;
+    if (Math.abs(adj) > 1e-9) {
+      useRows.push([it.name, it.code, Math.round(-adj * 100) / 100, now,
+        'Stock Count Adjustment — Count Day ' + (it.sessionId || ''), it.approvedBy || '']);
+    }
+    auditRows.push([it.sessionId || '', it.name, it.code, Number(it.recorded) || 0,
+      Number(it.counted) || 0, Math.round(adj * 100) / 100, it.approvedBy || '', now]);
+  });
+  if (useRows.length) {
+    const use = sheet_(SHEET_NAMES.USE_LOG);
+    use.getRange(use.getLastRow() + 1, 1, useRows.length, 6).setValues(useRows);
+  }
+  const audit = getOrCreateSheet_('Count Adjustments',
+    ['COUNT DAY', 'ITEM NAME', 'REF CODE', 'RECORDED', 'COUNTED', 'ADJUSTMENT', 'APPROVED BY', 'DATE']);
+  audit.getRange(audit.getLastRow() + 1, 1, auditRows.length, 8).setValues(auditRows);
   return { status: 'ok' };
 }

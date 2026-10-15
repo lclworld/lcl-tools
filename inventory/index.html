@@ -259,6 +259,42 @@
   .coming-next { border: 1.5px dashed var(--brown); border-radius: 16px; padding: 22px 16px; text-align: center; color: var(--brown); }
   .coming-next .cn-title { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1rem; color: var(--black); margin-bottom: 6px; }
   .coming-next .cn-step { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; background: var(--yellow); color: var(--black); display: inline-block; padding: 3px 10px; border-radius: 10px; margin-bottom: 10px; }
+
+  /* Count Day */
+  .count-bar { height: 12px; background: rgba(91,66,57,0.10); border-radius: 8px; overflow: hidden; margin: 8px 0 6px; }
+  .count-bar > div { height: 100%; width: 0; background: var(--orange); border-radius: 8px; transition: width 0.3s; }
+  .count-progress-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .count-progress-head .big { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.3rem; }
+  .count-deduct { margin-top: 8px; font-size: 0.78rem; font-weight: 600; background: rgba(255,145,77,0.14); border-radius: 8px; padding: 8px 10px; }
+  .count-entry { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
+  .count-entry:last-child { border-bottom: none; }
+  .count-entry .del { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px; font-weight: 700; color: var(--brown); cursor: pointer; flex: none; }
+  .count-pack-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .count-pack-row:last-child { border-bottom: none; }
+  .count-pack-add { display: flex; gap: 8px; margin-top: 6px; }
+  .count-pack-add input { flex: 1; padding: 8px 10px; }
+  .count-pack-add button { flex: none; padding: 8px 16px; border-radius: 10px; border: 1.5px solid var(--orange); color: var(--orange); background: var(--white); font-weight: 700; cursor: pointer; font-family: 'Urbanist', sans-serif; }
+  .count-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; background: var(--cream); border: 1px solid var(--border); border-radius: 12px; padding: 2px 4px 2px 9px; margin: 4px 4px 0 0; }
+  .count-chip button { background: none; border: none; color: var(--brown); font-weight: 800; cursor: pointer; padding: 0 4px; }
+  .count-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: var(--white); }
+  .count-item.flag { border-color: var(--orange); }
+  .count-item .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; font-size: 0.74rem; }
+  .count-item .nums b { display: block; font-size: 0.9rem; }
+  .count-item textarea { width: 100%; min-height: 54px; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 10px; font-family: 'Urbanist', sans-serif; font-size: 0.85rem; resize: vertical; }
+  .count-item textarea.needed { border-color: var(--orange); }
+  .count-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .count-actions button { flex: 1; min-width: 92px; padding: 9px 6px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--white); font-weight: 700; font-size: 0.74rem; cursor: pointer; font-family: 'Urbanist', sans-serif; }
+  .count-actions button.go { border-color: #2d5a3d; color: #2d5a3d; }
+  .pill.tally { background: rgba(45,90,61,0.12); color: #2d5a3d; }
+  .pill.flag { background: rgba(255,145,77,0.22); color: var(--black); }
+  .pill.none { background: rgba(91,66,57,0.08); color: var(--brown); }
+  .count-check { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+  .count-check:last-child { border-bottom: none; }
+  .count-check input { width: 18px; height: 18px; flex: none; }
+  .count-check .grow { flex: 1; min-width: 0; }
+  .count-stats { flex-wrap: nowrap; }
+  .count-stats .stat { min-width: 0; }
+  .count-banner { background: var(--yellow); border-radius: 12px; padding: 12px 14px; font-size: 0.82rem; font-weight: 600; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -274,6 +310,7 @@
     <div class="nav-item" data-screen="lookup">Item Lookup</div>
     <div class="nav-item" data-screen="production">Production</div>
     <div class="nav-item" data-screen="crosscheck">Availability Check</div>
+    <div class="nav-item" data-screen="countDay">Count Day</div>
     <div class="nav-divider"></div>
     <div class="nav-item manager-item" data-screen="managerGate">Manager</div>
     <div class="sync-status" id="syncStatusSidebar"></div>
@@ -338,6 +375,11 @@
       <div class="quick-tile" data-screen="crosscheck">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg>
         <span>Availability Check</span>
+      </div>
+      <div class="quick-tile" data-screen="countDay">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1" stroke-linecap="round"/><path d="M9 10h6M9 14h6M9 18h3" stroke-linecap="round"/></svg>
+        <span>Count Day</span>
+        <span class="quick-badge" id="quickCountBadge" style="display:none;"></span>
       </div>
     </div>
 
@@ -501,6 +543,7 @@
     </div>
     <button class="btn primary" id="openPlanningFromHome" style="margin-top:0;">Open Development Studio</button>
     <button class="btn primary" id="openReportsFromHome">Open Reports</button>
+    <button class="btn primary" id="openCountAuditFromHome">Count Day Audit</button>
     <div class="hint" style="margin-bottom:10px;">Formula, INCI, production sheet, and the full five-tier pricing engine now live together in one place, Development Studio. Turn on only what a given product needs.</div>
     <button class="btn dark" id="managerLogout">← Back to Employee View</button>
   </div>
@@ -606,6 +649,79 @@
     <div class="hint">Cost per kg pulled from Master Pricing, hidden from the employee tier entirely — this screen only exists behind the manager PIN.</div>
   </div>
 
+  <!-- INVENTORY COUNT DAY — employees and managers, shared live across every device -->
+  <div class="screen" id="countDay">
+    <h2 class="title">Inventory Count Day</h2>
+    <div class="sync-status" id="countSync"></div>
+    <div class="card" id="countIdle"></div>
+    <div id="countActive" style="display:none;">
+      <div class="card">
+        <div class="count-progress-head"><span class="big" id="countPct">0%</span><span class="hint" id="countPctDetail" style="margin:0;"></span></div>
+        <div class="count-bar"><div id="countBarFill"></div></div>
+        <div class="hint" id="countMeta"></div>
+      </div>
+      <div id="countBanner"></div>
+      <div class="filter-row" id="countTabs">
+        <button data-tab="ingredients" class="active">Ingredients</button>
+        <button data-tab="packaging">Packaging</button>
+        <button data-tab="report">Report</button>
+      </div>
+      <div class="count-pane" data-pane="ingredients">
+        <div class="card">
+          <label>1. Container</label>
+          <select id="countContainer"></select>
+          <div id="countCustomTareWrap" style="display:none;"><label>Empty container weight (g)</label><input id="countCustomTare" inputmode="decimal" placeholder="e.g. 42.5"></div>
+          <div class="count-deduct" id="countDeduct"></div>
+          <label>2. Ingredient</label>
+          <div class="autocomplete"><input id="countIngInput" placeholder="Search ingredient..." autocomplete="off"><div class="autocomplete-list" id="countIngList" style="display:none;"></div></div>
+          <label>3. Weight on the scale (g)</label>
+          <input id="countGross" inputmode="decimal" placeholder="Container + contents">
+          <div class="calc-result"><div class="big" id="countNet">—</div><div class="lbl">Actual content</div></div>
+          <button class="btn primary" id="countSaveIng">Save weighing</button>
+          <button class="btn ghost" id="countNoneIng">None of this ingredient in stock (0 g)</button>
+          <div class="hint" id="countIngMsg"></div>
+        </div>
+        <h3 class="section-title" id="countInContainerTitle">Logged in this container</h3>
+        <div class="card"><div id="countInContainer"></div></div>
+        <h3 class="section-title" id="countIngLeftTitle">Ingredients still to count</h3>
+        <div class="card">
+          <input class="search" id="countIngLeftSearch" placeholder="Filter this list...">
+          <div class="hint" style="margin:-4px 0 6px;">Tap an ingredient to weigh it next.</div>
+          <div id="countIngLeft"></div>
+        </div>
+      </div>
+      <div class="count-pane" data-pane="packaging" style="display:none;">
+        <div class="card">
+          <input class="search" id="countPackSearch" placeholder="Search packaging...">
+          <div class="filter-row" id="countPackFilter">
+            <button data-f="left" class="active">Still to count</button>
+            <button data-f="done">Counted</button>
+            <button data-f="all">All</button>
+          </div>
+          <div class="hint" style="margin:-4px 0 6px;">Enter how many you counted and tap Add. Found more of the same item somewhere else? Add again and it adds up. Enter 0 if there are none.</div>
+          <div id="countPackList"></div>
+        </div>
+      </div>
+      <div class="count-pane" data-pane="report" style="display:none;">
+        <div class="stat-row count-stats">
+          <div class="stat"><div class="num" id="countStatOk">0</div><div class="lbl">Tallies</div></div>
+          <div class="stat warn"><div class="num" id="countStatFlag">0</div><div class="lbl">Discrepancies</div></div>
+          <div class="stat"><div class="num" id="countStatLeft">0</div><div class="lbl">Not counted</div></div>
+        </div>
+        <div class="hint" style="margin:-4px 0 12px;">Ingredients tally when they're within ±2% of the recorded weight. Packaging has to match exactly. Every discrepancy needs a note before the count can be submitted.</div>
+        <div id="countReport"></div>
+        <button class="btn primary" id="countSubmit">Submit count for manager audit</button>
+        <div class="hint" id="countSubmitMsg"></div>
+      </div>
+    </div>
+  </div>
+  <!-- COUNT DAY AUDIT — manager only -->
+  <div class="screen" id="countAudit">
+    <button class="btn dark" id="closeCountAudit" style="margin-top:0;">← Back to Manager</button>
+    <h2 class="title" style="margin-top:14px;">Count Day Audit</h2>
+    <div class="sync-status" id="countAuditSync"></div>
+    <div id="countAuditBody"></div>
+  </div>
   <!-- REPORTS — manager only -->
   <div class="screen" id="reports">
     <button class="btn dark" id="closeReports" style="margin-top:0;">← Back to Manager</button>
@@ -1049,13 +1165,14 @@ document.getElementById("managerLogout").addEventListener("click", () => {
 let appUnlocked = false;
 function goToScreen(name, label) {
   if (!appUnlocked && name !== "pin") { return; } // block everything until PIN is entered
-  if ((name === "managerHome" || name === "planning" || name === "reports") && !isManager) { name = "managerGate"; label = "Manager Access"; }
+  if ((name === "managerHome" || name === "planning" || name === "reports" || name === "countAudit") && !isManager) { name = "managerGate"; label = "Manager Access"; }
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.screen === name || (name === "managerHome" && t.dataset.screen === "managerGate")));
   document.querySelectorAll(".nav-item").forEach(t => t.classList.toggle("active", t.dataset.screen === name || (name === "managerHome" && t.dataset.screen === "managerGate")));
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById(name).classList.add("active");
   const lbl = document.getElementById("screenLabel");
   if (lbl) lbl.textContent = label;
+  if (name === "countDay" || name === "countAudit") { renderCount(); syncCount(); }
 }
 document.querySelectorAll(".tab, .nav-item").forEach(el => {
   el.addEventListener("click", () => {
@@ -2644,6 +2761,716 @@ populateContainers();
 renderProductionList();
 renderSyncStatus();
 if (isConfigured()) { trySync(); }
+
+// ===================================================================
+// INVENTORY COUNT DAY
+// Employees weigh every ingredient and count every packaging item; the
+// count lives on its own Google Sheet (apps-script/CountDay.gs) so every
+// company device shares one live count. A manager starts it (freezing the
+// recorded stock), and nothing changes real stock until a manager approves
+// it in Count Day Audit, which sends applyCountAdjustment to the main Sheet.
+// ===================================================================
+// Paste the Count Day Sheet's web app URL (…/exec) here once it's deployed.
+const COUNT_SCRIPT_URL = "";
+const COUNT_TOLERANCE = 0.02; // ingredients within ±2% of the frozen record tally
+const COUNT_STATE_KEY = "lcl_inv_count_state_v1";
+const COUNT_QUEUE_KEY = "lcl_inv_count_queue_v1";
+const COUNT_CONTAINER_KEY = "lcl_inv_count_container_v1";
+const COUNT_NO_CONTAINER = "No container (weighed directly)";
+const COUNT_OTHER = "__other__";
+
+function countConfigured() { return COUNT_SCRIPT_URL.indexOf("http") === 0; }
+function loadCountState() { try { return JSON.parse(localStorage.getItem(COUNT_STATE_KEY)) || null; } catch (e) { return null; } }
+function saveCountState(s) { localStorage.setItem(COUNT_STATE_KEY, JSON.stringify(s)); }
+function loadCountQueue() { try { return JSON.parse(localStorage.getItem(COUNT_QUEUE_KEY)) || []; } catch (e) { return []; } }
+function saveCountQueue(q) { localStorage.setItem(COUNT_QUEUE_KEY, JSON.stringify(q)); }
+function countNewId() { return Date.now() + "-" + Math.random().toString(36).slice(2, 8); }
+function round2(n) { return Math.round((parseFloat(n) || 0) * 100) / 100; }
+function countWho() { return currentWorker || (isManager ? "Manager" : "Staff"); }
+
+// Every count action is saved on the phone first, then sent in order, so
+// nothing is lost if the app closes or the signal drops mid-count.
+function countEnqueue(type, payload) {
+  const q = loadCountQueue();
+  q.push({ id: countNewId(), type: type, payload: payload });
+  saveCountQueue(q);
+  countRenderSoon();
+  syncCount();
+}
+// Redraw after the current tap finishes: a note saved on blur must not redraw
+// the list before focus lands in the box that was just tapped.
+function countRenderSoon() { setTimeout(renderCount, 0); }
+
+async function countPost(action, payload) {
+  const res = await fetch(COUNT_SCRIPT_URL + "?action=" + encodeURIComponent(action), {
+    method: "POST",
+    body: JSON.stringify(payload || {}),
+    headers: { "Content-Type": "text/plain;charset=utf-8" }
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch (e) { throw new Error("Couldn't reach the Count Day sheet — will retry"); }
+}
+
+let countSyncing = false;
+let countSyncAgain = false;
+let countSyncError = null;
+async function syncCount() {
+  if (!countConfigured()) { countRenderSoon(); return; }
+  if (countSyncing) { countSyncAgain = true; return; }
+  if (!navigator.onLine) { countRenderSoon(); return; }
+  countSyncing = true;
+  countSyncError = null;
+  try {
+    const queue = loadCountQueue();
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i];
+      try {
+        const r = await countPost(item.type, item.payload);
+        // A closed Count Day can never accept this, so retrying forever would block the rest.
+        if (r.status !== "ok" && !/has been closed/.test(r.message || "")) throw new Error(r.message || "Count Day sheet error");
+        saveCountQueue(loadCountQueue().filter(x => x.id !== item.id));
+      } catch (err) {
+        // Stop here so later actions (like deleting this entry) never arrive before it.
+        countSyncError = err.message;
+        break;
+      }
+    }
+    const res = await fetch(COUNT_SCRIPT_URL + "?action=getState");
+    const data = await res.json();
+    if (data.status === "ok") {
+      data.fetchedAt = new Date().toISOString();
+      saveCountState(data);
+    } else {
+      countSyncError = data.message || "Count Day sheet error";
+    }
+  } catch (err) {
+    countSyncError = countSyncError || err.message;
+  }
+  countSyncing = false;
+  renderCount();
+  if (countSyncAgain) { countSyncAgain = false; syncCount(); }
+}
+
+// The sheet's state with this phone's unsent actions applied on top, so the
+// screen always shows what was just entered, even offline.
+function countView() {
+  const s = loadCountState() || {};
+  const queue = loadCountQueue();
+  const v = { session: null, lastClosed: s.lastClosed || null, pending: queue.length, fetchedAt: s.fetchedAt };
+  if (!s.session) return v;
+  const sid = s.session.id;
+  v.session = Object.assign({}, s.session);
+  v.snapshot = s.snapshot || [];
+  v.entries = (s.entries || []).slice();
+  v.notes = {};
+  v.decisions = {};
+  (s.notes || []).forEach(n => { v.notes[n.code] = n; });
+  (s.decisions || []).forEach(d => { v.decisions[d.code] = d; });
+  queue.forEach(item => {
+    const p = item.payload || {};
+    if (p.sessionId !== sid) return;
+    if (item.type === "addEntry" && !v.entries.some(e => e.id === p.id)) v.entries.push(Object.assign({ pending: true }, p));
+    if (item.type === "deleteEntry") v.entries = v.entries.filter(e => e.id !== p.id);
+    if (item.type === "setNote") v.notes[p.code] = { code: p.code, note: p.note, by: p.by };
+    if (item.type === "decide") p.items.forEach(i => { v.decisions[i.code] = Object.assign({ by: p.by, pending: true }, i); });
+    if (item.type === "submitSession" && v.session.status === "open") { v.session.status = "submitted"; v.session.submittedBy = p.by; }
+    if (item.type === "closeSession") v.session.status = "closed";
+  });
+  if (v.session.status === "closed") { v.lastClosed = v.session; v.session = null; }
+  return v;
+}
+
+// ok = tallies, flag = discrepancy, uncounted = nothing entered yet
+function countStatus(item, counted, hasEntries) {
+  if (!hasEntries) return "uncounted";
+  const rec = round2(item.recorded);
+  const got = round2(counted);
+  if (item.type === "Packaging") return got === rec ? "ok" : "flag";
+  // 2% of nothing is nothing: stock found against an empty (or negative) record is always flagged.
+  if (rec <= 0) return rec === 0 && got === 0 ? "ok" : "flag";
+  return Math.abs(got - rec) <= rec * COUNT_TOLERANCE + 1e-9 ? "ok" : "flag";
+}
+
+function countRows(v) {
+  const byCode = {};
+  v.entries.forEach(e => { (byCode[e.code] = byCode[e.code] || []).push(e); });
+  return v.snapshot.map(item => {
+    const entries = byCode[item.code] || [];
+    const counted = round2(entries.reduce((sum, e) => sum + (parseFloat(e.qty) || 0), 0));
+    const recorded = round2(item.recorded);
+    const diff = round2(counted - recorded);
+    return Object.assign({}, item, {
+      recorded: recorded, entries: entries, counted: counted, diff: diff,
+      pct: recorded > 0 ? diff / recorded * 100 : null,
+      status: countStatus(item, counted, entries.length > 0),
+      note: v.notes[item.code] ? v.notes[item.code].note : "",
+      decision: v.decisions[item.code] || null
+    });
+  });
+}
+
+function countUnit(row) { return row.type === "Packaging" ? "" : " g"; }
+function countFmt(row, n) {
+  const v = round2(n);
+  return (row.type === "Packaging" ? String(v) : v.toFixed(2)) + countUnit(row);
+}
+function countDiffText(row) {
+  if (row.status === "uncounted") return "—";
+  const sign = row.diff > 0 ? "+" : "";
+  return sign + countFmt(row, row.diff) + (row.pct !== null && row.type !== "Packaging" ? " (" + sign + row.pct.toFixed(1) + "%)" : "");
+}
+function countPill(row) {
+  if (row.status === "ok") return '<span class="pill tally">Tallies</span>';
+  if (row.status === "flag") return '<span class="pill flag">Discrepancy</span>';
+  return '<span class="pill none">Not counted</span>';
+}
+function countDecisionLabel(d) {
+  if (!d) return "";
+  const who = d.by ? " · " + escapeHtml(d.by) : "";
+  if (d.decision === "approved") return '<span class="pill tally">Approved ✓</span><span class="ing-meta">' + who + '</span>';
+  if (d.decision === "kept") return '<span class="pill none">Record kept</span><span class="ing-meta">' + who + '</span>';
+  if (d.decision === "recount") return '<span class="pill flag">Recount requested</span><span class="ing-meta">' + who + '</span>';
+  return "";
+}
+// A recount request stays open until something is re-entered after it.
+function countNeedsRecount(row) {
+  if (!row.decision || row.decision.decision !== "recount") return false;
+  const asked = row.decision.at ? new Date(row.decision.at).getTime() : Date.now();
+  return !row.entries.some(e => e.at && new Date(e.at).getTime() > asked);
+}
+
+// ---------- containers: pick once, every ingredient logged gets the same deduction ----------
+function countContainers() {
+  const byName = {};
+  REAL_CONTAINERS.forEach(([name, weight]) => { byName[name] = weight; });
+  (loadCache().containers || []).forEach(c => { if (c && c.name) byName[c.name] = c.tareWeight; });
+  return Object.keys(byName).map(name => ({ name: name, tare: byName[name] }));
+}
+function populateCountContainers() {
+  const sel = document.getElementById("countContainer");
+  const keep = sel.value || localStorage.getItem(COUNT_CONTAINER_KEY) || COUNT_NO_CONTAINER;
+  sel.innerHTML = "";
+  const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; sel.appendChild(o); };
+  add(COUNT_NO_CONTAINER, COUNT_NO_CONTAINER + " — 0 g");
+  countContainers().forEach(c => {
+    if (c.tare === null || c.tare === undefined || c.tare === "") return; // no weight on file: use Other
+    add(c.name, c.name + " — " + c.tare + " g");
+  });
+  add(COUNT_OTHER, "Other container — enter its empty weight");
+  sel.value = Array.from(sel.options).some(o => o.value === keep) ? keep : COUNT_NO_CONTAINER;
+}
+function countSelectedContainer() {
+  const sel = document.getElementById("countContainer");
+  if (sel.value === COUNT_NO_CONTAINER) return { name: COUNT_NO_CONTAINER, tare: 0 };
+  if (sel.value === COUNT_OTHER) {
+    const t = parseFloat(document.getElementById("countCustomTare").value);
+    return { name: "Other container", tare: isNaN(t) ? null : t };
+  }
+  const c = countContainers().find(x => x.name === sel.value);
+  return { name: sel.value, tare: c ? parseFloat(c.tare) || 0 : 0 };
+}
+
+let countSelectedIng = null;
+let countTab = "ingredients";
+let countPackFilter = "left";
+
+function countRecalcNet() {
+  const c = countSelectedContainer();
+  const gross = parseFloat(document.getElementById("countGross").value);
+  const out = document.getElementById("countNet");
+  if (isNaN(gross) || c.tare === null) { out.textContent = "—"; return; }
+  const net = round2(gross - c.tare);
+  out.textContent = net.toFixed(2) + " g";
+}
+function countUpdateDeduct() {
+  const c = countSelectedContainer();
+  document.getElementById("countCustomTareWrap").style.display = document.getElementById("countContainer").value === COUNT_OTHER ? "block" : "none";
+  document.getElementById("countDeduct").textContent = c.tare === null
+    ? "Enter the empty container's weight first."
+    : (c.tare ? c.tare + " g is taken off every ingredient you log in " + c.name + "." : "Nothing is taken off — weigh the ingredient on its own.");
+  countRecalcNet();
+}
+
+function countPickIngredient(row) {
+  countSelectedIng = row;
+  document.getElementById("countIngInput").value = row.name;
+  document.getElementById("countIngList").style.display = "none";
+  document.getElementById("countIngMsg").textContent = "";
+}
+
+function countAddEntry(row, fields) {
+  const v = countView();
+  if (!v.session) return false;
+  countEnqueue("addEntry", Object.assign({
+    id: countNewId(), sessionId: v.session.id, code: row.code, name: row.name, type: row.type,
+    container: "", tare: null, gross: null, by: countWho(), at: new Date().toISOString()
+  }, fields));
+  return true;
+}
+
+function countSaveIngredient(none) {
+  const msg = document.getElementById("countIngMsg");
+  const ing = countSelectedIng;
+  if (!ing || document.getElementById("countIngInput").value.trim() !== ing.name) {
+    msg.textContent = "Pick the ingredient from the list first."; return;
+  }
+  if (none) {
+    if (!countAddEntry(ing, { container: "None found", qty: 0 })) return;
+    msg.textContent = "Saved: no " + ing.name + " in stock.";
+  } else {
+    const c = countSelectedContainer();
+    const gross = parseFloat(document.getElementById("countGross").value);
+    if (c.tare === null) { msg.textContent = "Enter the empty container's weight."; return; }
+    if (isNaN(gross) || gross <= 0) { msg.textContent = "Enter the weight shown on the scale."; return; }
+    const net = round2(gross - c.tare);
+    if (net < 0) { msg.textContent = "That's lighter than the empty container (" + c.tare + " g). Check the container or the weight."; return; }
+    if (!countAddEntry(ing, { container: c.name, tare: c.tare, gross: gross, qty: net })) return;
+    msg.textContent = "Saved: " + ing.name + " — " + net.toFixed(2) + " g.";
+  }
+  countSelectedIng = null;
+  document.getElementById("countIngInput").value = "";
+  document.getElementById("countGross").value = "";
+  countRecalcNet();
+  document.getElementById("countIngInput").focus();
+}
+
+function countDeleteEntry(entry) {
+  const v = countView();
+  if (!v.session) return;
+  if (!confirm("Remove this entry? " + entry.name + " — " + (entry.type === "Packaging" ? entry.qty : round2(entry.qty).toFixed(2) + " g"))) return;
+  // Never sent yet: just take it out of this phone's queue.
+  const q = loadCountQueue();
+  const unsent = q.find(x => x.type === "addEntry" && x.payload.id === entry.id);
+  if (unsent) { saveCountQueue(q.filter(x => x !== unsent)); renderCount(); return; }
+  countEnqueue("deleteEntry", { id: entry.id, sessionId: v.session.id, by: countWho() });
+}
+
+// Don't redraw a list while someone is typing in it; redraw when they leave it.
+function countSafeFill(el, html) {
+  const a = document.activeElement;
+  if (a && a !== el && el.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) { el.dataset.dirty = "1"; return false; }
+  el.innerHTML = html;
+  el.dataset.dirty = "";
+  return true;
+}
+
+function countEntryLine(e) {
+  const qty = e.type === "Packaging" ? String(e.qty) : round2(e.qty).toFixed(2) + " g";
+  const how = e.gross !== null && e.gross !== undefined && e.gross !== "" ? " · scale " + round2(e.gross) + " g" : (e.container === "None found" ? " · none found" : "");
+  return '<div class="count-entry"><div><div class="ing-name">' + escapeHtml(e.name) + ' — ' + qty + '</div>' +
+    '<div class="ing-meta">' + escapeHtml(e.by || "") + how + (e.pending ? " · waiting to send" : "") + '</div></div>' +
+    '<button class="del" data-entry="' + escapeHtml(e.id) + '" aria-label="Remove entry">✕</button></div>';
+}
+
+function renderCount() {
+  const v = countView();
+  renderCountEmployee(v);
+  if (isManager) renderCountAudit(v);
+  const badge = document.getElementById("quickCountBadge");
+  if (badge) { badge.style.display = v.session ? "inline-block" : "none"; badge.textContent = "Live"; }
+  const syncText = !countConfigured() ? "" :
+    countSyncError ? "⚠ Count Day sync issue: " + countSyncError + (v.pending ? " · " + v.pending + " saved on this phone" : "") :
+    !navigator.onLine ? "Offline" + (v.pending ? " · " + v.pending + " saved on this phone, will send when back online" : "") :
+    v.pending ? "Sending " + v.pending + " entr" + (v.pending === 1 ? "y" : "ies") + "…" :
+    v.fetchedAt ? "Count Day synced " + timeAgo(v.fetchedAt) : "Loading Count Day…";
+  ["countSync", "countAuditSync"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = syncText; el.classList.toggle("offline", !!countSyncError || !navigator.onLine); }
+  });
+}
+
+function renderCountEmployee(v) {
+  const idle = document.getElementById("countIdle");
+  const active = document.getElementById("countActive");
+  if (!countConfigured() || !v.session) {
+    active.style.display = "none";
+    idle.style.display = "block";
+    idle.innerHTML = !countConfigured()
+      ? '<div class="empty-state">Count Day isn\'t connected yet. The Count Day Google Sheet needs to be set up first.</div>'
+      : '<div class="empty-state">No Count Day is running right now.<br>A manager starts one from <b>Manager → Count Day Audit</b>.' +
+        (v.lastClosed ? '<br><br>Last Count Day closed ' + escapeHtml(v.lastClosed.closedAt ? new Date(v.lastClosed.closedAt).toLocaleDateString() : "") + (v.lastClosed.closedBy ? " by " + escapeHtml(v.lastClosed.closedBy) : "") + '.' : "") + '</div>';
+    return;
+  }
+  idle.style.display = "none";
+  active.style.display = "block";
+  const rows = countRows(v);
+  const ings = rows.filter(r => r.type !== "Packaging");
+  const packs = rows.filter(r => r.type === "Packaging");
+  const done = rows.filter(r => r.status !== "uncounted").length;
+  const pct = rows.length ? Math.floor(done / rows.length * 100) : 0;
+  document.getElementById("countPct").textContent = pct + "% accounted for";
+  document.getElementById("countBarFill").style.width = pct + "%";
+  document.getElementById("countPctDetail").textContent =
+    "Ingredients " + ings.filter(r => r.status !== "uncounted").length + "/" + ings.length +
+    " · Packaging " + packs.filter(r => r.status !== "uncounted").length + "/" + packs.length;
+  document.getElementById("countMeta").textContent = "Started by " + (v.session.startedBy || "a manager") +
+    (v.session.startedAt ? " · " + new Date(v.session.startedAt).toLocaleString() : "") +
+    (v.session.status === "submitted" ? " · Submitted for audit" + (v.session.submittedBy ? " by " + v.session.submittedBy : "") : "");
+
+  const recounts = rows.filter(countNeedsRecount);
+  document.getElementById("countBanner").innerHTML = recounts.length
+    ? '<div class="count-banner">Manager asked for a recount of: ' + recounts.map(r => escapeHtml(r.name)).join(", ") + '. Remove the old entries and weigh or count again.</div>'
+    : "";
+
+  document.querySelectorAll("#countTabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === countTab));
+  document.querySelectorAll("#countDay .count-pane").forEach(p => { p.style.display = p.dataset.pane === countTab ? "block" : "none"; });
+
+  // Ingredients: what's been logged in the selected container, and what's left.
+  const c = countSelectedContainer();
+  const inContainer = v.entries.filter(e => e.type !== "Packaging" && (e.container === c.name)).slice().reverse();
+  document.getElementById("countInContainerTitle").textContent = "Logged in " + c.name + " (" + inContainer.length + ")";
+  countSafeFill(document.getElementById("countInContainer"), inContainer.length
+    ? inContainer.map(countEntryLine).join("")
+    : '<div class="empty-state">Nothing logged in this container yet.</div>');
+
+  const leftQ = document.getElementById("countIngLeftSearch").value.trim().toLowerCase();
+  const left = ings.filter(r => r.status === "uncounted" || countNeedsRecount(r));
+  document.getElementById("countIngLeftTitle").textContent = "Ingredients still to count (" + left.length + ")";
+  const leftShown = left.filter(r => !leftQ || r.name.toLowerCase().includes(leftQ) || r.code.toLowerCase().includes(leftQ));
+  countSafeFill(document.getElementById("countIngLeft"), leftShown.length
+    ? leftShown.slice(0, 80).map(r => '<div class="ing-row" data-pick="' + escapeHtml(r.code) + '" style="cursor:pointer;"><div><div class="ing-name">' + escapeHtml(r.name) + '</div><div class="ing-meta">' + escapeHtml(r.code) + (countNeedsRecount(r) ? " · recount requested" : "") + '</div></div><span class="pill ing">Weigh</span></div>').join("") +
+      (leftShown.length > 80 ? '<div class="hint">' + (leftShown.length - 80) + ' more — type above to narrow the list.</div>' : "")
+    : '<div class="empty-state">' + (left.length ? "No matches." : "Every ingredient has been weighed. ✓") + '</div>');
+
+  renderCountPackaging(packs);
+  renderCountReport(v, rows);
+}
+
+function renderCountPackaging(packs) {
+  document.querySelectorAll("#countPackFilter button").forEach(b => b.classList.toggle("active", b.dataset.f === countPackFilter));
+  const q = document.getElementById("countPackSearch").value.trim().toLowerCase();
+  const list = packs.filter(r =>
+    (countPackFilter === "all" || (countPackFilter === "done" ? r.status !== "uncounted" : (r.status === "uncounted" || countNeedsRecount(r)))) &&
+    (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)));
+  countSafeFill(document.getElementById("countPackList"), list.length
+    ? list.slice(0, 60).map(r =>
+        '<div class="count-pack-row" data-code="' + escapeHtml(r.code) + '">' +
+          '<div style="display:flex; justify-content:space-between; gap:8px; align-items:baseline;"><div><div class="ing-name">' + escapeHtml(r.name) + '</div><div class="ing-meta">' + escapeHtml(r.code) +
+          (countNeedsRecount(r) ? " · recount requested" : "") + '</div></div>' +
+          (r.status !== "uncounted" ? '<span class="qty">' + r.counted + '</span>' : "") + '</div>' +
+          (r.entries.length ? '<div>' + r.entries.map(e => '<span class="count-chip">' + e.qty + ' · ' + escapeHtml(e.by || "") + '<button data-entry="' + escapeHtml(e.id) + '" aria-label="Remove">✕</button></span>').join("") + '</div>' : "") +
+          '<div class="count-pack-add"><input inputmode="numeric" placeholder="How many?" aria-label="Count for ' + escapeHtml(r.name) + '"><button data-add="' + escapeHtml(r.code) + '">Add</button></div>' +
+        '</div>').join("") +
+      (list.length > 60 ? '<div class="hint">' + (list.length - 60) + ' more — search above to find the rest.</div>' : "")
+    : '<div class="empty-state">' + (countPackFilter === "left" && !q ? "Every packaging item has been counted. ✓" : "No matches.") + '</div>');
+}
+
+function countItemCard(row, mode) {
+  const decided = row.decision && !(row.decision.decision === "recount" && !countNeedsRecount(row)) ? countDecisionLabel(row.decision) : "";
+  let html = '<div class="count-item' + (row.status === "flag" ? " flag" : "") + '" data-code="' + escapeHtml(row.code) + '">' +
+    '<div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;"><div><div class="ing-name">' + escapeHtml(row.name) + '</div><div class="ing-meta">' + escapeHtml(row.code) + ' · ' + escapeHtml(row.type) + '</div></div>' + countPill(row) + '</div>' +
+    '<div class="nums"><div>Recorded<b>' + countFmt(row, row.recorded) + '</b></div><div>Counted<b>' + (row.status === "uncounted" ? "—" : countFmt(row, row.counted)) + '</b></div><div>Difference<b>' + countDiffText(row) + '</b></div></div>';
+  if (mode === "employee" && row.status === "flag") {
+    html += '<label style="margin-top:4px;">Why is it different?</label><textarea data-note="' + escapeHtml(row.code) + '" class="' + (row.note.trim() ? "" : "needed") + '" placeholder="e.g. spillage, found an extra bag in the store room">' + escapeHtml(row.note) + '</textarea>';
+  }
+  if (mode === "audit") {
+    if (row.note) html += '<div class="hint"><b>Note:</b> ' + escapeHtml(row.note) + '</div>';
+    if (decided) html += '<div style="margin-top:8px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;">' + decided + '</div>';
+    html += countAuditButtons(row);
+  }
+  return html + '</div>';
+}
+
+function renderCountReport(v, rows) {
+  const flags = rows.filter(r => r.status === "flag");
+  const oks = rows.filter(r => r.status === "ok");
+  const left = rows.filter(r => r.status === "uncounted");
+  document.getElementById("countStatOk").textContent = oks.length;
+  document.getElementById("countStatFlag").textContent = flags.length;
+  document.getElementById("countStatLeft").textContent = left.length;
+  const listRow = r => '<div class="ing-row"><div><div class="ing-name">' + escapeHtml(r.name) + '</div><div class="ing-meta">' + escapeHtml(r.code) + ' · recorded ' + countFmt(r, r.recorded) + (r.status === "ok" ? " · counted " + countFmt(r, r.counted) : "") + '</div></div>' + countPill(r) + '</div>';
+  countSafeFill(document.getElementById("countReport"),
+    (flags.length ? '<h3 class="section-title">Discrepancies (' + flags.length + ')</h3>' + flags.map(r => countItemCard(r, "employee")).join("") : '<div class="card"><div class="empty-state">No discrepancies so far.</div></div>') +
+    (left.length ? '<details class="disc-list card"><summary>Not counted (' + left.length + ')</summary>' + left.map(listRow).join("") + '</details>' : "") +
+    (oks.length ? '<details class="disc-list card"><summary>Tallies (' + oks.length + ')</summary>' + oks.map(listRow).join("") + '</details>' : ""));
+  const missingNotes = flags.filter(r => !r.note.trim()).length;
+  const btn = document.getElementById("countSubmit");
+  const submitted = v.session.status === "submitted";
+  btn.textContent = submitted ? "Submit again (count updated)" : "Submit count for manager audit";
+  document.getElementById("countSubmitMsg").textContent = missingNotes
+    ? missingNotes + " discrepanc" + (missingNotes === 1 ? "y needs a note" : "ies need notes") + " before you can submit."
+    : submitted ? "Submitted — waiting for the manager's audit. You can still fix entries; submit again if you do." : "";
+}
+
+function countSubmit() {
+  const v = countView();
+  if (!v.session) return;
+  const rows = countRows(v);
+  const missing = rows.filter(r => r.status === "flag" && !r.note.trim());
+  if (missing.length) { alert("Add a note to every discrepancy first:\n" + missing.map(r => "• " + r.name).join("\n")); countTab = "report"; renderCount(); return; }
+  const left = rows.filter(r => r.status === "uncounted").length;
+  if (left && !confirm(left + " item" + (left === 1 ? " hasn't" : "s haven't") + " been counted. They'll show as Not counted. Submit anyway?")) return;
+  countEnqueue("submitSession", { sessionId: v.session.id, by: countWho() });
+}
+
+// ---------- manager: start, audit, close ----------
+let countAuditSelected = {};
+let countStarting = false;
+
+function countAuditButtons(row) {
+  if (row.status === "uncounted") return '<div class="count-actions"><button data-act="recount" data-code="' + escapeHtml(row.code) + '">Ask for recount</button></div>';
+  const d = row.decision;
+  // Approved is final unless the count changes afterwards; then only the new difference is applied.
+  if (d && d.decision === "approved" && round2(d.counted) === row.counted) return "";
+  const changed = d && d.decision === "approved" ? '<div class="hint">Count changed since it was approved (' + countFmt(row, d.counted) + ' → ' + countFmt(row, row.counted) + ').</div>' : "";
+  return changed + '<div class="count-actions">' +
+    '<button class="go" data-act="approve" data-code="' + escapeHtml(row.code) + '">Accept count</button>' +
+    (d && d.decision === "approved" ? "" : '<button data-act="kept" data-code="' + escapeHtml(row.code) + '">Keep record</button>') +
+    '<button data-act="recount" data-code="' + escapeHtml(row.code) + '">Ask for recount</button></div>';
+}
+
+// What stock is on record now: the frozen figure, or the last count a manager approved.
+function countBaseline(row) {
+  return row.decision && row.decision.decision === "approved" ? round2(row.decision.counted) : row.recorded;
+}
+
+function countDecide(rows, decision) {
+  const v = countView();
+  if (!v.session || !rows.length) return;
+  const by = countWho();
+  const items = rows.map(r => ({
+    code: r.code, name: r.name, decision: decision, recorded: r.recorded, counted: r.counted,
+    adjustment: decision === "approved" ? round2(r.counted - countBaseline(r)) : 0
+  }));
+  countEnqueue("decide", { sessionId: v.session.id, by: by, items: items });
+  if (decision === "approved") {
+    enqueue("applyCountAdjustment", {
+      items: items.map(i => ({ code: i.code, name: i.name, recorded: i.recorded, counted: i.counted, adjustment: i.adjustment, sessionId: v.session.id, approvedBy: by }))
+    });
+  }
+}
+
+function renderCountAudit(v) {
+  const body = document.getElementById("countAuditBody");
+  if (!body) return;
+  let html;
+  if (!countConfigured()) {
+    html = '<div class="card"><div class="empty-state">Count Day isn\'t connected yet. Set up the Count Day Google Sheet and add its web app link to the app.</div></div>';
+  } else if (!v.session) {
+    html = '<div class="card"><div class="ing-name" style="margin-bottom:6px;">No Count Day running</div>' +
+      '<div class="hint">Starting a Count Day freezes the stock on record right now. Every count is compared with that frozen figure, so avoid logging usage or restocks until the count is approved.</div>' +
+      (v.lastClosed ? '<div class="hint">Last Count Day closed ' + escapeHtml(v.lastClosed.closedAt ? new Date(v.lastClosed.closedAt).toLocaleString() : "") + (v.lastClosed.closedBy ? " by " + escapeHtml(v.lastClosed.closedBy) : "") + '.</div>' : "") +
+      '<button class="btn primary" id="countStartBtn"' + (countStarting ? " disabled" : "") + '>' + (countStarting ? "Starting…" : "Start Count Day") + '</button><div class="hint" id="countStartMsg"></div></div>';
+  } else {
+    const rows = countRows(v);
+    const done = rows.filter(r => r.status !== "uncounted").length;
+    const pct = rows.length ? Math.floor(done / rows.length * 100) : 0;
+    const okRows = rows.filter(r => r.status === "ok");
+    const ready = okRows.filter(r => !(r.decision && r.decision.decision === "approved" && round2(r.decision.counted) === r.counted) && !(r.decision && r.decision.decision === "kept"));
+    Object.keys(countAuditSelected).forEach(code => { if (!ready.some(r => r.code === code)) delete countAuditSelected[code]; });
+    ready.forEach(r => { if (countAuditSelected[r.code] === undefined) countAuditSelected[r.code] = true; });
+    const nSel = ready.filter(r => countAuditSelected[r.code]).length;
+    const flags = rows.filter(r => r.status === "flag");
+    const left = rows.filter(r => r.status === "uncounted");
+    const approvedN = rows.filter(r => r.decision && r.decision.decision === "approved").length;
+    html = '<div class="card"><div class="count-progress-head"><span class="big">' + pct + '% accounted for</span><span class="hint" style="margin:0;">' +
+      (v.session.status === "submitted" ? "Submitted" + (v.session.submittedBy ? " by " + escapeHtml(v.session.submittedBy) : "") : "Still counting") + '</span></div>' +
+      '<div class="count-bar"><div style="width:' + pct + '%"></div></div>' +
+      '<div class="hint">Started by ' + escapeHtml(v.session.startedBy || "") + ' · ' + okRows.length + ' tally · ' + flags.length + ' discrepanc' + (flags.length === 1 ? "y" : "ies") + ' · ' + left.length + ' not counted · ' + approvedN + ' approved</div>' +
+      '<button class="btn dark" id="countOpenCounting">Open the counting screen</button></div>' +
+      '<h3 class="section-title">Within tolerance — ready to approve (' + ready.length + ')</h3>' +
+      '<div class="card">' + (ready.length
+        ? '<div class="hint" style="margin:0 0 6px;">Ingredients within ±2% and packaging that matches exactly. Untick anything you don\'t want to change. Approving sets stock to the counted amount.</div>' +
+          '<label class="count-check" style="text-transform:none; letter-spacing:0; font-size:0.8rem; margin:0;"><input type="checkbox" id="countSelAll"' + (nSel === ready.length ? " checked" : "") + '><span class="grow">Select all</span></label>' +
+          ready.map(r => '<label class="count-check" style="text-transform:none; letter-spacing:0; margin:0; color:var(--black);"><input type="checkbox" data-sel="' + escapeHtml(r.code) + '"' + (countAuditSelected[r.code] ? " checked" : "") + '>' +
+            '<span class="grow"><span class="ing-name">' + escapeHtml(r.name) + '</span><br><span class="ing-meta">' + countFmt(r, countBaseline(r)) + ' → ' + countFmt(r, r.counted) + ' · ' + countDiffText(r) + (r.decision && r.decision.decision === "approved" ? ' · Count changed since it was approved' : '') + '</span></span></label>').join("") +
+          '<button class="btn primary" id="countApproveSel"' + (nSel ? "" : " disabled") + '>Approve selected (' + nSel + ')</button>'
+        : '<div class="empty-state">Nothing waiting for approval here.</div>') + '</div>' +
+      '<h3 class="section-title">Discrepancies (' + flags.length + ')</h3>' +
+      (flags.length ? flags.map(r => countItemCard(r, "audit")).join("") : '<div class="card"><div class="empty-state">No discrepancies.</div></div>') +
+      (left.length ? '<details class="disc-list card"><summary>Not counted (' + left.length + ') — these stay as recorded</summary>' + left.map(r => countItemCard(r, "audit")).join("") + '</details>' : "") +
+      (approvedN ? '<details class="disc-list card"><summary>Approved (' + approvedN + ')</summary>' + rows.filter(r => r.decision && r.decision.decision === "approved").map(r => '<div class="ing-row"><div><div class="ing-name">' + escapeHtml(r.name) + '</div><div class="ing-meta">' + countFmt(r, r.recorded) + ' → ' + countFmt(r, r.decision.counted) + ' · ' + escapeHtml(r.decision.by || "") + '</div></div><span class="pill tally">Approved</span></div>').join("") + '</details>' : "") +
+      '<button class="btn dark" id="countCloseBtn">Close Count Day</button>' +
+      '<div class="hint">Closing ends this count on every device. Anything not approved stays as recorded.</div>';
+  }
+  if (body.contains(document.activeElement) && document.activeElement.tagName === "TEXTAREA") { body.dataset.dirty = "1"; return; }
+  body.innerHTML = html;
+}
+
+async function countStart() {
+  const msg = () => document.getElementById("countStartMsg");
+  if (!navigator.onLine) { msg().textContent = "You need to be online to start a Count Day."; return; }
+  if (!confirm("Start Count Day now?\n\nThe stock on record right now will be frozen and every count is compared with it. Avoid logging usage or restocks until the count is approved.")) return;
+  countStarting = true;
+  renderCount();
+  try {
+    // The frozen figures must include everything already logged on this phone.
+    while (syncing) await new Promise(r => setTimeout(r, 300));
+    await trySync();
+    if (loadQueue().length) throw new Error(loadQueue().length + " usage/restock entr" + (loadQueue().length === 1 ? "y" : "ies") + " on this phone haven't reached the Sheet yet. Wait for them to sync, then try again.");
+    if (lastSyncError) throw new Error("Couldn't refresh stock from the Sheet (" + lastSyncError + "). Try again.");
+    const cache = loadCache();
+    const localDisc = loadDiscontinued();
+    // Discontinued items with nothing left aren't counted; anything with stock is.
+    const items = cache.ingredients
+      .filter(i => !((i.discontinued || localDisc.indexOf(i.code) >= 0) && (parseFloat(i.qty) || 0) <= 0))
+      .map(i => ({ code: i.code, name: i.name, type: itemType(i), recorded: round2(i.qty) }));
+    const sessionId = "CD-" + new Date().toISOString().slice(0, 10) + "-" + Math.random().toString(36).slice(2, 6);
+    const r = await countPost("startSession", { sessionId: sessionId, by: countWho(), items: items });
+    if (r.status !== "ok") throw new Error(r.message || "Couldn't start Count Day");
+    countStarting = false;
+    await syncCount();
+  } catch (err) {
+    countStarting = false;
+    renderCount();
+    const el = msg();
+    if (el) el.textContent = err.message;
+  }
+}
+
+// ---------- events ----------
+populateCountContainers();
+countUpdateDeduct();
+document.getElementById("countContainer").addEventListener("change", (e) => {
+  localStorage.setItem(COUNT_CONTAINER_KEY, e.target.value);
+  countUpdateDeduct();
+  renderCount();
+});
+document.getElementById("countCustomTare").addEventListener("input", countUpdateDeduct);
+document.getElementById("countGross").addEventListener("input", countRecalcNet);
+document.getElementById("countGross").addEventListener("keydown", (e) => { if (e.key === "Enter") countSaveIngredient(false); });
+document.getElementById("countSaveIng").addEventListener("click", () => countSaveIngredient(false));
+document.getElementById("countNoneIng").addEventListener("click", () => countSaveIngredient(true));
+document.getElementById("countIngInput").addEventListener("input", () => {
+  const input = document.getElementById("countIngInput");
+  const list = document.getElementById("countIngList");
+  const q = input.value.trim().toLowerCase();
+  countSelectedIng = null;
+  list.innerHTML = "";
+  const v = countView();
+  if (!q || !v.session) { list.style.display = "none"; return; }
+  const matches = countRows(v).filter(r => r.type !== "Packaging" && (r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q))).slice(0, 8);
+  if (!matches.length) { list.style.display = "none"; return; }
+  matches.forEach(r => {
+    const item = document.createElement("div");
+    item.textContent = r.name + " (" + r.code + ")" + (r.status !== "uncounted" ? " — " + r.counted.toFixed(2) + " g so far" : "");
+    item.addEventListener("click", () => { countPickIngredient(r); document.getElementById("countGross").focus(); });
+    list.appendChild(item);
+  });
+  list.style.display = "block";
+});
+document.addEventListener("click", (e) => {
+  const wrap = document.getElementById("countIngInput").parentNode;
+  if (!wrap.contains(e.target)) document.getElementById("countIngList").style.display = "none";
+});
+document.getElementById("countTabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  countTab = b.dataset.tab;
+  renderCount();
+});
+document.getElementById("countPackFilter").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  countPackFilter = b.dataset.f;
+  renderCount();
+});
+document.getElementById("countPackSearch").addEventListener("input", renderCount);
+document.getElementById("countIngLeftSearch").addEventListener("input", renderCount);
+document.getElementById("countIngLeft").addEventListener("click", (e) => {
+  const rowEl = e.target.closest("[data-pick]");
+  if (!rowEl) return;
+  const row = countRows(countView()).find(r => r.code === rowEl.dataset.pick);
+  if (!row) return;
+  countPickIngredient(row);
+  document.getElementById("countDay").scrollTop = 0;
+  document.getElementById("countGross").focus();
+});
+// Entry ✕ buttons, in the container list and on packaging rows.
+document.getElementById("countDay").addEventListener("click", (e) => {
+  const del = e.target.closest("[data-entry]");
+  if (del) {
+    const entry = countView().entries.find(x => x.id === del.dataset.entry);
+    if (entry) countDeleteEntry(entry);
+    return;
+  }
+  const add = e.target.closest("[data-add]");
+  if (add) {
+    const input = add.parentNode.querySelector("input");
+    const n = Number(input.value);
+    if (input.value.trim() === "" || !Number.isInteger(n) || n < 0) { input.focus(); input.style.borderColor = "#c23"; return; }
+    const row = countRows(countView()).find(r => r.code === add.dataset.add);
+    if (row && countAddEntry(row, { qty: n })) input.value = "";
+  }
+});
+document.getElementById("countPackList").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.tagName === "INPUT") e.target.parentNode.querySelector("button").click();
+});
+// Notes save when the employee leaves the box.
+document.getElementById("countReport").addEventListener("change", (e) => {
+  const code = e.target.dataset.note;
+  if (!code) return;
+  const v = countView();
+  if (!v.session) return;
+  const prev = v.notes[code] ? v.notes[code].note : "";
+  if (e.target.value.trim() === prev.trim()) return;
+  countEnqueue("setNote", { sessionId: v.session.id, code: code, note: e.target.value.trim(), by: countWho() });
+});
+["countReport", "countPackList", "countIngLeft", "countInContainer"].forEach(id => {
+  document.getElementById(id).addEventListener("focusout", () => {
+    setTimeout(() => { if (document.getElementById(id).dataset.dirty) renderCount(); }, 0);
+  });
+});
+document.getElementById("countSubmit").addEventListener("click", countSubmit);
+
+document.getElementById("countAuditBody").addEventListener("click", (e) => {
+  const t = e.target;
+  if (t.id === "countStartBtn") { countStart(); return; }
+  if (t.id === "countOpenCounting") { goToScreen("countDay", "Count Day"); return; }
+  if (t.id === "countCloseBtn") {
+    const v = countView();
+    if (!v.session) return;
+    const rows = countRows(v);
+    const undecided = rows.filter(r => r.status !== "uncounted" && !r.decision).length;
+    if (!confirm("Close this Count Day on every device?" + (undecided ? "\n\n" + undecided + " counted item" + (undecided === 1 ? " hasn't" : "s haven't") + " been approved and will stay as recorded." : ""))) return;
+    countEnqueue("closeSession", { sessionId: v.session.id, by: countWho() });
+    return;
+  }
+  if (t.id === "countApproveSel") {
+    const rows = countRows(countView()).filter(r => countAuditSelected[r.code] && r.status === "ok");
+    if (!rows.length) return;
+    if (!confirm("Approve " + rows.length + " item" + (rows.length === 1 ? "" : "s") + "? Stock will be set to the counted amounts.")) return;
+    countDecide(rows, "approved");
+    return;
+  }
+  const act = t.closest("[data-act]");
+  if (act) {
+    const row = countRows(countView()).find(r => r.code === act.dataset.code);
+    if (!row) return;
+    if (act.dataset.act === "approve") {
+      if (!confirm("Accept the count for " + row.name + "?\n\nStock goes from " + countFmt(row, countBaseline(row)) + " to " + countFmt(row, row.counted) + ".")) return;
+      countDecide([row], "approved");
+    } else if (act.dataset.act === "kept") {
+      countDecide([row], "kept");
+    } else if (act.dataset.act === "recount") {
+      countDecide([row], "recount");
+    }
+  }
+});
+document.getElementById("countAuditBody").addEventListener("change", (e) => {
+  if (e.target.id === "countSelAll") {
+    Object.keys(countAuditSelected).forEach(code => { countAuditSelected[code] = e.target.checked; });
+    renderCount();
+  } else if (e.target.dataset.sel) {
+    countAuditSelected[e.target.dataset.sel] = e.target.checked;
+    renderCount();
+  }
+});
+document.getElementById("countAuditBody").addEventListener("focusout", () => {
+  setTimeout(() => { if (document.getElementById("countAuditBody").dataset.dirty) renderCount(); }, 0);
+});
+document.getElementById("openCountAuditFromHome").addEventListener("click", () => goToScreen("countAudit", "Count Day Audit"));
+document.getElementById("closeCountAudit").addEventListener("click", () => goToScreen("managerHome", "Manager"));
+
+// Shared progress: refresh while a Count Day screen is open.
+function countScreenOpen() {
+  return ["countDay", "countAudit"].some(id => document.getElementById(id).classList.contains("active"));
+}
+setInterval(() => { if (countScreenOpen() && document.visibilityState === "visible") syncCount(); }, 20000);
+window.addEventListener("online", syncCount);
+renderCount();
+if (countConfigured()) syncCount();
 
 if ("serviceWorker" in navigator) {
   // When a new version's service worker takes over an open app, reload once so it shows straight away.

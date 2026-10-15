@@ -40,7 +40,8 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; line
 .file-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .name { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; }
 .meta { font-size: 0.75rem; color: var(--brown); font-weight: 600; }
-.what { font-size: 0.85rem; color: var(--brown); margin: 4px 0 12px; }
+.what { font-size: 0.85rem; color: var(--brown); margin: 4px 0 4px; }
+.where { font-size: 0.8rem; font-weight: 800; margin: 0 0 12px; }
 button.copy { width: 100%; font: inherit; font-weight: 800; font-size: 1rem; padding: 14px; border-radius: 12px; border: 1.5px solid var(--orange); background: var(--orange); color: #17130F; cursor: pointer; }
 button.copy:disabled { opacity: 0.5; cursor: default; }
 button.copy.done { background: transparent; color: var(--green); border-color: var(--green); }
@@ -61,7 +62,7 @@ textarea.fallback { position: fixed; top: -1000px; left: 0; opacity: 0; }
   <div id="files"></div>
   <div class="steps"><b>How to paste</b>
     <ol>
-      <li>In the Google Sheet, open <b>Extensions → Apps Script</b>.</li>
+      <li>Open the Google Sheet the file goes in, then <b>Extensions → Apps Script</b>.</li>
       <li>Click the file with the same name on the left (make it with <b>+</b> if it's missing).</li>
       <li>Click inside the code, press <b>Ctrl/Cmd + A</b>, then paste.</li>
       <li>Check the last line in Apps Script matches the one shown here, then save.</li>
@@ -70,16 +71,20 @@ textarea.fallback { position: fixed; top: -1000px; left: 0; opacity: 0; }
   </div>
 </div>
 <script>
-// [file name, what it is]
-var FILES = [["Code.gs","The whole Inventory backend: stock, usage, restocks, low stock and Discontinued."]];
+// [file name, what it is, which Google Sheet it goes in]
+var FILES = [
+  ["Code.gs", "The whole Inventory backend: stock, usage, restocks, low stock, Discontinued and approved Count Day changes.", "Goes in: the main Master Items Sheet"],
+  ["CountDay.gs", "The Count Day backend: shared counts, notes and manager decisions for every device.", "Goes in: the separate LCL Count Day Sheet, not the main one"]
+];
 var list = document.getElementById("files");
 FILES.forEach(function (f) {
   var card = document.createElement("div");
   card.className = "file";
   card.innerHTML = '<div class="file-head"><div class="name"></div><div class="meta">Loading…</div></div>' +
-    '<div class="what"></div><button class="copy" disabled>Copy</button><div class="status"></div>';
+    '<div class="what"></div><div class="where"></div><button class="copy" disabled>Copy</button><div class="status"></div>';
   card.querySelector(".name").textContent = f[0];
   card.querySelector(".what").textContent = f[1];
+  card.querySelector(".where").textContent = f[2];
   list.appendChild(card);
   var btn = card.querySelector("button"), meta = card.querySelector(".meta"), status = card.querySelector(".status");
   var text = "";
