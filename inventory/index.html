@@ -1739,36 +1739,38 @@ function buildLabelDownload(job) {
 let weighSelectedIngredient = null;
 attachAutocomplete(document.getElementById("weighIngInput"), (ing) => { weighSelectedIngredient = ing; });
 
-// Real container tare weights (w/cover), as provided. Later values override
-// earlier ones where the same name was sent twice with a different weight.
+// Real container tare weights (w/cover), as confirmed in the lab on
+// 2026-10-18. This one list feeds Count Day, the Weigh Calculator, restock
+// weighing and the new-item form.
 const REAL_CONTAINERS = [
+  // Industrial bottles & jars
   ["100ml White Industrial Bottle", 17.25], ["300ml White Industrial Bottle", 40.63],
   ["600ml White Industrial Bottle", 59.38], ["1L White Industrial Bottle", 87.53],
-  ["7ounce White Industrial Gallon", 25.63], ["Mixed Tocopherol Bottle", 11.89],
-  ["Small White Pouch (10cm x 15cm)", 4.65], ["Medium White Pouch (13cm x 18cm)", 7.12],
-  ["Big White Pouch (16cm x 24cm)", 8.86], ["Bottle for Lactic Acid", 9.4],
-  ["Allantoin Container", 21.02], ["Fenugreek Container", 21.52], ["1L White Jar", 67.79],
-  ["PEG-7 Bottle", 17.93], ["250ml FSGH Fragrance Bottle", 31], ["Medium Transparent Bottle", 25.54],
-  ["35ml FSGH Fragrance Bottle", 5.4], ["Essential Oil Bottles", 27.5],
-  ["Stearic Acid Container", 317.28], ["Olivem 1000 Pouch", 21.89], ["Cetearyl Alcohol Pouch", 17.89],
-  ["SCI Powder Pouch", 10], ["1L Transparent Bottle", 34.31], ["PF Shine Gloss Jar", 124.19],
-  ["200ml White Jar", 20], ["Discarded Packaging", 0], ["IL White Jar", null],
-  ["FSGH Small Fragrance Bottle", null], ["Medium Transparent Pouch", 8.31],
+  ["7ounce White Industrial Gallon", 25.63], ["1L White Jar", 67.79], ["1L Transparent Bottle", 34.31],
+  ["PF Shine Gloss Jar", 124.19], ["200ml White Jar", 20], ["Lipgloss Base (USA) Jar", 46.9],
+  ["Matte Liquid Lipstick Bottle", 125], ["Stearic Acid Container", 317.28], ["Taurate Jar", 15],
+  ["D-Panthenol Jar", 24.31], ["30ml Transparent Bottle with White Flip Cap", 10.61],
+  ["Hilurlip Jar", 10], ["Oleo HA Jar", 15], ["Baobab Powder Container", 340],
+  // Ingredient bottles
+  ["PEG-7 Bottle", 17.93], ["Thioglycolate 100ml Bottle", 55], ["Mixed Tocopherol Bottle", 11.89],
+  ["LC Mixed Tocopherol Bottle", 11.5], ["LC 1ounce Bottle", 16], ["Making Cosmetics Bottle", 16],
+  ["Chocolate Fudge Plastic 10ml Bottle", 11],
+  // Pouches & bags
+  ["2x Large White Pouch (Aluminium)", 17.72], ["Big White Pouch (16cm x 24cm)", 8.86],
+  ["Medium White Pouch (13cm x 18cm)", 7.12], ["Small White Pouch (10cm x 15cm)", 4.65],
+  ["Shea Butter Pouch", 18.82], ["Cocoa Butter Pouch", 3.5],
   ["Big Transparent Ziplock Bag", 9.85], ["Small Transparent Ziplock Bag", 2.27],
-  ["Extra Small Transparent Ziplock Bag", 1.6], ["Sugar Pouch", 20.28], ["Epsom Bath Pouch", 15],
-  ["Lipgloss Base (USA) Jar", 46.9], ["Baobab Powder Container", 340],
+  // Fragrance & essential oil
+  ["35ml FSGH White Fragrance Bottle", 5.4], ["250ml FSGH White Fragrance Bottle", 31],
+  ["FSGH 35ml Transparent Fragrance Bottle", 10], ["PF 100ml Plastic Fragrance Bottle", 10],
+  ["PF 50ml Plastic Fragrance Bottle", 7], ["PF 15ml Small Glass Fragrance Bottle", 13],
   ["BB 15ml Glass Fragrance Bottle", 29.29], ["BB 60ml Glass Fragrance Bottle", 63.3],
-  ["PF 15ml Small Glass Fragrance Bottle", 13], ["PF 50ml Plastic Fragrance Bottle", 7],
-  ["PF 100ml Plastic Fragrance Bottle", 10], ["FSGH 35ml Transparent Fragrance Bottle", 10],
-  ["10ml Essential Oil Bottle", 29], ["BB 120ml Glass Fragrance Bottle", 115.82],
-  ["5ml Essential Oil Bottle", 22.1], ["611 Custom Fragrance", 18.9], ["D-Panthenol Jar", 24.31],
-  ["Making Cosmetics Bottle", 16], ["Liquid Crothix Bottle", 17.25], ["Matte Liquid Lipstick Bottle", 125],
-  ["LC Jojoba Oil Container", 25.63], ["LC Mixed Tocopherol Bottle", 11.5], ["LC Daikon Bottle", 16],
-  ["LC Olive Squalane Bottle", 16], ["Cocoa Butter Pouch", 3.5], ["Mango Butter Pouch", 30.65],
-  ["Shea Butter Pouch", 18.82], ["Waterproof Lip Pigment Bottle", 20], ["Pink Pigment (9) Container", 27.25],
+  ["BB 120ml Glass Fragrance Bottle", 115.82], ["5ml Essential Oil Bottle", 22.1],
+  ["10ml Essential Oil Bottle", 29], ["35ml Glass Essential Oil Bottle", 29], ["611 Custom Fragrance", 18.9],
+  // Pigments
+  ["Waterproof Lip Pigment Bottle", 20], ["Pink Pigment (9) Container", 27.25],
   ["Pink Pigment (26) Container", 8.53], ["Block Colourant", 5], ["Mica Powder Pouch", 6.5],
-  ["Mica Powder Jar", 10], ["2x Large White Pouch (Aluminium)", 17.72], ["3x Large White Pouch", 26.58],
-  ["30ml Transparent Bottle with White Flip Cap", 10.61], ["Taurate Jar", 15], ["Thioglycolate 100ml Bottle", 55]
+  ["Mica Powder Jar", 10]
 ];
 
 function populateContainers() {
