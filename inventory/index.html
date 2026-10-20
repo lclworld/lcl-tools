@@ -2501,7 +2501,11 @@ document.getElementById("savePlan").addEventListener("click", () => {
   };
   plans.push(plan);
   savePlans(plans);
-  enqueue("savePlanningRecord", Object.assign({}, plan, { notes: packNotes(plan.notes, { productCode: plan.productCode, brief: plan.brief }) }));
+  // Section toggles, INCI and pricing tiers ride along with the brief, so a
+  // formula reloads exactly as saved after a sync.
+  enqueue("savePlanningRecord", Object.assign({}, plan, { notes: packNotes(plan.notes, {
+    productCode: plan.productCode, brief: plan.brief, toggles: plan.toggles, inci: plan.inci, tierInputs: plan.tierInputs
+  }) }));
   refreshPlanLoadSelect();
   document.getElementById("planMsg").textContent = "Saved \"" + name + "\" — searchable from Load a Saved Formula next time, from Planning or a fresh quote either way.";
 });
