@@ -292,6 +292,32 @@
   .count-check:last-child { border-bottom: none; }
   .count-check input { width: 18px; height: 18px; flex: none; }
   .count-check .grow { flex: 1; min-width: 0; }
+  /* Production Brief */
+  details.brief-edit { padding: 0; }
+  details.brief-edit > summary { cursor: pointer; padding: 14px 16px; font-weight: 800; font-size: 0.88rem; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  details.brief-edit > summary::-webkit-details-marker { display: none; }
+  details.brief-edit > summary::after { content: "Open ▾"; font-size: 0.7rem; color: var(--brown); font-weight: 700; }
+  details.brief-edit[open] > summary::after { content: "Close ▴"; }
+  details.brief-edit .brief-body { padding: 0 16px 16px; }
+  details.brief-edit textarea { width: 100%; min-height: 110px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-family: 'Urbanist', sans-serif; font-size: 0.9rem; resize: vertical; }
+  .brief-qc { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: 6px 10px; align-items: center; }
+  .brief-qc label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 0.8rem; color: var(--black); font-weight: 600; }
+  .brief-qc input { padding: 8px 10px; font-size: 0.85rem; }
+  .brief-view { padding: 4px 14px 14px; }
+  .brief-view h4 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 0.95rem; margin: 14px 0 6px; padding-top: 10px; border-top: 1.5px solid var(--border); }
+  .brief-view h4:first-child { border-top: none; padding-top: 0; }
+  .brief-kv { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.95rem; }
+  .brief-kv:last-child { border-bottom: none; }
+  .brief-kv .k { color: var(--brown); font-weight: 600; }
+  .brief-kv .v { font-weight: 800; text-align: right; }
+  .brief-method { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5; background: var(--cream); border-radius: 10px; padding: 10px 12px; }
+  .copy-link { background: none; border: none; color: var(--brown); font-size: 0.66rem; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0 0 0 8px; text-transform: none; letter-spacing: 0; font-family: 'Urbanist', sans-serif; }
+  .push-overlay { position: fixed; inset: 0; background: rgba(23,19,15,0.4); display: none; align-items: flex-end; z-index: 520; }
+  .push-overlay.show { display: flex; }
+  @media (min-width: 1080px) { .push-overlay { align-items: center; justify-content: center; } }
+  .push-card { background: var(--white); width: 100%; border-radius: 20px 20px 0 0; padding: 22px 20px 26px; max-height: 88%; overflow-y: auto; }
+  @media (min-width: 1080px) { .push-card { border-radius: 18px; max-width: 440px; } }
+  .push-card h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; margin: 0 0 4px; }
   .count-stats { flex-wrap: nowrap; }
   .count-stats .stat { min-width: 0; }
   .count-banner { background: var(--yellow); border-radius: 12px; padding: 12px 14px; font-size: 0.82rem; font-weight: 600; margin-bottom: 12px; }
@@ -640,6 +666,34 @@
 
     <div id="studioTiers"></div>
 
+    <details class="card brief-edit" id="briefEdit">
+      <summary>Production Brief <span class="hint" style="margin:0 0 0 8px; font-weight:600;">saved with this formula, shown on push</span></summary>
+      <div class="brief-body">
+        <label for="briefMethod">Method</label>
+        <textarea id="briefMethod" placeholder="One step per line"></textarea>
+        <div class="form-grid">
+          <div><label for="briefPh">Final pH required</label><input id="briefPh" placeholder="e.g. 5.0 – 5.5"></div>
+          <div><label for="briefFill">Fill size</label><input id="briefFill" placeholder="e.g. 250ml"></div>
+          <div><label for="briefShelf">Shelf life (months)</label><input id="briefShelf" inputmode="numeric" placeholder="e.g. 12"></div>
+          <div><label for="briefPao">Period after opening</label><input id="briefPao" placeholder="e.g. 6 months"></div>
+        </div>
+        <label style="margin-top:16px;">QC targets <span style="text-transform:none; letter-spacing:0; font-weight:600;">— leave blank anything you don't test</span></label>
+        <div class="brief-qc">
+          <label for="bq0">Appearance</label><input id="bq0" data-qc="Appearance" placeholder="Target">
+          <label for="bq1">Colour</label><input id="bq1" data-qc="Colour" placeholder="Target">
+          <label for="bq2">Odour</label><input id="bq2" data-qc="Odour" placeholder="Target">
+          <label for="bq3">Texture / Consistency</label><input id="bq3" data-qc="Texture / Consistency" placeholder="Target">
+          <label for="bq4">Viscosity</label><input id="bq4" data-qc="Viscosity" placeholder="Target">
+          <label for="bq5">pH</label><input id="bq5" data-qc="pH" placeholder="Target">
+          <label for="bq6">Net Content / Fill</label><input id="bq6" data-qc="Net Content / Fill" placeholder="Target">
+          <label for="bq7">Homogeneity</label><input id="bq7" data-qc="Homogeneity" placeholder="Target">
+          <label for="bq8">Packaging / Closure</label><input id="bq8" data-qc="Packaging / Closure" placeholder="Target">
+          <label for="bq9">Label / Batch Code</label><input id="bq9" data-qc="Label / Batch Code" placeholder="Target">
+          <label for="bq10">Other Required Test</label><input id="bq10" data-qc="Other Required Test" placeholder="Target">
+        </div>
+      </div>
+    </details>
+
     <div><label>Product Code</label><input id="planProductCode" placeholder="e.g. ASR-014"></div>
     <label>Notes for whoever produces this</label><input id="planNotes" placeholder="Optional — shown to employees on push">
     <button class="btn dark" id="savePlan">Save Formula</button>
@@ -740,6 +794,27 @@
   </div>
 
 
+  <div class="push-overlay" id="pushOverlay">
+    <div class="push-card" role="dialog" aria-labelledby="pushTitle">
+      <h3 id="pushTitle">Push to Production</h3>
+      <div class="hint" id="pushSub" style="margin:0 0 6px;"></div>
+      <label>Batch type</label>
+      <div class="toggle" id="pushType">
+        <button type="button" data-type="Experiment">Experiment</button>
+        <button type="button" data-type="Sample">Sample</button>
+        <button type="button" data-type="Bulk">Bulk</button>
+      </div>
+      <div class="form-grid">
+        <div><label for="pushMade">Date of manufacture</label><input type="date" id="pushMade"></div>
+        <div><label>Expiry date</label><div class="used-result" id="pushExpiry" style="margin-top:0;">—</div></div>
+        <div><label for="pushPl">Production Lead</label><select id="pushPl"></select></div>
+        <div><label for="pushQl">QC Lead</label><select id="pushQl"></select></div>
+      </div>
+      <button class="btn primary" id="pushConfirm">Push to Production</button>
+      <button class="btn dark" id="pushCancel" style="margin-top:10px;">Cancel</button>
+      <div class="hint" id="pushMsg"></div>
+    </div>
+  </div>
   <div class="ing-card-overlay" id="ingOverlay">
     <div class="ing-card">
       <button class="close" id="closeCard">Close ✕</button>
@@ -968,8 +1043,8 @@ async function trySync() {
     const prodRes = await fetchWithTimeout(SCRIPT_URL + "?action=getProductionData", {}, 90000);
     const prodData = await prodRes.json();
     if (prodData.status === "ok") {
-      saveBatches(prodData.batches || []);
-      savePlans(prodData.plans || []);
+      saveBatches((prodData.batches || []).map(unpackRecord));
+      savePlans((prodData.plans || []).map(unpackRecord));
       renderProductionList();
       updateQuickBadges();
     }
@@ -2282,6 +2357,8 @@ function loadFormulaRecord(plan) {
   document.getElementById("planName").value = plan.name;
   document.getElementById("planBatchSize").value = plan.batchSize;
   document.getElementById("planNotes").value = plan.notes || "";
+  document.getElementById("planProductCode").value = plan.productCode || "";
+  fillBrief(plan.brief);
   document.getElementById("planRows").innerHTML = "";
   const cache = loadCache();
   plan.rows.forEach(r => {
@@ -2335,6 +2412,78 @@ function collectTierInputs() {
   return out;
 }
 
+// ---------- Production Brief ----------
+// The Sheet only keeps name, batch size, notes and ingredients for formulas
+// and batches, so the brief (and product code) ride along inside the notes
+// cell after a marker, and are taken back out when synced records come in.
+const BRIEF_MARKER = "[[LCL-BRIEF]]";
+function packNotes(text, extra) {
+  return (text || "").trim() + "\n\n" + BRIEF_MARKER + JSON.stringify(extra);
+}
+function unpackRecord(rec) {
+  const notes = String(rec.notes || "");
+  const at = notes.indexOf(BRIEF_MARKER);
+  if (at < 0) return rec;
+  try {
+    const extra = JSON.parse(notes.slice(at + BRIEF_MARKER.length));
+    return Object.assign({}, rec, extra, { notes: notes.slice(0, at).trim() });
+  } catch (e) {
+    return Object.assign({}, rec, { notes: notes.slice(0, at).trim() });
+  }
+}
+function collectBrief() {
+  const qc = {};
+  document.querySelectorAll("#briefEdit [data-qc]").forEach(inp => { if (inp.value.trim()) qc[inp.dataset.qc] = inp.value.trim(); });
+  return {
+    method: document.getElementById("briefMethod").value.trim(),
+    ph: document.getElementById("briefPh").value.trim(),
+    fill: document.getElementById("briefFill").value.trim(),
+    shelfMonths: document.getElementById("briefShelf").value.trim(),
+    pao: document.getElementById("briefPao").value.trim(),
+    qc: qc
+  };
+}
+function fillBrief(b) {
+  b = b || {};
+  document.getElementById("briefMethod").value = b.method || "";
+  document.getElementById("briefPh").value = b.ph || "";
+  document.getElementById("briefFill").value = b.fill || "";
+  document.getElementById("briefShelf").value = b.shelfMonths || "";
+  document.getElementById("briefPao").value = b.pao || "";
+  document.querySelectorAll("#briefEdit [data-qc]").forEach(inp => { inp.value = (b.qc && b.qc[inp.dataset.qc]) || ""; });
+}
+function briefIsEmpty(b) {
+  return !b || (!b.method && !b.ph && !b.fill && !b.shelfMonths && !b.pao && !Object.keys(b.qc || {}).length);
+}
+// "2026-10-20" + 12 months; a 31st that doesn't exist lands on the month's last day.
+function addMonthsIso(iso, months) {
+  const n = parseInt(months, 10);
+  if (!iso || isNaN(n)) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + n, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+function fmtDay(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+function todayIso() {
+  const t = new Date();
+  return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+}
+function copyText(text, btn) {
+  const done = () => { const old = btn.textContent; btn.textContent = "copied ✓"; setTimeout(() => { btn.textContent = old; }, 1500); };
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done).catch(() => {}); return; }
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.top = "-1000px";
+  document.body.appendChild(ta); ta.select();
+  try { if (document.execCommand("copy")) done(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
 document.getElementById("savePlan").addEventListener("click", () => {
   const name = document.getElementById("planName").value.trim();
   const batchSize = parseFloat(document.getElementById("planBatchSize").value);
@@ -2347,11 +2496,12 @@ document.getElementById("savePlan").addEventListener("click", () => {
   const plan = {
     id: "plan-" + Date.now(), name: name, batchSize: batchSize, notes: document.getElementById("planNotes").value,
     rows: rows, savedAt: new Date().toISOString(),
-    toggles: collectToggles(), inci: document.getElementById("inciOutput").value, tierInputs: collectTierInputs()
+    toggles: collectToggles(), inci: document.getElementById("inciOutput").value, tierInputs: collectTierInputs(),
+    productCode: document.getElementById("planProductCode").value.trim(), brief: collectBrief()
   };
   plans.push(plan);
   savePlans(plans);
-  enqueue("savePlanningRecord", plan);
+  enqueue("savePlanningRecord", Object.assign({}, plan, { notes: packNotes(plan.notes, { productCode: plan.productCode, brief: plan.brief }) }));
   refreshPlanLoadSelect();
   document.getElementById("planMsg").textContent = "Saved \"" + name + "\" — searchable from Load a Saved Formula next time, from Planning or a fresh quote either way.";
 });
@@ -2364,17 +2514,63 @@ document.getElementById("pushPlan").addEventListener("click", () => {
     document.getElementById("planMsg").textContent = "Name, batch size, and at least one ingredient are required to push.";
     return;
   }
+  openPushBox(name, batchSize);
+});
+
+let pushType = "";
+function openPushBox(name, batchSize) {
+  pushType = "";
+  document.querySelectorAll("#pushType button").forEach(b => b.classList.remove("active"));
+  document.getElementById("pushSub").textContent = name + " · " + batchSize + "g";
+  document.getElementById("pushMade").value = todayIso();
+  const opts = '<option value="">—</option>' + STAFF.map(n => '<option>' + n + '</option>').join("");
+  document.getElementById("pushPl").innerHTML = opts;
+  document.getElementById("pushQl").innerHTML = opts;
+  document.getElementById("pushMsg").textContent = "";
+  updatePushExpiry();
+  document.getElementById("pushOverlay").classList.add("show");
+}
+function updatePushExpiry() {
+  const shelf = document.getElementById("briefShelf").value.trim();
+  const exp = addMonthsIso(document.getElementById("pushMade").value, shelf);
+  document.getElementById("pushExpiry").textContent = exp ? fmtDay(exp) : (shelf ? "—" : "Add shelf life in the Production Brief");
+}
+document.getElementById("pushMade").addEventListener("input", updatePushExpiry);
+document.getElementById("pushMade").addEventListener("change", updatePushExpiry);
+document.getElementById("pushType").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  pushType = b.dataset.type;
+  document.querySelectorAll("#pushType button").forEach(x => x.classList.toggle("active", x === b));
+  document.getElementById("pushMsg").textContent = "";
+});
+document.getElementById("pushCancel").addEventListener("click", () => document.getElementById("pushOverlay").classList.remove("show"));
+document.getElementById("pushOverlay").addEventListener("click", (e) => { if (e.target.id === "pushOverlay") e.target.classList.remove("show"); });
+document.getElementById("pushConfirm").addEventListener("click", () => {
+  const msg = document.getElementById("pushMsg");
+  const made = document.getElementById("pushMade").value;
+  if (!pushType) { msg.textContent = "Tick a batch type."; return; }
+  if (!made) { msg.textContent = "Pick the date of manufacture."; return; }
+  const name = document.getElementById("planName").value.trim();
+  const batchSize = parseFloat(document.getElementById("planBatchSize").value);
+  const rows = collectPlanRows();
+  const b = collectBrief();
+  const brief = Object.assign({}, b, {
+    batchType: pushType, made: made, expiry: addMonthsIso(made, b.shelfMonths),
+    pl: document.getElementById("pushPl").value, ql: document.getElementById("pushQl").value
+  });
   const batch = {
     id: "batch-" + Date.now(),
-    name: name, batchSize: batchSize, productCode: document.getElementById("planProductCode").value,
+    name: name, batchSize: batchSize, productCode: document.getElementById("planProductCode").value.trim(),
     notes: document.getElementById("planNotes").value,
-    pushedAt: new Date().toISOString(), status: "pending",
+    pushedAt: new Date().toISOString(), status: "pending", brief: brief,
     rows: rows.map(r => ({ code: r.code, name: r.name, phase: r.phase, proposedQty: +(batchSize * r.percent / 100).toFixed(2), confirmedQty: null, confirmed: false }))
   };
   const batches = loadBatches();
   batches.push(batch);
   saveBatches(batches);
-  enqueue("pushToProduction", batch);
+  enqueue("pushToProduction", Object.assign({}, batch, { notes: packNotes(batch.notes, { productCode: batch.productCode, brief: brief }) }));
+  document.getElementById("pushOverlay").classList.remove("show");
   document.getElementById("planMsg").textContent = "Pushed to Production — employees will see \"" + name + "\" on their Production tab.";
   renderProductionList();
 });
@@ -2391,6 +2587,40 @@ document.getElementById("openReportsFromHome").addEventListener("click", () => g
 document.getElementById("closeReports").addEventListener("click", () => goToScreen("managerHome", "Manager"));
 
 // ---------- Production (employee view of pushed batches) ----------
+// Ingredients in the order the Production Sheet shows them (by phase), so the
+// copied names and amounts line up row for row.
+function batchRowsInOrder(batch) {
+  const byPhase = {};
+  batch.rows.forEach(r => { const k = r.phase || "—"; (byPhase[k] = byPhase[k] || []).push(r); });
+  return Object.keys(byPhase).sort().reduce((all, k) => all.concat(byPhase[k]), []);
+}
+function renderBriefView(batch) {
+  const b = batch.brief;
+  if (!b) return "";
+  const kv = (k, v) => v ? '<div class="brief-kv"><span class="k">' + k + '</span><span class="v">' + escapeHtml(v) + '</span></div>' : "";
+  let html = '<div class="prod-phase-bar">Production Brief</div><div class="brief-view">';
+  const details = kv("Batch type", b.batchType) + kv("Product code", batch.productCode) + kv("Date of manufacture", fmtDay(b.made)) +
+    kv("Expiry date", fmtDay(b.expiry)) + kv("Period after opening", b.pao) + kv("Batch size", batch.batchSize + " g") +
+    kv("Production Lead", b.pl) + kv("QC Lead", b.ql);
+  html += '<h4>Batch details</h4>' + details;
+  if (b.method || b.ph) {
+    html += '<h4>Method</h4>' + (b.method ? '<div class="brief-method">' + escapeHtml(b.method) + '</div>' : "") + kv("Final pH required", b.ph);
+  }
+  const qcKeys = Object.keys(b.qc || {});
+  if (qcKeys.length || b.fill) {
+    html += '<h4>QC targets</h4>' + qcKeys.map(k => kv(escapeHtml(k), b.qc[k])).join("") + kv("Fill size", b.fill);
+  }
+  return html + '</div>';
+}
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".copy-link");
+  if (!btn) return;
+  const batch = loadBatches().find(b => b.id === btn.dataset.batch);
+  if (!batch) return;
+  const rows = batchRowsInOrder(batch);
+  copyText(rows.map(r => btn.dataset.copy === "names" ? r.name : fmtQty(r.proposedQty)).join("\n"), btn);
+});
+
 function renderProductionList() {
   const el = document.getElementById("productionList");
   if (!el) return;
@@ -2407,7 +2637,7 @@ function renderProductionList() {
     card.style.overflow = "hidden";
     let html = '<div class="prod-sheet-label">Production Sheet</div>';
     html += '<div class="prod-sheet-header"><span>' + escapeHtml(batch.name) + ' — Production Sheet</span><span class="batch">Batch: ' + batch.batchSize + 'g' + (batch.productCode ? ' · ' + escapeHtml(batch.productCode) : '') + '</span></div>';
-    html += '<div class="prod-sheet-colhead"><span>Ingredient</span><span>Amount (g)</span></div>';
+    html += '<div class="prod-sheet-colhead"><span>Ingredient<button type="button" class="copy-link" data-copy="names" data-batch="' + batch.id + '">copy</button></span><span>Amount (g)<button type="button" class="copy-link" data-copy="amounts" data-batch="' + batch.id + '">copy</button></span></div>';
     if (batch.notes) html += '<div class="ing-meta" style="padding:8px 14px;">' + escapeHtml(batch.notes) + '</div>';
 
     const byPhase = {};
@@ -2418,6 +2648,7 @@ function renderProductionList() {
         html += '<div class="prod-ing-row"><span>' + escapeHtml(r.name) + '</span><span class="amt">' + fmtQty(r.proposedQty) + 'g</span></div>';
       });
     });
+    html += renderBriefView(batch);
     html += '<div style="padding:14px;">';
     batch.rows.forEach((r) => {
       html +=
