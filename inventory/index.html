@@ -3073,6 +3073,45 @@ function countParse(text) {
   }
 }
 
+// Sends this phone's saved actions in order, 25 per request. A script from
+// before batches existed gets them one at a time instead. Nothing is ever
+// thrown away here: anything sent after a Count Day closed is kept by the
+// sheet's Late Actions tab, or stays on the phone until the script is updated.
+const COUNT_BATCH = 25;
+let countBatchUnsupported = false;
+async function sendCountQueue() {
+  while (true) {
+    const queue = loadCountQueue();
+    if (!queue.length) return;
+    if (countBatchUnsupported) {
+      const item = queue[0];
+      const r = await countPost(item.type, item.payload);
+      if (r.status !== "ok") {
+        if (/has been closed/.test(r.message || "")) throw new Error("These entries are from a closed Count Day. Update the Count Day script (CountDay.gs) so they're saved instead of lost");
+        throw new Error(r.message || "Count Day sheet error");
+      }
+      saveCountQueue(loadCountQueue().filter(x => x.id !== item.id));
+      continue;
+    }
+    const chunk = queue.slice(0, COUNT_BATCH);
+    const r = await countPost("batch", { actions: chunk.map(x => ({ type: x.type, payload: x.payload })) });
+    if (r.status !== "ok") {
+      if (/Unknown POST action/.test(r.message || "")) { countBatchUnsupported = true; continue; }
+      throw new Error(r.message || "Count Day sheet error");
+    }
+    const results = r.results || [];
+    const done = [];
+    let failure = null;
+    for (let i = 0; i < chunk.length; i++) {
+      if (results[i] && results[i].status === "ok") done.push(chunk[i].id);
+      else { failure = (results[i] && results[i].message) || "Count Day sheet error"; break; }
+    }
+    if (done.length) saveCountQueue(loadCountQueue().filter(x => done.indexOf(x.id) === -1));
+    // Keep order: stop at the first one that didn't go through and retry from there.
+    if (failure) throw new Error(failure);
+  }
+}
+
 let countSyncing = false;
 let countSyncAgain = false;
 let countSyncError = null;
@@ -3083,20 +3122,7 @@ async function syncCount() {
   countSyncing = true;
   countSyncError = null;
   try {
-    const queue = loadCountQueue();
-    for (let i = 0; i < queue.length; i++) {
-      const item = queue[i];
-      try {
-        const r = await countPost(item.type, item.payload);
-        // A closed Count Day can never accept this, so retrying forever would block the rest.
-        if (r.status !== "ok" && !/has been closed/.test(r.message || "")) throw new Error(r.message || "Count Day sheet error");
-        saveCountQueue(loadCountQueue().filter(x => x.id !== item.id));
-      } catch (err) {
-        // Stop here so later actions (like deleting this entry) never arrive before it.
-        countSyncError = err.message;
-        break;
-      }
-    }
+    await sendCountQueue();
     const res = await fetchWithTimeout(COUNT_SCRIPT_URL + "?action=getState", {}, 30000);
     const data = countParse(await res.text());
     if (data.status === "ok") {
@@ -3719,7 +3745,7 @@ document.getElementById("countAuditBody").addEventListener("click", (e) => {
     if (!v.session) return;
     const rows = countRows(v);
     const undecided = rows.filter(r => r.status !== "uncounted" && !r.decision).length;
-    if (!confirm("Close this Count Day on every device?" + (undecided ? "\n\n" + undecided + " counted item" + (undecided === 1 ? " hasn't" : "s haven't") + " been approved and will stay as recorded." : ""))) return;
+    if (!confirm("Close this Count Day on every device?\n\nFirst make sure every phone's Count Day screen says \"Count Day synced\" with nothing saved on the phone." + (undecided ? "\n\n" + undecided + " counted item" + (undecided === 1 ? " hasn't" : "s haven't") + " been approved and will stay as recorded." : ""))) return;
     countEnqueue("closeSession", { sessionId: v.session.id, by: countWho() });
     return;
   }
@@ -3764,6 +3790,9 @@ function countScreenOpen() {
   return ["countDay", "countAudit"].some(id => document.getElementById(id).classList.contains("active"));
 }
 setInterval(() => { if (countScreenOpen() && document.visibilityState === "visible") syncCount(); }, 20000);
+// Anything still saved on this phone keeps retrying on every screen, not only Count Day.
+setInterval(() => { if (!countScreenOpen() && loadCountQueue().length && document.visibilityState === "visible") syncCount(); }, 30000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && loadCountQueue().length) syncCount(); });
 window.addEventListener("online", syncCount);
 renderCount();
 if (countConfigured()) syncCount();
