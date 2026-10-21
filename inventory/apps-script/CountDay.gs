@@ -131,18 +131,86 @@ function dispatch_(action, p) {
 }
 
 // Many queued actions in one request; one result per action, in order.
+// Entries, deletions, notes and decisions are turned into rows first and
+// written with ONE call per tab (a row-by-row write of 25 actions took over
+// a minute and the phone gave up). Start/submit/close still run one at a time.
 function batch_(p) {
   const actions = typeof p.actions === 'string' ? JSON.parse(p.actions) : (p.actions || []);
   const results = [];
-  for (let i = 0; i < actions.length; i++) {
-    let r;
+  let open = openSession_();
+  let pending = { ENTRIES: [], NOTES: [], DECISIONS: [], LATE: [] };
+  let pendingIdx = []; // which results are waiting to be written
+
+  const flush = () => {
+    if (!pendingIdx.length) return true;
+    const lock = LockService.getScriptLock();
     try {
-      r = run_(actions[i].type, actions[i].payload || {});
+      lock.waitLock(28000);
     } catch (err) {
-      r = { status: 'error', message: err.message };
+      return false;
     }
-    results.push(r);
-    if (r.status !== 'ok') break; // keep order: the phone resends from here
+    try {
+      Object.keys(pending).forEach(k => {
+        const rows = pending[k];
+        if (!rows.length) return;
+        const sh = tab_(TABS[k]);
+        sh.getRange(sh.getLastRow() + 1, 1, rows.length, TABS[k][1].length).setValues(rows);
+      });
+    } finally {
+      lock.releaseLock();
+    }
+    pending = { ENTRIES: [], NOTES: [], DECISIONS: [], LATE: [] };
+    pendingIdx = [];
+    return true;
+  };
+  const lateRow = (action, q, item, qty) => [new Date(), q.sessionId || '', action, text_(item || ''),
+    qty === undefined ? '' : qty, text_(q.by || ''), text_(JSON.stringify(q))];
+
+  for (let i = 0; i < actions.length; i++) {
+    const type = actions[i].type;
+    const q = actions[i].payload || {};
+    const isOpen = !!open && open.id === q.sessionId;
+    try {
+      if (type === 'addEntry') {
+        if (isOpen) pending.ENTRIES.push([text_(q.id), q.sessionId, text_(q.code), text_(q.name), text_(q.type), text_(q.container),
+          q.tare === null || q.tare === undefined ? '' : num_(q.tare),
+          q.gross === null || q.gross === undefined ? '' : num_(q.gross),
+          num_(q.qty), text_(q.by), q.at ? new Date(q.at) : new Date(), false]);
+        else pending.LATE.push(lateRow('addEntry', q, q.name, num_(q.qty)));
+      } else if (type === 'deleteEntry') {
+        if (isOpen) pending.ENTRIES.push([text_(q.id), q.sessionId, '', '', '', '', '', '', 0, text_(q.by), new Date(), true]);
+        else pending.LATE.push(lateRow('deleteEntry', q, q.id));
+      } else if (type === 'setNote') {
+        if (isOpen) pending.NOTES.push([q.sessionId, text_(q.code), text_(q.note), text_(q.by), new Date()]);
+        else pending.LATE.push(lateRow('setNote', q, q.code));
+      } else if (type === 'decide') {
+        const items = typeof q.items === 'string' ? JSON.parse(q.items) : (q.items || []);
+        if (isOpen) {
+          const now = new Date();
+          items.forEach(it => pending.DECISIONS.push([q.sessionId, text_(it.code), text_(it.name), text_(it.decision),
+            num_(it.recorded), num_(it.counted), num_(it.adjustment), text_(q.by), now]));
+        } else {
+          pending.LATE.push(lateRow('decide', q, items.map(it => it.name + ': ' + it.decision).join(', ')));
+        }
+      } else {
+        // start / submit / close: write everything before it first, then run it on its own.
+        if (!flush()) { pendingIdx.forEach(j => { results[j] = { status: 'error', message: 'Busy, will retry' }; }); pendingIdx = []; break; }
+        const r = run_(type, q);
+        if (r.status !== 'ok') { results.push(r); break; }
+        open = openSession_();
+        results.push(r);
+        continue;
+      }
+      pendingIdx.push(results.length);
+      results.push({ status: 'ok' });
+    } catch (err) {
+      results.push({ status: 'error', message: err.message });
+      break;
+    }
+  }
+  if (!flush()) {
+    // Nothing waiting to be written was saved: report those as not done so the phone resends them.
+    pendingIdx.forEach(j => { results[j] = { status: 'error', message: 'Busy, will retry' }; });
   }
   return { status: 'ok', results: results };
 }

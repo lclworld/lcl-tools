@@ -3060,7 +3060,7 @@ async function countPost(action, payload) {
     method: "POST",
     body: JSON.stringify(payload || {}),
     headers: { "Content-Type": "text/plain;charset=utf-8" }
-  }, 60000);
+  }, 120000);
   return countParse(await res.text());
 }
 // A Google sign-in or error page instead of JSON means the Count Day script
@@ -3077,7 +3077,7 @@ function countParse(text) {
 // before batches existed gets them one at a time instead. Nothing is ever
 // thrown away here: anything sent after a Count Day closed is kept by the
 // sheet's Late Actions tab, or stays on the phone until the script is updated.
-const COUNT_BATCH = 25;
+const COUNT_BATCH = 20;
 let countBatchUnsupported = false;
 async function sendCountQueue() {
   while (true) {

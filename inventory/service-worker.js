@@ -1,5 +1,5 @@
 // Bump this whenever index.html changes so installed apps pick up the new version.
-const CACHE_NAME = "lcl-inventory-shell-v12";
+const CACHE_NAME = "lcl-inventory-shell-v13";
 const SHELL_FILES = ["./index.html", "./manifest.json"];
 
 self.addEventListener("install", (event) => {
