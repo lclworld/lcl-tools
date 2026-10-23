@@ -2452,6 +2452,36 @@ function fillBrief(b) {
   document.getElementById("briefPao").value = b.pao || "";
   document.querySelectorAll("#briefEdit [data-qc]").forEach(inp => { inp.value = (b.qc && b.qc[inp.dataset.qc]) || ""; });
 }
+// Each brief field suggests what was typed in that same field on saved
+// formulas (most used first), so repeated targets like pH are picked, not
+// retyped. Built on focus, so a formula saved or synced a moment ago counts.
+function briefFieldValue(b, inp) {
+  if (inp.dataset.qc) return b.qc && b.qc[inp.dataset.qc];
+  return b[{ briefPh: "ph", briefFill: "fill", briefShelf: "shelfMonths", briefPao: "pao" }[inp.id]];
+}
+document.getElementById("briefEdit").addEventListener("focusin", e => {
+  const inp = e.target;
+  if (inp.tagName !== "INPUT") return;
+  const counts = {};
+  loadPlans().forEach(p => {
+    const v = String(briefFieldValue(p.brief || {}, inp) || "").trim();
+    if (v) counts[v] = (counts[v] || 0) + 1;
+  });
+  const listId = inp.id + "List";
+  let list = document.getElementById(listId);
+  if (!list) {
+    list = document.createElement("datalist");
+    list.id = listId;
+    inp.after(list);
+    inp.setAttribute("list", listId);
+  }
+  list.innerHTML = "";
+  Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b)).forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    list.appendChild(opt);
+  });
+});
 function briefIsEmpty(b) {
   return !b || (!b.method && !b.ph && !b.fill && !b.shelfMonths && !b.pao && !Object.keys(b.qc || {}).length);
 }
