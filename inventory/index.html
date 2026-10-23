@@ -613,6 +613,7 @@
     <div class="card">
       <label>Load a Saved Formula</label>
       <select id="planLoadSelect"><option value="">— start from scratch —</option></select>
+      <button class="btn ghost" id="newPlan" style="margin-top:10px;">Start a new product</button>
     </div>
 
     <div class="card form-grid">
@@ -2351,9 +2352,31 @@ function refreshPlanLoadSelect() {
   });
 }
 document.getElementById("planLoadSelect").addEventListener("change", function() {
-  if (!this.value) return;
+  if (!this.value) { startNewPlan(); return; }
   loadFormulaRecord(loadPlans().find(p => p.id === this.value));
 });
+document.getElementById("newPlan").addEventListener("click", startNewPlan);
+
+// Wipes the studio back to a blank product, as a fresh open of the app would.
+// Saved formulas and pushed batches are untouched.
+function startNewPlan() {
+  if (!confirm("Clear this product and start a new one? Anything not saved will be lost.")) return;
+  ["planName", "planBatchSize", "planNotes", "planProductCode", "inciOutput"].forEach(id => { document.getElementById(id).value = ""; });
+  fillBrief(null);
+  document.getElementById("briefEdit").open = false;
+  document.getElementById("planRows").innerHTML = "";
+  for (let i = 0; i < 5; i++) addPlanRow();
+  document.querySelectorAll("#studioToggles input").forEach(cb => { cb.checked = false; });
+  document.querySelectorAll(".studio-section").forEach(sec => { sec.style.display = "none"; });
+  buildTierCards();
+  document.getElementById("planPdfInput").value = "";
+  document.getElementById("planPdfReview").style.display = "none";
+  document.getElementById("planLoadSelect").value = "";
+  document.getElementById("planMsg").textContent = "";
+  document.getElementById("inciHighlightNote").textContent = "";
+  recalcStudio();
+  window.scrollTo(0, 0);
+}
 
 function loadFormulaRecord(plan) {
   if (!plan) return;
