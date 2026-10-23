@@ -303,6 +303,9 @@
   .brief-qc { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: 6px 10px; align-items: center; }
   .brief-qc label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 0.8rem; color: var(--black); font-weight: 600; }
   .brief-qc input { padding: 8px 10px; font-size: 0.85rem; }
+  .brief-suggest { display: none; position: absolute; z-index: 50; max-height: 220px; overflow-y: auto; background: var(--white, #fff); border: 1px solid #e3d9cc; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  .brief-suggest button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid #f0e9df; background: none; font: inherit; font-size: 0.85rem; color: var(--black); cursor: pointer; }
+  .brief-suggest button:last-child { border-bottom: 0; }
   .brief-view { padding: 4px 14px 14px; }
   .brief-view h4 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 0.95rem; margin: 14px 0 6px; padding-top: 10px; border-top: 1.5px solid var(--border); }
   .brief-view h4:first-child { border-top: none; padding-top: 0; }
@@ -2453,35 +2456,47 @@ function fillBrief(b) {
   document.querySelectorAll("#briefEdit [data-qc]").forEach(inp => { inp.value = (b.qc && b.qc[inp.dataset.qc]) || ""; });
 }
 // Each brief field suggests what was typed in that same field on saved
-// formulas (most used first), so repeated targets like pH are picked, not
-// retyped. Built on focus, so a formula saved or synced a moment ago counts.
+// formulas and pushed batches (most used first), so repeated targets like
+// pH are tapped, not retyped. Drawn by the app rather than a <datalist>,
+// which iPhones and iPads don't reliably show.
 function briefFieldValue(b, inp) {
   if (inp.dataset.qc) return b.qc && b.qc[inp.dataset.qc];
   return b[{ briefPh: "ph", briefFill: "fill", briefShelf: "shelfMonths", briefPao: "pao" }[inp.id]];
 }
-document.getElementById("briefEdit").addEventListener("focusin", e => {
-  const inp = e.target;
-  if (inp.tagName !== "INPUT") return;
+const briefSuggest = document.createElement("div");
+briefSuggest.className = "brief-suggest";
+document.body.appendChild(briefSuggest);
+function showBriefSuggest(inp) {
   const counts = {};
-  loadPlans().forEach(p => {
+  loadPlans().concat(loadBatches()).forEach(p => {
     const v = String(briefFieldValue(p.brief || {}, inp) || "").trim();
     if (v) counts[v] = (counts[v] || 0) + 1;
   });
-  const listId = inp.id + "List";
-  let list = document.getElementById(listId);
-  if (!list) {
-    list = document.createElement("datalist");
-    list.id = listId;
-    inp.after(list);
-    inp.setAttribute("list", listId);
-  }
-  list.innerHTML = "";
-  Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b)).forEach(v => {
-    const opt = document.createElement("option");
-    opt.value = v;
-    list.appendChild(opt);
+  const typed = inp.value.trim().toLowerCase();
+  const values = Object.keys(counts)
+    .filter(v => v.toLowerCase() !== typed && v.toLowerCase().includes(typed))
+    .sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+  if (!values.length) { briefSuggest.style.display = "none"; return; }
+  briefSuggest.innerHTML = "";
+  values.forEach(v => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = v;
+    // pointerdown keeps the field focused, so the tap isn't lost to blur.
+    btn.addEventListener("pointerdown", e => e.preventDefault());
+    btn.addEventListener("click", () => { inp.value = v; briefSuggest.style.display = "none"; });
+    briefSuggest.appendChild(btn);
   });
-});
+  const r = inp.getBoundingClientRect();
+  briefSuggest.style.left = (r.left + window.scrollX) + "px";
+  briefSuggest.style.top = (r.bottom + window.scrollY + 4) + "px";
+  briefSuggest.style.width = r.width + "px";
+  briefSuggest.style.display = "block";
+}
+["focusin", "input"].forEach(type => document.getElementById("briefEdit").addEventListener(type, e => {
+  if (e.target.tagName === "INPUT") showBriefSuggest(e.target);
+}));
+document.getElementById("briefEdit").addEventListener("focusout", () => { briefSuggest.style.display = "none"; });
 function briefIsEmpty(b) {
   return !b || (!b.method && !b.ph && !b.fill && !b.shelfMonths && !b.pao && !Object.keys(b.qc || {}).length);
 }
