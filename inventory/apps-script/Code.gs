@@ -388,7 +388,15 @@ function createIngredient_(p) {
   if (p.firstRestockQty) {
     const restockSheet = sheet_(SHEET_NAMES.RESTOCK_LOG);
     if (String(p.firstRestockQC).toLowerCase() !== 'rejected') {
-      restockSheet.appendRow([p.name, code, p.firstRestockQty, new Date(), p.firstRestockQC || 'Passed', p.loggedBy || '']);
+      const row = [p.name, code, p.firstRestockQty, new Date(), p.firstRestockQC || 'Passed', p.loggedBy || ''];
+      // Same as an unverified restock: verified later from the dashboard.
+      if (p.firstRestockUnverified) {
+        const cols = verificationCols_(restockSheet, true);
+        while (row.length < cols.id) row.push('');
+        row[cols.status - 1] = VERIFY_PENDING;
+        row[cols.id - 1] = p.firstRestockId || '';
+      }
+      restockSheet.appendRow(row);
     }
   }
 

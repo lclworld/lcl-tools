@@ -547,6 +547,7 @@
         <div><label>Quantity Restocked (g)</label><input id="niQty" placeholder="e.g. 250"></div>
         <div><label>Quality Control</label><select id="niQC"><option>Passed</option><option>Rejected</option></select></div>
       </div>
+      <label class="toggle-switch rk-unverified-wrap" id="niUnverifiedWrap"><input type="checkbox" id="niUnverified"> Unverified: still in supplier packaging, quantity is an estimate</label>
       <label>Expiry Date</label><input type="date" id="niExpiry">
       <button class="btn primary" id="saveNewIngredient">Save Ingredient &amp; Generate Label</button>
       <div class="hint" id="niMsg"></div>
@@ -1429,6 +1430,12 @@ function unverifiedRestocks() {
       }
     });
   });
+  queue.filter(q => q.type === "createIngredient" && q.payload.firstRestockUnverified).forEach(q => {
+    const p = q.payload;
+    if (!list.some(u => u.id === p.firstRestockId)) {
+      list.push({ id: p.firstRestockId, name: p.name, code: p.code, qty: parseFloat(p.firstRestockQty), date: todayIso(), loggedBy: p.loggedBy });
+    }
+  });
   const verifying = queue.filter(q => q.type === "verifyRestock").map(q => q.payload.restockId);
   return list.filter(u => verifying.indexOf(u.id) < 0);
 }
@@ -2040,6 +2047,9 @@ document.getElementById("niTypeToggle").addEventListener("click", (e) => {
   btn.classList.add("active");
   niSelectedType = btn.dataset.type;
   populateNiCategories();
+  // Packaging is counted exactly, so it's never unverified.
+  document.getElementById("niUnverifiedWrap").style.display = niSelectedType === "Ingredient" ? "flex" : "none";
+  if (niSelectedType !== "Ingredient") document.getElementById("niUnverified").checked = false;
 });
 function refreshNiCode() { document.getElementById("niCode").value = nextCodeFor(document.getElementById("niCategory").value); }
 document.getElementById("niCategory").addEventListener("change", refreshNiCode);
@@ -2048,6 +2058,7 @@ document.getElementById("openNewIngredient").addEventListener("click", () => {
   populateNiContainers();
   niSelectedType = "Ingredient";
   document.querySelectorAll("#niTypeToggle button").forEach(b => b.classList.toggle("active", b.dataset.type === "Ingredient"));
+  document.getElementById("niUnverifiedWrap").style.display = "flex";
   populateNiCategories();
   goToScreen("newIngredient", "New Item");
 });
@@ -2090,6 +2101,10 @@ document.getElementById("saveNewIngredient").addEventListener("click", () => {
     firstRestockExpiry: document.getElementById("niExpiry").value,
     loggedBy: currentWorker
   };
+  if (parseFloat(payload.firstRestockQty) && payload.firstRestockQC !== "Rejected" && document.getElementById("niUnverified").checked) {
+    payload.firstRestockUnverified = true;
+    payload.firstRestockId = "rs-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+  }
   const containerSel = document.getElementById("niContainer").value;
   if (containerSel === "__new__") {
     payload.newContainerName = document.getElementById("niNewContainerName").value;
