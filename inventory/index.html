@@ -156,6 +156,9 @@
   .toggle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
   .toggle-switch { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
   .toggle-switch input { width: 16px; height: 16px; }
+  .rk-unverified-wrap { margin-top: 10px; text-transform: none; letter-spacing: 0; }
+  .verify-form { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
+  .verify-form .row-btns { margin-top: 10px; }
   .tier-card { border: 1.5px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
   .tier-card .tier-head { background: var(--black); color: var(--cream); padding: 10px 14px; font-weight: 800; font-size: 0.85rem; }
   .tier-card .tier-body { padding: 14px; }
@@ -415,6 +418,11 @@
     <h3 class="section-title">Low Stock</h3>
     <div class="card">
       <div id="dashList"></div>
+    </div>
+
+    <div id="unverifiedSection" style="display:none;">
+      <h3 class="section-title">Unverified Stock</h3>
+      <div class="card"><div id="unverifiedList"></div></div>
     </div>
 
     <h3 class="section-title">All Items — Availability</h3>
@@ -1036,6 +1044,7 @@ async function trySync() {
       cache.ingredients = data.ingredients;
       cache.backendHasDiscontinued = data.ingredients.some(i => i.discontinued !== undefined);
       cache.containers = data.containers || [];
+      if (data.unverified) cache.unverified = data.unverified;
       cache.lastSynced = new Date().toISOString();
       saveCache(cache);
       buildDashboard();
@@ -1401,8 +1410,65 @@ function buildDashboard() {
     }));
   }
 
+  renderUnverified();
   renderAllItemsList();
   updateQuickBadges();
+}
+
+// ---------- Unverified stock ----------
+// Restocks still in the supplier's packaging, logged at an estimate. The
+// backend's list, plus this phone's own not-yet-sent ones, minus any this
+// phone has verified but not sent yet.
+function unverifiedRestocks() {
+  const queue = loadQueue();
+  const list = (loadCache().unverified || []).slice();
+  queue.filter(q => q.type === "logRestock").forEach(q => {
+    JSON.parse(q.payload.entries).forEach(e => {
+      if (e.unverified && !list.some(u => u.id === e.restockId)) {
+        list.push({ id: e.restockId, name: e.name, code: e.code, qty: e.qty, date: e.date, loggedBy: e.loggedBy });
+      }
+    });
+  });
+  const verifying = queue.filter(q => q.type === "verifyRestock").map(q => q.payload.restockId);
+  return list.filter(u => verifying.indexOf(u.id) < 0);
+}
+function renderUnverified() {
+  const items = unverifiedRestocks();
+  const list = document.getElementById("unverifiedList");
+  document.getElementById("unverifiedSection").style.display = items.length ? "block" : "none";
+  list.innerHTML = "";
+  items.forEach(u => {
+    const row = document.createElement("div");
+    row.innerHTML =
+      '<div class="ing-row"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(u.name) + '</div>' +
+      '<div class="ing-meta">' + escapeHtml(u.code) + ' · estimate ' + fmtQty(u.qty) + 'g · restocked ' + fmtDay(u.date) + (u.loggedBy ? ' by ' + escapeHtml(u.loggedBy) : '') + '</div></div>' +
+      '<div class="row-btns"><button class="icon-btn verify-open">Verify</button></div></div>' +
+      '<div class="verify-form" style="display:none;">' +
+        '<label>Real weight of the ingredient (g)</label><input class="verify-actual" inputmode="decimal" placeholder="e.g. 187">' +
+        '<div class="hint">Put your empty container on the scale, press zero, pour in, then enter the number shown.</div>' +
+        '<label>Already used from the supplier pack before this (g)</label><input class="verify-used" inputmode="decimal" placeholder="Leave blank if none">' +
+        '<div class="row-btns"><button class="btn primary verify-save" style="margin:0;">Save verified weight</button><button class="btn dark verify-cancel" style="margin:0;">Cancel</button></div>' +
+        '<div class="hint verify-msg"></div>' +
+      '</div>';
+    const form = row.querySelector(".verify-form");
+    row.querySelector(".verify-open").addEventListener("click", () => { form.style.display = form.style.display === "none" ? "block" : "none"; });
+    row.querySelector(".verify-cancel").addEventListener("click", () => { form.style.display = "none"; });
+    row.querySelector(".verify-actual").addEventListener("input", () => { row.querySelector(".verify-msg").textContent = ""; });
+    row.querySelector(".verify-save").addEventListener("click", () => {
+      const actual = parseFloat(row.querySelector(".verify-actual").value);
+      const used = parseFloat(row.querySelector(".verify-used").value) || 0;
+      if (isNaN(actual) || actual < 0) { row.querySelector(".verify-msg").textContent = "Enter the weight from the scale first."; return; }
+      // Same change the backend makes: estimate out, real amount in.
+      const cache = loadCache();
+      const ing = cache.ingredients.find(i => i.code === u.code);
+      if (ing) { ing.qty = ing.qty - u.qty + actual + used; touchLastUpdated(ing); }
+      cache.unverified = (cache.unverified || []).filter(x => x.id !== u.id);
+      saveCache(cache);
+      enqueue("verifyRestock", { restockId: u.id, actual: actual, usedBefore: used, loggedBy: currentWorker });
+      buildDashboard();
+    });
+    list.appendChild(row);
+  });
 }
 
 // ---------- NEW: All Items — Availability ----------
@@ -1614,7 +1680,9 @@ function addRestockRow() {
     '<div class="rk-qty-mode-wrap" style="display:none;">' +
       '<div class="toggle"><button type="button" class="rk-qmode active" data-mode="direct">Direct Quantity</button><button type="button" class="rk-qmode" data-mode="weigh">Weigh with Container</button></div>' +
     '</div>' +
-    '<div class="rk-direct"><label>Quantity Restocked</label><input class="qty-input" placeholder="e.g. 500"></div>' +
+    '<div class="rk-direct"><label>Quantity Restocked</label><input class="qty-input" placeholder="e.g. 500">' +
+      '<label class="toggle-switch rk-unverified-wrap" style="display:none;"><input type="checkbox" class="rk-unverified"> Unverified: still in supplier packaging, quantity is an estimate</label>' +
+    '</div>' +
     '<div class="rk-weigh" style="display:none;">' +
       '<label>Container</label><select class="rk-container"></select>' +
       '<label>Total Weight, Container + Content (g)</label><input class="rk-total-weight" placeholder="e.g. 530">' +
@@ -1640,7 +1708,9 @@ function addRestockRow() {
     div.querySelector(".rk-qty-mode-wrap").style.display = isIngredient ? "block" : "none";
     div.querySelector(".rk-extra").style.display = isIngredient ? "block" : "none";
     div.querySelector(".rk-toggle-extra").style.display = isIngredient ? "none" : "block";
+    div.querySelector(".rk-unverified-wrap").style.display = isIngredient ? "flex" : "none";
     if (!isIngredient) {
+      div.querySelector(".rk-unverified").checked = false;
       // packaging never uses the weigh-with-container mode
       div.querySelector(".rk-direct").style.display = "block";
       div.querySelector(".rk-weigh").style.display = "none";
@@ -1689,7 +1759,7 @@ document.getElementById("saveRestock").addEventListener("click", () => {
   rows.forEach(row => {
     const code = row.dataset.code, name = row.dataset.name;
     if (!code) return;
-    let qty;
+    let qty, unverified = false;
     const weighMode = row.querySelector(".rk-qmode.active");
     if (weighMode && weighMode.dataset.mode === "weigh") {
       const total = parseFloat(row.querySelector(".rk-total-weight").value);
@@ -1697,6 +1767,7 @@ document.getElementById("saveRestock").addEventListener("click", () => {
       qty = !isNaN(total) ? (total - tare) : NaN;
     } else {
       qty = parseFloat(row.querySelector(".qty-input").value);
+      unverified = row.querySelector(".rk-unverified").checked;
     }
     if (isNaN(qty)) return;
     // QC/Expiry only exist meaningfully if that optional section was opened;
@@ -1705,7 +1776,9 @@ document.getElementById("saveRestock").addEventListener("click", () => {
     const extraOpen = row.querySelector(".rk-extra").style.display !== "none";
     const qc = extraOpen ? row.querySelector(".qc-input").value : "Passed";
     const expiry = extraOpen ? row.querySelector(".expiry-input").value : "";
-    entries.push({ code: code, name: name, qty: qty, qc: qc, expiry: expiry, date: date, loggedBy: currentWorker });
+    const entry = { code: code, name: name, qty: qty, qc: qc, expiry: expiry, date: date, loggedBy: currentWorker };
+    if (unverified) Object.assign(entry, { unverified: true, restockId: "rs-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7) });
+    entries.push(entry);
     const ing = cache.ingredients.find(i => i.code === code);
     if (ing) { ing.qty = ing.qty + qty; touchLastUpdated(ing); }
     labelJobs.push({ commonName: name, inciName: row.dataset.inci, dateArrival: date, dateExpiry: expiry, brand: row.dataset.supplier, primaryFunction: row.dataset.func });

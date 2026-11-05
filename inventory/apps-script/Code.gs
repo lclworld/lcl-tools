@@ -135,6 +135,7 @@ function doPost(e) {
       case 'pushToProduction': result = pushToProduction_(payload); break;
       case 'completeProductionBatch': result = completeProductionBatch_(payload); break;
       case 'applyCountAdjustment': result = applyCountAdjustment_(payload); break;
+      case 'verifyRestock': result = verifyRestock_(payload); break;
       default: return jsonOut_({ status: 'error', message: 'Unknown POST action: ' + action });
     }
     if (actionId && action !== 'login' && result && result.status === 'ok') {
@@ -240,7 +241,7 @@ function getIngredients_() {
     });
   }
 
-  return { status: 'ok', ingredients: ingredients, containers: [] };
+  return { status: 'ok', ingredients: ingredients, containers: [], unverified: getUnverified_() };
 }
 
 
@@ -264,13 +265,75 @@ function logUsage_(p) {
 }
 
 // ---------- logRestock: writes rows, QC-failed items are never added ----------
+// A restock still in the supplier's packaging is logged with the estimated
+// quantity and marked UNVERIFIED in the VERIFICATION column, with its own id
+// in RESTOCK ID, so verifyRestock can find it later from any device.
 function logRestock_(p) {
   const entries = JSON.parse(p.entries);
   const sh = sheet_(SHEET_NAMES.RESTOCK_LOG);
+  const cols = entries.some(e => e.unverified) ? verificationCols_(sh, true) : null;
   entries.forEach(e => {
     if (String(e.qc).toLowerCase() === 'rejected') return; // failed QC never logged as restock
-    sh.appendRow([e.name, e.code, e.qty, e.date, e.qc, e.loggedBy || '']);
+    const row = [e.name, e.code, e.qty, e.date, e.qc, e.loggedBy || ''];
+    if (e.unverified) {
+      while (row.length < cols.id) row.push('');
+      row[cols.status - 1] = VERIFY_PENDING;
+      row[cols.id - 1] = e.restockId || '';
+    }
+    sh.appendRow(row);
   });
+  return { status: 'ok' };
+}
+
+// ---------- Unverified restocks ----------
+const VERIFY_PENDING = 'UNVERIFIED';
+// The two columns are found by header, and added after whatever columns
+// the Restock Log already uses (older rows have numbers in column H).
+// Returns 1-based column numbers, or null if they don't exist yet.
+function verificationCols_(sh, create) {
+  const width = Math.max(sh.getLastColumn(), 1);
+  const headers = sh.getRange(1, 1, 1, width).getValues()[0];
+  let status = headers.indexOf('VERIFICATION') + 1, id = headers.indexOf('RESTOCK ID') + 1;
+  if (status && id) return { status: status, id: id };
+  if (!create) return null;
+  sh.getRange(1, width + 1, 1, 2).setValues([['VERIFICATION', 'RESTOCK ID']]);
+  return { status: width + 1, id: width + 2 };
+}
+function getUnverified_() {
+  const sh = sheet_(SHEET_NAMES.RESTOCK_LOG);
+  const cols = verificationCols_(sh, false);
+  if (!cols) return [];
+  const d = sh.getDataRange().getValues();
+  const out = [];
+  for (let r = 1; r < d.length; r++) {
+    if (d[r][cols.status - 1] !== VERIFY_PENDING) continue;
+    const date = d[r][3] instanceof Date ? Utilities.formatDate(d[r][3], 'Etc/GMT', 'yyyy-MM-dd') : String(d[r][3]).slice(0, 10);
+    out.push({ id: String(d[r][cols.id - 1]), name: d[r][0], code: d[r][1], qty: Number(d[r][2]) || 0, date: date, loggedBy: d[r][5] });
+  }
+  return out;
+}
+// The estimate comes back out through the Use Log, and the weighed amount
+// (plus anything already used from the supplier pack before weighing) goes
+// in as a verified restock. The original row is marked so it leaves the list.
+function verifyRestock_(p) {
+  const sh = sheet_(SHEET_NAMES.RESTOCK_LOG);
+  const cols = verificationCols_(sh, false);
+  if (!cols) return { status: 'ok', alreadyVerified: true };
+  const d = sh.getDataRange().getValues();
+  let r = 1;
+  while (r < d.length && !(String(d[r][cols.id - 1]) === String(p.restockId) && d[r][cols.status - 1] === VERIFY_PENDING)) r++;
+  if (r >= d.length) return { status: 'ok', alreadyVerified: true };
+  const name = d[r][0], code = d[r][1], estimate = Number(d[r][2]) || 0;
+  const actual = Number(p.actual), usedBefore = Number(p.usedBefore) || 0;
+  if (isNaN(actual) || actual < 0) return { status: 'error', message: 'Verified weight is missing' };
+  const now = new Date();
+  sheet_(SHEET_NAMES.USE_LOG).appendRow([name, code, estimate, now, 'Previously unverified stock estimate', p.loggedBy || '']);
+  const verified = [name, code, actual + usedBefore, now, 'Passed', p.loggedBy || ''];
+  while (verified.length < cols.status) verified.push('');
+  verified[cols.status - 1] = 'VERIFIED (estimate was ' + estimate + ' g)';
+  sh.appendRow(verified);
+  sh.getRange(r + 1, cols.status).setValue('VERIFIED ' + Utilities.formatDate(now, 'Etc/GMT', 'dd/MM/yyyy') + ' by ' + (p.loggedBy || '') +
+    ' (' + (actual + usedBefore) + ' g)');
   return { status: 'ok' };
 }
 
