@@ -3191,8 +3191,7 @@ function buildMonthlyReport(type, logs, period) {
   const nameOf = code => items[code] ? items[code].name : code;
   const typeOf = code => itemType(items[code] || {});
   const value = (code, qty) => { const c = unitCost(items[code]); return c === null ? null : qty * c; };
-  const missingCost = new Set();
-  const val = (code, qty) => { const v = value(code, qty); if (v === null && qty) missingCost.add(code); return v; };
+  const val = value;
   const sumVals = list => list.reduce((t, v) => t + (v || 0), 0);
   const tables = [];
   const byType = (rows, build) => ["Ingredient", "Packaging"].forEach(t => {
@@ -3286,13 +3285,7 @@ function buildMonthlyReport(type, logs, period) {
     const detail = list.sort((a, b) => a.day.localeCompare(b.day)).map(m => [fmtDay(m.day), m.code, nameOf(m.code), m.kind === "discarded" ? "Discarded" : "Spillage", m.qty, unit(m.code), val(m.code, m.qty), m.by]);
     tables.push({ title: "Every entry", headers: ["Date", "Code", "Item", "Reason", "Quantity", "Unit", "Value (GHS)", "Logged by"], rows: detail, money: [6] });
   }
-  const notes = [];
-  if (missingCost.size) notes.push(missingCost.size + " item" + (missingCost.size === 1 ? " has" : "s have") + " no COST or MOQ on Master Items, so value shows —.");
-  notes.push("Value = (COST + SHIPPING COST) ÷ MOQ from Master Items, the delivered cost.");
-  if (type === "consumption") notes.push("Count Day adjustments and unverified-stock corrections are not consumption, so they are left out. Previous period = " + fmtDay(period.prevFrom) + " – " + fmtDay(period.prevTo) + ".");
-  if (type === "byproduct") notes.push("Grouped by the product code typed when usage was logged. Usage logged for several products at once stays together under that entry.");
-  if (type === "movement") notes.push("Unverified restocks count at their verified weight. Adjusted = approved Count Day changes.");
-  return { tables, notes };
+  return { tables };
 }
 
 function fmtCell(v, isMoney) {
@@ -3305,7 +3298,7 @@ function reportTablesHtml(report) {
     if (!t.rows.length) return "<h2>" + escapeHtml(t.title) + "</h2><p>Nothing in this period.</p>";
     return "<h2>" + escapeHtml(t.title) + "</h2><div style='overflow-x:auto;'><table><tr>" + t.headers.map(h => "<th>" + h + "</th>").join("") + "</tr>" +
       t.rows.map(r => "<tr" + (r.indexOf("TOTAL") >= 0 ? " style='font-weight:700;'" : "") + ">" + r.map((v, i) => "<td>" + fmtCell(v, t.money.indexOf(i) >= 0) + "</td>").join("") + "</tr>").join("") + "</table></div>";
-  }).join("") + "<p style='font-size:11px;color:#5B4239;'>" + report.notes.map(escapeHtml).join("<br>") + "</p>";
+  }).join("");
 }
 
 let xlsxLoading = null;
@@ -3331,7 +3324,6 @@ async function downloadReportExcel(title, period, report) {
     const aoa = [[title + " — " + period.label], [], t.headers].concat(t.rows.map(r => r.map(v => v === null ? "" : typeof v === "number" ? Math.round(v * 100) / 100 : v)));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
   });
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(report.notes.map(n => [n])), "Notes");
   XLSX.writeFile(wb, "LCL " + title + " " + period.label.replace(/[^A-Za-z0-9 –-]/g, "") + ".xlsx");
 }
 
