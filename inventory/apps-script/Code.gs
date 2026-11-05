@@ -72,6 +72,24 @@ function getProductionData_() {
   return { status: 'ok', plans: plans, batches: batches };
 }
 
+// ---------- getLogs: every Use Log and Restock Log row, for the monthly reports ----------
+// Kept compact (arrays, not objects) since it's the whole history. Dates go
+// out as ISO text; undated rows go out blank and count as opening stock.
+function getLogs_() {
+  const iso = v => v instanceof Date ? v.toISOString() : String(v || '');
+  const use = [];
+  sheet_(SHEET_NAMES.USE_LOG).getDataRange().getValues().slice(1).forEach(r => {
+    if (r[1]) use.push([r[1], Number(r[2]) || 0, iso(r[3]), String(r[4] || ''), String(r[5] || '')]);
+  });
+  const rsh = sheet_(SHEET_NAMES.RESTOCK_LOG);
+  const cols = verificationCols_(rsh, false);
+  const restock = [];
+  rsh.getDataRange().getValues().slice(1).forEach(r => {
+    if (r[1]) restock.push([r[1], parseFloat(r[2]) || 0, iso(r[3]), String(r[4] || ''), String(r[5] || ''), cols ? String(r[cols.status - 1] || '') : '']);
+  });
+  return { status: 'ok', use: use, restock: restock };
+}
+
 function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -83,6 +101,7 @@ function doGet(e) {
   try {
     if (action === 'getIngredients') return jsonOut_(getIngredients_());
     if (action === 'getProductionData') return jsonOut_(getProductionData_());
+    if (action === 'getLogs') return jsonOut_(getLogs_());
     // These carry only a "code" field, small enough to also ride as a
     // URL parameter — so if Apps Script's own redirect handling ever turns
     // the POST into a GET, the action still succeeds instead of piling up

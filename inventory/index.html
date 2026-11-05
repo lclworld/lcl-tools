@@ -156,6 +156,9 @@
   .toggle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
   .toggle-switch { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
   .toggle-switch input { width: 16px; height: 16px; }
+  .report-card h2 { font-size: 0.9rem; margin: 18px 0 6px; color: var(--brown); }
+  .report-card table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+  .report-card th, .report-card td { padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
   .rk-unverified-wrap { margin-top: 10px; text-transform: none; letter-spacing: 0; }
   .verify-form { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
   .verify-form .row-btns { margin-top: 10px; }
@@ -796,10 +799,27 @@
     <div class="card">
       <label>Report</label>
       <select id="reportType">
-        <option value="inventory">Full Inventory Snapshot</option>
-        <option value="lowstock">Low Stock Report</option>
-        <option value="production">Production Batches (this session)</option>
+        <optgroup label="Monthly">
+          <option value="consumption">Monthly Consumption</option>
+          <option value="byproduct">Consumption by Product</option>
+          <option value="restock">Monthly Restock (Purchases)</option>
+          <option value="movement">Stock Movement</option>
+          <option value="waste">Waste Report</option>
+        </optgroup>
+        <optgroup label="Right now">
+          <option value="inventory">Full Inventory Snapshot</option>
+          <option value="lowstock">Low Stock Report</option>
+          <option value="production">Production Batches (this session)</option>
+        </optgroup>
       </select>
+      <div id="reportPeriodWrap">
+        <label>Period</label>
+        <select id="reportPeriod"></select>
+        <div class="form-grid" id="reportRange" style="display:none;">
+          <div><label>From</label><input type="date" id="reportFrom"></div>
+          <div><label>To</label><input type="date" id="reportTo"></div>
+        </div>
+      </div>
       <button class="btn primary" id="generateReport">Generate</button>
       <div class="hint">Opens your browser's print dialog with a report-formatted page — choose "Save as PDF" as the destination. That's the real, working mechanism for PDF output from a page with no backend PDF service.</div>
     </div>
@@ -1079,7 +1099,7 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 // Shown after the sync status so anyone can tell at a glance which version
 // a phone is running. Raise it with each release (along with CACHE_NAME in
 // service-worker.js).
-const APP_VERSION = "v1.2";
+const APP_VERSION = "v1.3";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -3077,8 +3097,273 @@ document.getElementById("exportPlanPdf").addEventListener("click", () => {
 
 // ---------- Price Calculator + Master Pricing ----------
 // ---------- Reports ----------
+// Monthly reports are worked out on the phone from every Use Log and Restock
+// Log row (getLogs). Each report is a list of tables, so the preview, the PDF
+// and the Excel file all show exactly the same numbers.
+const MONTHLY_REPORTS = ["consumption", "byproduct", "restock", "movement", "waste"];
+(function fillReportPeriods() {
+  const sel = document.getElementById("reportPeriod");
+  const now = new Date();
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
+    const opt = document.createElement("option");
+    opt.value = d.toISOString().slice(0, 7);
+    opt.textContent = d.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+    sel.appendChild(opt);
+  }
+  const custom = document.createElement("option");
+  custom.value = "custom";
+  custom.textContent = "Custom date range…";
+  sel.appendChild(custom);
+  sel.addEventListener("change", () => { document.getElementById("reportRange").style.display = sel.value === "custom" ? "grid" : "none"; });
+  document.getElementById("reportType").addEventListener("change", function() {
+    document.getElementById("reportPeriodWrap").style.display = MONTHLY_REPORTS.indexOf(this.value) >= 0 ? "block" : "none";
+  });
+})();
+
+// Inclusive start/end days (yyyy-mm-dd) plus the same-length period just before, for comparison.
+function reportPeriod() {
+  const v = document.getElementById("reportPeriod").value;
+  let from, to, label, prevFrom, prevTo;
+  const day = d => d.toISOString().slice(0, 10);
+  if (v === "custom") {
+    from = document.getElementById("reportFrom").value;
+    to = document.getElementById("reportTo").value;
+    if (!from || !to || from > to) return null;
+    label = fmtDay(from) + " – " + fmtDay(to);
+    const len = (Date.parse(to) - Date.parse(from)) / 86400000 + 1;
+    prevTo = day(new Date(Date.parse(from) - 86400000));
+    prevFrom = day(new Date(Date.parse(from) - len * 86400000));
+  } else {
+    const [y, m] = v.split("-").map(Number);
+    from = day(new Date(Date.UTC(y, m - 1, 1)));
+    to = day(new Date(Date.UTC(y, m, 0)));
+    prevFrom = day(new Date(Date.UTC(y, m - 2, 1)));
+    prevTo = day(new Date(Date.UTC(y, m - 1, 0)));
+    label = document.getElementById("reportPeriod").selectedOptions[0].textContent;
+  }
+  return { from, to, prevFrom, prevTo, label };
+}
+
+// Cost per gram (or per unit for packaging) = COST ÷ MOQ, the same rule as Est. Inventory Value.
+function unitCost(ing) {
+  const cost = parseFloat(ing && ing.costPerKg), moq = parseFloat(ing && ing.moq);
+  return cost > 0 && moq > 0 ? cost / moq : null;
+}
+
+// Turns raw log rows into movements. An unverified restock counts at its
+// verified amount on its original date; the reversal and correction rows
+// that verification adds are left out, so they never read as purchases or use.
+function reportMovements(logs) {
+  const moves = [];
+  logs.use.forEach(([code, qty, date, purpose, by]) => {
+    if (purpose === "Previously unverified stock estimate") return;
+    let kind = "production";
+    if (/^Stock Count Adjustment/.test(purpose)) kind = "adjustment";
+    else if (/^Discarded/i.test(purpose)) kind = "discarded";
+    else if (/^Spillage/i.test(purpose)) kind = "spillage";
+    const at = purpose.indexOf(" — ");
+    moves.push({ code, qty, day: date.slice(0, 10), kind, by, product: kind === "production" ? (at >= 0 ? purpose.slice(at + 3).trim() : "(no product code)") : "" });
+  });
+  logs.restock.forEach(([code, qty, date, qc, by, status]) => {
+    if (/^VERIFIED \(estimate was/.test(status)) return;
+    let note = "";
+    if (status === "UNVERIFIED") note = "Estimate (unverified)";
+    else if (/^VERIFIED /.test(status)) {
+      const m = status.match(/\(([\d.]+) g\)/);
+      if (m) qty = parseFloat(m[1]);
+      note = "Verified";
+    }
+    moves.push({ code, qty, day: date.slice(0, 10), kind: "restock", by, note });
+  });
+  return moves;
+}
+
+function buildMonthlyReport(type, logs, period) {
+  const cache = loadCache();
+  const items = {};
+  cache.ingredients.forEach(i => { items[i.code] = i; });
+  const moves = reportMovements(logs);
+  const inP = m => m.day >= period.from && m.day <= period.to;
+  const inPrev = m => m.day >= period.prevFrom && m.day <= period.prevTo;
+  const unit = code => itemType(items[code] || {}) === "Packaging" ? "" : "g";
+  const nameOf = code => items[code] ? items[code].name : code;
+  const typeOf = code => itemType(items[code] || {});
+  const value = (code, qty) => { const c = unitCost(items[code]); return c === null ? null : qty * c; };
+  const missingCost = new Set();
+  const val = (code, qty) => { const v = value(code, qty); if (v === null && qty) missingCost.add(code); return v; };
+  const sumVals = list => list.reduce((t, v) => t + (v || 0), 0);
+  const tables = [];
+  const byType = (rows, build) => ["Ingredient", "Packaging"].forEach(t => {
+    const list = rows.filter(r => typeOf(r.code) === t);
+    if (list.length) build(list, t === "Ingredient" ? "Ingredients" : "Packaging");
+  });
+
+  if (type === "consumption") {
+    const agg = {};
+    moves.forEach(m => {
+      if (["production", "discarded", "spillage"].indexOf(m.kind) < 0) return;
+      const a = agg[m.code] = agg[m.code] || { code: m.code, production: 0, discarded: 0, spillage: 0, prev: 0 };
+      if (inP(m)) a[m.kind] += m.qty;
+      if (inPrev(m)) a.prev += m.qty;
+    });
+    const rows = Object.values(agg).filter(a => a.production || a.discarded || a.spillage)
+      .map(a => Object.assign(a, { total: a.production + a.discarded + a.spillage }))
+      .sort((a, b) => b.total - a.total);
+    byType(rows, (list, title) => {
+      const out = list.map(a => {
+        const change = a.prev ? (a.total - a.prev) / a.prev * 100 : null;
+        return [a.code, nameOf(a.code), a.production, a.discarded, a.spillage, a.total, unit(a.code), val(a.code, a.total), a.prev, change === null ? "new" : (change >= 0 ? "+" : "") + change.toFixed(0) + "%"];
+      });
+      out.push(["", "TOTAL", null, null, null, null, "", sumVals(out.map(r => r[7])), null, ""]);
+      tables.push({ title: title, headers: ["Code", "Item", "Production", "Discarded", "Spillage", "Total used", "Unit", "Value (GHS)", "Previous period", "Change"], rows: out, money: [7] });
+    });
+  } else if (type === "byproduct") {
+    const prods = {};
+    moves.filter(m => m.kind === "production" && inP(m)).forEach(m => {
+      const p = prods[m.product] = prods[m.product] || { days: new Set(), items: {} };
+      p.days.add(m.day);
+      p.items[m.code] = (p.items[m.code] || 0) + m.qty;
+    });
+    const summary = Object.keys(prods).map(name => {
+      const p = prods[name];
+      return [name, p.days.size, Object.keys(p.items).length, sumVals(Object.keys(p.items).map(c => val(c, p.items[c])))];
+    }).sort((a, b) => b[3] - a[3]);
+    summary.push(["TOTAL", null, null, sumVals(summary.map(r => r[3]))]);
+    tables.push({ title: "Summary", headers: ["Product", "Days made", "Items used", "Cost (GHS)"], rows: summary, money: [3] });
+    Object.keys(prods).sort().forEach(name => {
+      const p = prods[name];
+      const rows = Object.keys(p.items).sort((a, b) => p.items[b] - p.items[a]).map(c => [c, nameOf(c), p.items[c], unit(c), val(c, p.items[c])]);
+      rows.push(["", "TOTAL", null, "", sumVals(rows.map(r => r[4]))]);
+      tables.push({ title: name, headers: ["Code", "Item", "Quantity", "Unit", "Cost (GHS)"], rows: rows, money: [4] });
+    });
+  } else if (type === "restock") {
+    const list = moves.filter(m => m.kind === "restock" && inP(m)).sort((a, b) => a.day.localeCompare(b.day));
+    byType(list, (rows, title) => {
+      const out = rows.map(m => [fmtDay(m.day), m.code, nameOf(m.code), m.qty, unit(m.code), val(m.code, m.qty), m.by, m.note]);
+      out.push(["", "", "TOTAL", null, "", sumVals(out.map(r => r[5])), "", ""]);
+      tables.push({ title: title, headers: ["Date", "Code", "Item", "Quantity", "Unit", "Value (GHS)", "Logged by", "Status"], rows: out, money: [5] });
+    });
+  } else if (type === "movement") {
+    const agg = {};
+    moves.forEach(m => {
+      if (m.day > period.to) return;
+      const a = agg[m.code] = agg[m.code] || { code: m.code, opening: 0, restocked: 0, used: 0, adjusted: 0 };
+      const sign = m.kind === "restock" ? 1 : -1;
+      if (!m.day || m.day < period.from) a.opening += sign * m.qty;
+      else if (m.kind === "restock") a.restocked += m.qty;
+      else if (m.kind === "adjustment") a.adjusted -= m.qty;
+      else a.used += m.qty;
+    });
+    const rows = Object.values(agg).filter(a => Math.abs(a.opening) > 0.004 || a.restocked || a.used || a.adjusted)
+      .sort((a, b) => nameOf(a.code).localeCompare(nameOf(b.code)));
+    byType(rows, (list, title) => {
+      const out = list.map(a => {
+        const closing = a.opening + a.restocked - a.used + a.adjusted;
+        return [a.code, nameOf(a.code), a.opening, a.restocked, a.used, a.adjusted, closing, unit(a.code), val(a.code, closing)];
+      });
+      out.push(["", "TOTAL", null, null, null, null, null, "", sumVals(out.map(r => r[8]))]);
+      tables.push({ title: title, headers: ["Code", "Item", "Opening", "+ Restocked", "− Used", "± Adjusted", "Closing", "Unit", "Closing value (GHS)"], rows: out, money: [8] });
+    });
+  } else if (type === "waste") {
+    const list = moves.filter(m => (m.kind === "discarded" || m.kind === "spillage") && inP(m));
+    const byItem = {}, byStaff = {};
+    list.forEach(m => {
+      const a = byItem[m.code] = byItem[m.code] || { discarded: 0, spillage: 0 };
+      a[m.kind] += m.qty;
+      const who = m.by || "(not recorded)";
+      const st = byStaff[who] = byStaff[who] || { discarded: 0, spillage: 0, value: 0 };
+      st[m.kind] += m.qty;
+      st.value += val(m.code, m.qty) || 0;
+    });
+    const items = Object.keys(byItem).map(c => { const a = byItem[c]; return [c, nameOf(c), a.discarded, a.spillage, a.discarded + a.spillage, unit(c), val(c, a.discarded + a.spillage)]; })
+      .sort((a, b) => (b[6] || 0) - (a[6] || 0));
+    items.push(["", "TOTAL", null, null, null, "", sumVals(items.map(r => r[6]))]);
+    tables.push({ title: "By item", headers: ["Code", "Item", "Discarded", "Spillage", "Total", "Unit", "Value (GHS)"], rows: items, money: [6] });
+    const staff = Object.keys(byStaff).map(n => [n, byStaff[n].discarded, byStaff[n].spillage, byStaff[n].value]).sort((a, b) => b[3] - a[3]);
+    tables.push({ title: "By staff", headers: ["Staff", "Discarded", "Spillage", "Value (GHS)"], rows: staff, money: [3] });
+    const detail = list.sort((a, b) => a.day.localeCompare(b.day)).map(m => [fmtDay(m.day), m.code, nameOf(m.code), m.kind === "discarded" ? "Discarded" : "Spillage", m.qty, unit(m.code), val(m.code, m.qty), m.by]);
+    tables.push({ title: "Every entry", headers: ["Date", "Code", "Item", "Reason", "Quantity", "Unit", "Value (GHS)", "Logged by"], rows: detail, money: [6] });
+  }
+  const notes = [];
+  if (missingCost.size) notes.push(missingCost.size + " item" + (missingCost.size === 1 ? " has" : "s have") + " no COST or MOQ on Master Items, so value shows —.");
+  notes.push("Value = COST ÷ MOQ from Master Items.");
+  if (type === "consumption") notes.push("Count Day adjustments and unverified-stock corrections are not consumption, so they are left out. Previous period = " + fmtDay(period.prevFrom) + " – " + fmtDay(period.prevTo) + ".");
+  if (type === "byproduct") notes.push("Grouped by the product code typed when usage was logged. Usage logged for several products at once stays together under that entry.");
+  if (type === "movement") notes.push("Unverified restocks count at their verified weight. Adjusted = approved Count Day changes.");
+  return { tables, notes };
+}
+
+function fmtCell(v, isMoney) {
+  if (v === null || v === undefined || v === "") return isMoney && v === null ? "—" : "";
+  if (typeof v === "number") return isMoney ? "GHS " + v.toFixed(2) : (Math.round(v * 100) / 100).toLocaleString("en-GB");
+  return escapeHtml(String(v));
+}
+function reportTablesHtml(report) {
+  return report.tables.map(t => {
+    if (!t.rows.length) return "<h2>" + escapeHtml(t.title) + "</h2><p>Nothing in this period.</p>";
+    return "<h2>" + escapeHtml(t.title) + "</h2><div style='overflow-x:auto;'><table><tr>" + t.headers.map(h => "<th>" + h + "</th>").join("") + "</tr>" +
+      t.rows.map(r => "<tr" + (r.indexOf("TOTAL") >= 0 ? " style='font-weight:700;'" : "") + ">" + r.map((v, i) => "<td>" + fmtCell(v, t.money.indexOf(i) >= 0) + "</td>").join("") + "</tr>").join("") + "</table></div>";
+  }).join("") + "<p style='font-size:11px;color:#5B4239;'>" + report.notes.map(escapeHtml).join("<br>") + "</p>";
+}
+
+let xlsxLoading = null;
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve();
+  xlsxLoading = xlsxLoading || new Promise((resolve, reject) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    sc.onload = resolve;
+    sc.onerror = () => { xlsxLoading = null; reject(new Error("Couldn't load the Excel tool — check the internet")); };
+    document.head.appendChild(sc);
+  });
+  return xlsxLoading;
+}
+async function downloadReportExcel(title, period, report) {
+  await loadXlsx();
+  const wb = XLSX.utils.book_new();
+  const used = new Set();
+  report.tables.forEach(t => {
+    let name = t.title.replace(/[\\/?*\[\]:]/g, " ").slice(0, 31) || "Sheet";
+    for (let n = 2; used.has(name); n++) name = name.slice(0, 28) + " " + n;
+    used.add(name);
+    const aoa = [[title + " — " + period.label], [], t.headers].concat(t.rows.map(r => r.map(v => v === null ? "" : typeof v === "number" ? Math.round(v * 100) / 100 : v)));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), name);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(report.notes.map(n => [n])), "Notes");
+  XLSX.writeFile(wb, "LCL " + title + " " + period.label.replace(/[^A-Za-z0-9 –-]/g, "") + ".xlsx");
+}
+
+const REPORT_TITLES = { consumption: "Monthly Consumption", byproduct: "Consumption by Product", restock: "Monthly Restock", movement: "Stock Movement", waste: "Waste Report" };
+async function generateMonthlyReport(type) {
+  const preview = document.getElementById("reportPreview");
+  const period = reportPeriod();
+  if (!period) { preview.innerHTML = '<div class="empty-state">Pick a From and To date (From before To).</div>'; return; }
+  preview.innerHTML = '<div class="empty-state">Reading the logs from Google…</div>';
+  let logs;
+  try {
+    if (!isConfigured()) throw new Error("Backend not connected");
+    const res = await fetchWithTimeout(SCRIPT_URL + "?action=getLogs", {}, 90000);
+    logs = await res.json();
+    if (logs.status !== "ok") throw new Error(logs.message || "backend error");
+  } catch (err) {
+    preview.innerHTML = '<div class="empty-state">Couldn\'t read the logs: ' + escapeHtml(err.message) + (/Unknown GET action/.test(err.message) ? " — the Apps Script (Code.gs) needs updating and a new version deployed." : "") + '</div>';
+    return;
+  }
+  const title = REPORT_TITLES[type];
+  const report = buildMonthlyReport(type, logs, period);
+  const tablesHtml = reportTablesHtml(report);
+  preview.innerHTML = '<div class="card report-card"><h3 style="font-family:\'Playfair Display\',serif; margin-top:0;">' + title + '</h3><div class="hint">' + escapeHtml(period.label) + '</div>' + tablesHtml +
+    '<button class="btn primary" id="printThisReport">Export as PDF</button><button class="btn dark" id="excelThisReport">Download Excel</button><div class="hint" id="reportMsg"></div></div>';
+  document.getElementById("printThisReport").addEventListener("click", () => openPrintWindow(title + " — " + period.label, "<h1>" + title + "</h1><div class='meta'>LCL Inventory · " + escapeHtml(period.label) + " · printed " + new Date().toLocaleDateString("en-GB") + "</div>" + tablesHtml));
+  document.getElementById("excelThisReport").addEventListener("click", () => {
+    downloadReportExcel(title, period, report).catch(err => { document.getElementById("reportMsg").textContent = err.message; });
+  });
+}
+
 document.getElementById("generateReport").addEventListener("click", () => {
   const type = document.getElementById("reportType").value;
+  if (MONTHLY_REPORTS.indexOf(type) >= 0) { generateMonthlyReport(type); return; }
   const cache = loadCache();
   const preview = document.getElementById("reportPreview");
   let title, rowsHtml;
