@@ -1077,8 +1077,9 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 }
 
 // Shown after the sync status so anyone can tell at a glance which version
-// a phone is running. Keep in step with CACHE_NAME in service-worker.js.
-const APP_VERSION = "v19";
+// a phone is running. Raise it with each release (along with CACHE_NAME in
+// service-worker.js).
+const APP_VERSION = "v1.2";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
