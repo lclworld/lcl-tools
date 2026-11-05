@@ -1099,7 +1099,7 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 // Shown after the sync status so anyone can tell at a glance which version
 // a phone is running. Raise it with each release (along with CACHE_NAME in
 // service-worker.js).
-const APP_VERSION = "v1.3";
+const APP_VERSION = "v1.4";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -1257,10 +1257,10 @@ function enterManagerMode() {
   isManager = true;
   document.getElementById("mgrStatTotal").textContent = document.getElementById("statTotal").textContent;
   const cache = loadCache();
+  // Delivered cost (COST + SHIPPING COST), as in Development Studio and Reports.
   const totalValue = cache.ingredients.reduce((sum, ing) => {
-    const cost = parseFloat(ing.costPerKg) || 0;
-    if (!ing.moq || ing.moq <= 0) return sum; // MOQ not filled in yet — skip rather than guess
-    return sum + (ing.qty * (cost / ing.moq));
+    const c = unitCost(ing);
+    return c === null ? sum : sum + ing.qty * c; // no COST or MOQ yet — skip rather than guess
   }, 0);
   document.getElementById("mgrStatValue").textContent = "GHS " + totalValue.toFixed(2);
   goToScreen("managerHome", "Manager");
@@ -3145,10 +3145,11 @@ function reportPeriod() {
   return { from, to, prevFrom, prevTo, label };
 }
 
-// Cost per gram (or per unit for packaging) = COST ÷ MOQ, the same rule as Est. Inventory Value.
+// Cost per gram (or per unit for packaging) = (COST + SHIPPING COST) ÷ MOQ,
+// the same delivered cost Development Studio prices products with.
 function unitCost(ing) {
   const cost = parseFloat(ing && ing.costPerKg), moq = parseFloat(ing && ing.moq);
-  return cost > 0 && moq > 0 ? cost / moq : null;
+  return cost > 0 && moq > 0 ? (cost + (parseFloat(ing.shipping) || 0)) / moq : null;
 }
 
 // Turns raw log rows into movements. An unverified restock counts at its
@@ -3287,7 +3288,7 @@ function buildMonthlyReport(type, logs, period) {
   }
   const notes = [];
   if (missingCost.size) notes.push(missingCost.size + " item" + (missingCost.size === 1 ? " has" : "s have") + " no COST or MOQ on Master Items, so value shows —.");
-  notes.push("Value = COST ÷ MOQ from Master Items.");
+  notes.push("Value = (COST + SHIPPING COST) ÷ MOQ from Master Items, the delivered cost.");
   if (type === "consumption") notes.push("Count Day adjustments and unverified-stock corrections are not consumption, so they are left out. Previous period = " + fmtDay(period.prevFrom) + " – " + fmtDay(period.prevTo) + ".");
   if (type === "byproduct") notes.push("Grouped by the product code typed when usage was logged. Usage logged for several products at once stays together under that entry.");
   if (type === "movement") notes.push("Unverified restocks count at their verified weight. Adjusted = approved Count Day changes.");
