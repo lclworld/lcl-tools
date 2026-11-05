@@ -1076,6 +1076,9 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
   saveCache(cache);
 }
 
+// Shown after the sync status so anyone can tell at a glance which version
+// a phone is running. Keep in step with CACHE_NAME in service-worker.js.
+const APP_VERSION = "v19";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -1096,7 +1099,7 @@ function renderSyncStatus() {
   }
   ["syncStatus", "syncStatusSidebar"].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.textContent = text; el.classList.toggle("offline", !navigator.onLine || !isConfigured() || hasError); }
+    if (el) { el.textContent = text + " · " + APP_VERSION; el.classList.toggle("offline", !navigator.onLine || !isConfigured() || hasError); }
   });
   updateQueueBadge();
 }
@@ -1688,7 +1691,7 @@ function addRestockRow() {
       '<div class="toggle"><button type="button" class="rk-qmode active" data-mode="direct">Direct Quantity</button><button type="button" class="rk-qmode" data-mode="weigh">Weigh with Container</button></div>' +
     '</div>' +
     '<div class="rk-direct"><label>Quantity Restocked</label><input class="qty-input" placeholder="e.g. 500">' +
-      '<label class="toggle-switch rk-unverified-wrap" style="display:none;"><input type="checkbox" class="rk-unverified"> Unverified: still in supplier packaging, quantity is an estimate</label>' +
+      '<label class="toggle-switch rk-unverified-wrap"><input type="checkbox" class="rk-unverified"> Unverified: still in supplier packaging, quantity is an estimate</label>' +
     '</div>' +
     '<div class="rk-weigh" style="display:none;">' +
       '<label>Container</label><select class="rk-container"></select>' +
