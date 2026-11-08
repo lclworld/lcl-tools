@@ -434,6 +434,7 @@
       <div class="filter-row" id="allItemsFilter">
         <button data-type="Ingredient">Ingredients</button>
         <button data-type="Packaging">Packaging</button>
+        <button data-type="Labels">Labels</button>
       </div>
       <div id="allItemsList"></div>
     </div>
@@ -495,12 +496,13 @@
   <!-- NEW INGREDIENT + FIRST RESTOCK -->
   <div class="screen" id="newIngredient">
     <button class="btn dark" id="closeNewIngredient" style="margin-top:0;">← Back to Lookup</button>
-    <h2 class="title" style="margin-top:14px;">New Ingredient</h2>
+    <h2 class="title" style="margin-top:14px;">New Item</h2>
     <div class="card">
       <label>Item Type</label>
       <div class="toggle" id="niTypeToggle">
         <button type="button" class="active" data-type="Ingredient">Ingredient</button>
         <button type="button" data-type="Packaging">Packaging</button>
+        <button type="button" data-type="Labels">Labels</button>
       </div>
       <div class="form-grid">
         <div>
@@ -509,10 +511,10 @@
         </div>
         <div><label>Reference Code</label><input id="niCode" disabled></div>
       </div>
-      <label>Trade Name</label><input id="niName" placeholder="e.g. Rosehip Oil">
-      <label>INCI Name</label><input id="niInci" placeholder="e.g. Rosa Canina Fruit Oil">
+      <label id="niNameLabel">Trade Name</label><input id="niName" placeholder="e.g. Rosehip Oil">
+      <label class="ni-ing-only">INCI Name</label><input class="ni-ing-only" id="niInci" placeholder="e.g. Rosa Canina Fruit Oil">
       <div class="form-grid">
-        <div><label>Function</label>
+        <div class="ni-ing-only"><label>Function</label>
           <select id="niFunc">
             <option>Emollient</option><option>Active</option><option>Surfactant</option>
             <option>Preservative</option><option>Humectant</option><option>Emulsifier</option>
@@ -523,8 +525,10 @@
       </div>
       <label>Storage Location</label><input id="niStorage" placeholder="e.g. Ingredients Stand, Shelf 2">
 
+      <div class="ni-ing-only">
       <label>Packaging / Container</label>
       <select id="niContainer"></select>
+      </div>
       <div id="niNewContainerFields" style="display:none; margin-top:10px;">
         <div class="form-grid">
           <div><label>New Container Name</label><input id="niNewContainerName" placeholder="e.g. 500ml Amber Bottle"></div>
@@ -537,7 +541,7 @@
       <input type="file" id="niPicture" accept="image/*">
       <div class="hint">Preview only for now — photo isn't uploaded to the Sheet automatically yet. Flagging that as a follow-up, not silently skipping it.</div>
 
-      <div class="form-grid">
+      <div class="form-grid ni-ing-only">
         <div><label>Min Usage Rate (%)</label><input id="niMinRate" placeholder="e.g. 1"></div>
         <div><label>Max Usage Rate (%)</label><input id="niMaxRate" placeholder="e.g. 10"></div>
       </div>
@@ -547,11 +551,11 @@
     <div class="card">
       <h2 class="title" style="font-size:1.1rem; margin-bottom:10px;">First Restock</h2>
       <div class="form-grid">
-        <div><label>Quantity Restocked (g)</label><input id="niQty" placeholder="e.g. 250"></div>
-        <div><label>Quality Control</label><select id="niQC"><option>Passed</option><option>Rejected</option></select></div>
+        <div><label id="niQtyLabel">Quantity Restocked (g)</label><input id="niQty" placeholder="e.g. 250"></div>
+        <div class="ni-ing-only"><label>Quality Control</label><select id="niQC"><option>Passed</option><option>Rejected</option></select></div>
       </div>
-      <label class="toggle-switch rk-unverified-wrap" id="niUnverifiedWrap"><input type="checkbox" id="niUnverified"> Unverified: still in supplier packaging, quantity is an estimate</label>
-      <label>Expiry Date</label><input type="date" id="niExpiry">
+      <label class="toggle-switch rk-unverified-wrap ni-ing-only" id="niUnverifiedWrap"><input type="checkbox" id="niUnverified"> Unverified: still in supplier packaging, quantity is an estimate</label>
+      <div class="ni-ing-only"><label>Expiry Date</label><input type="date" id="niExpiry"></div>
       <button class="btn primary" id="saveNewIngredient">Save Ingredient &amp; Generate Label</button>
       <div class="hint" id="niMsg"></div>
       <div id="niLabelOutput"></div>
@@ -950,7 +954,17 @@ function updateQueueBadge() {
 
 // ---------- helper: every item defaults to Ingredient if no type was set,
 // so old cached data (from before packaging existed) still renders fine ----------
-function itemType(item) { return item.type || "Ingredient"; }
+// Labels (LB) are their own type. BX is always a box, and "Base" solutions
+// are weighed like any ingredient, whatever the Sheet's TYPE column says.
+function itemType(item) {
+  const code = String(item.code || "");
+  if (/^LB\d/.test(code)) return "Labels";
+  if (/^BX\d/.test(code)) return "Packaging";
+  const t = item.type || "Ingredient";
+  return t === "Base" ? "Ingredient" : t;
+}
+// Ingredients are weighed in grams; packaging and labels are counted.
+function qtyUnit(item) { return itemType(item) === "Ingredient" ? "g" : ""; }
 
 // ---------- network ----------
 // Every request to Google gets a time limit. Without one, a request that
@@ -1099,7 +1113,7 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 // Shown after the sync status so anyone can tell at a glance which version
 // a phone is running. Raise it with each release (along with CACHE_NAME in
 // service-worker.js).
-const APP_VERSION = "v1.4";
+const APP_VERSION = "v1.5";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -1323,6 +1337,7 @@ function updateQuickBadges() {
 
 // ---------- low-stock threshold ----------
 function thresholdFor(ing) {
+  if (itemType(ing) === "Labels") return -Infinity; // labels never go on Low Stock
   if (itemType(ing) === "Packaging") return 5; // simple default; refine per category later
   if (ing.category === "A" || ing.category === "C" || ing.func === "Active") return 10;
   if (ing.category === "B" || ing.category === "W" || ing.func === "Surfactant") return 100;
@@ -1388,7 +1403,7 @@ function buildDashboard() {
       row.className = "ing-row";
       row.style.cursor = "pointer";
       row.innerHTML =
-        '<div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + escapeHtml(ing.func || itemType(ing)) + ' · ' + fmtQty(ing.qty) + (itemType(ing) === "Packaging" ? '' : 'g') + '</div></div>' +
+        '<div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + escapeHtml(ing.func || itemType(ing)) + ' · ' + fmtQty(ing.qty) + qtyUnit(ing) + '</div></div>' +
         '<div class="row-btns"><button class="icon-btn" data-act="normal" data-code="' + ing.code + '">Move to Normal</button>' +
         '<button class="icon-btn" data-act="discontinued" data-code="' + ing.code + '">Discontinued</button></div>';
       row.querySelector(".ing-row-info").addEventListener("click", () => openIngCard([ing]));
@@ -1420,7 +1435,7 @@ function buildDashboard() {
     const box = document.createElement("details");
     box.className = "disc-list";
     box.innerHTML = '<summary>Discontinued (' + discItems.length + ')</summary>' + discItems.map(ing =>
-      '<div class="ing-row"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + fmtQty(ing.qty) + (itemType(ing) === "Packaging" ? '' : 'g') + '</div></div>' +
+      '<div class="ing-row"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + fmtQty(ing.qty) + qtyUnit(ing) + '</div></div>' +
       '<button class="icon-btn" data-code="' + ing.code + '">Undo</button></div>').join("");
     list.appendChild(box);
     box.querySelectorAll(".icon-btn").forEach(btn => btn.addEventListener("click", () => {
@@ -1537,7 +1552,7 @@ function renderAllItemsList() {
     row.className = "ing-row";
     row.innerHTML =
       '<div><div class="ing-name">' + escapeHtml(ing.name) + '</div><div class="ing-meta">' + ing.code + ' · ' + escapeHtml(ing.func || ing.category || "") + '</div></div>' +
-      '<div class="ing-right"><span class="qty">' + fmtQty(ing.qty) + (type === "Packaging" ? '' : 'g') + '</span><span class="pill ' + (type === "Packaging" ? "pack" : "ing") + '">' + type + '</span></div>';
+      '<div class="ing-right"><span class="qty">' + fmtQty(ing.qty) + qtyUnit(ing) + '</span><span class="pill ' + (type === "Ingredient" ? "ing" : "pack") + '">' + type + '</span></div>';
     row.addEventListener("click", () => openIngCard([ing]));
     listEl.appendChild(row);
   });
@@ -1995,7 +2010,7 @@ function filterLookup() {
       '<div style="display:flex; align-items:center; gap:10px;">' +
         '<input type="checkbox" class="checkbox" data-code="' + i.code + '">' +
         '<div><div class="ing-name">' + escapeHtml(i.name) + '</div><div class="ing-meta">' + i.code + ' · ' + escapeHtml(i.func || type) + ' · ' + escapeHtml(i.supplier || "") + '</div></div>' +
-      '</div><span class="pill ' + (type === "Packaging" ? "pack" : "ok") + '">' + fmtQty(i.qty) + (type === "Packaging" ? "" : "g") + '</span>';
+      '</div><span class="pill ' + (type === "Ingredient" ? "ok" : "pack") + '">' + fmtQty(i.qty) + qtyUnit(i) + '</span>';
     row.querySelector(".ing-name").addEventListener("click", () => openIngCard([i]));
     row.querySelector(".checkbox").addEventListener("change", (e) => {
       if (e.target.checked) selectedCodes[i.code] = i; else delete selectedCodes[i.code];
@@ -2022,7 +2037,7 @@ function openIngCard(list) {
     if (idx > 0) { block.style.borderTop = "1px solid var(--border)"; block.style.marginTop = "16px"; block.style.paddingTop = "16px"; }
     block.innerHTML =
       "<h3>" + escapeHtml(i.name) + "</h3><div class=\"inci\">" + escapeHtml(i.inci || type) + "</div>" +
-      '<div class="avail"><div class="big">' + fmtQty(i.qty) + (type === "Packaging" ? "" : "g") + '</div><div class="lbl">Available</div></div>' +
+      '<div class="avail"><div class="big">' + fmtQty(i.qty) + qtyUnit(i) + '</div><div class="lbl">Available</div></div>' +
       '<div class="kv"><span class="k">Ref Code</span><span>' + i.code + "</span></div>" +
       '<div class="kv"><span class="k">Type</span><span>' + type + "</span></div>" +
       '<div class="kv"><span class="k">Last Updated</span><span>' + formatLastUpdated(i.lastUpdated) + "</span></div>" +
@@ -2051,7 +2066,8 @@ function nextCodeFor(prefix) {
 }
 const NI_CATEGORIES = {
   Ingredient: [["A","A — Aromatherapy"],["B","B — Butters"],["C","C — Colorants"],["L","L — Liquid"],["P","P — Powder"],["S","S — Bases/Solutions"],["W","W — Waxes"]],
-  Packaging: [["BT","BT — Bottles"],["HD","HD — Heads"],["BX","BX — Boxes"],["JR","JR — Jars"],["PO","PO — Pouches"],["TB","TB — Tubes"],["AP","AP — Appliances & Tools"],["BK","BK — Beakers"],["MX","MX — Mixers"],["LB","LB — Labels"]]
+  Packaging: [["BT","BT — Bottles"],["HD","HD — Heads"],["BX","BX — Boxes"],["JR","JR — Jars"],["PO","PO — Pouches"],["TB","TB — Tubes"],["AP","AP — Appliances & Tools"],["BK","BK — Beakers"],["MX","MX — Mixers"]],
+  Labels: [["LB","LB — Labels"]]
 };
 let niSelectedType = "Ingredient";
 function populateNiCategories() {
@@ -2071,10 +2087,26 @@ document.getElementById("niTypeToggle").addEventListener("click", (e) => {
   btn.classList.add("active");
   niSelectedType = btn.dataset.type;
   populateNiCategories();
-  // Packaging is counted exactly, so it's never unverified.
-  document.getElementById("niUnverifiedWrap").style.display = niSelectedType === "Ingredient" ? "flex" : "none";
-  if (niSelectedType !== "Ingredient") document.getElementById("niUnverified").checked = false;
+  applyNiType();
 });
+// Packaging and labels are counted, not weighed: no INCI, function, container,
+// usage range, QC, expiry, unverified tick or ingredient label for them.
+function applyNiType() {
+  const ing = niSelectedType === "Ingredient";
+  document.querySelectorAll("#newIngredient .ni-ing-only").forEach(el => { el.style.display = ing ? "" : "none"; });
+  document.getElementById("niUnverifiedWrap").style.display = ing ? "flex" : "none";
+  if (!ing) {
+    document.getElementById("niUnverified").checked = false;
+    document.getElementById("niNewContainerFields").style.display = "none";
+  } else {
+    document.getElementById("niNewContainerFields").style.display = document.getElementById("niContainer").value === "__new__" ? "block" : "none";
+  }
+  document.getElementById("niNameLabel").textContent = ing ? "Trade Name" : niSelectedType === "Labels" ? "Label Name" : "Item Name";
+  document.getElementById("niName").placeholder = ing ? "e.g. Rosehip Oil" : niSelectedType === "Labels" ? "e.g. Hair Shampoo Front Label" : "e.g. 50ml Amber Bottle";
+  document.getElementById("niQtyLabel").textContent = ing ? "Quantity Restocked (g)" : "Quantity Restocked (count)";
+  document.getElementById("niQty").placeholder = ing ? "e.g. 250" : "e.g. 100";
+  document.getElementById("saveNewIngredient").textContent = ing ? "Save Ingredient & Generate Label" : "Save " + (niSelectedType === "Labels" ? "Label" : "Packaging");
+}
 function refreshNiCode() { document.getElementById("niCode").value = nextCodeFor(document.getElementById("niCategory").value); }
 document.getElementById("niCategory").addEventListener("change", refreshNiCode);
 
@@ -2082,7 +2114,7 @@ document.getElementById("openNewIngredient").addEventListener("click", () => {
   populateNiContainers();
   niSelectedType = "Ingredient";
   document.querySelectorAll("#niTypeToggle button").forEach(b => b.classList.toggle("active", b.dataset.type === "Ingredient"));
-  document.getElementById("niUnverifiedWrap").style.display = "flex";
+  applyNiType();
   populateNiCategories();
   goToScreen("newIngredient", "New Item");
 });
@@ -2109,20 +2141,23 @@ document.getElementById("saveNewIngredient").addEventListener("click", () => {
   const category = document.getElementById("niCategory").value;
   const code = document.getElementById("niCode").value;
   const name = document.getElementById("niName").value.trim();
-  const inci = document.getElementById("niInci").value.trim();
-  if (!name) { document.getElementById("niMsg").textContent = "Trade name is required."; return; }
+  const isIng = niSelectedType === "Ingredient";
+  // Fields hidden for packaging and labels are sent blank, whatever was typed before switching type.
+  const ingOnly = id => isIng ? document.getElementById(id).value.trim() : "";
+  const inci = ingOnly("niInci");
+  if (!name) { document.getElementById("niMsg").textContent = (isIng ? "Trade name" : "Name") + " is required."; return; }
 
   const payload = {
     category: category, code: code, name: name, inci: inci, type: niSelectedType,
-    func: document.getElementById("niFunc").value,
+    func: ingOnly("niFunc"),
     supplier: document.getElementById("niSupplier").value,
     storage: document.getElementById("niStorage").value,
-    minRate: document.getElementById("niMinRate").value,
-    maxRate: document.getElementById("niMaxRate").value,
+    minRate: ingOnly("niMinRate"),
+    maxRate: ingOnly("niMaxRate"),
     notes: document.getElementById("niNotes").value,
     firstRestockQty: document.getElementById("niQty").value,
-    firstRestockQC: document.getElementById("niQC").value,
-    firstRestockExpiry: document.getElementById("niExpiry").value,
+    firstRestockQC: isIng ? document.getElementById("niQC").value : "Passed",
+    firstRestockExpiry: ingOnly("niExpiry"),
     loggedBy: currentWorker
   };
   if (parseFloat(payload.firstRestockQty) && payload.firstRestockQC !== "Rejected" && document.getElementById("niUnverified").checked) {
@@ -2130,7 +2165,7 @@ document.getElementById("saveNewIngredient").addEventListener("click", () => {
     payload.firstRestockId = "rs-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
   }
   const containerSel = document.getElementById("niContainer").value;
-  if (containerSel === "__new__") {
+  if (isIng && containerSel === "__new__") {
     payload.newContainerName = document.getElementById("niNewContainerName").value;
     payload.newContainerWeight = document.getElementById("niNewContainerWeight").value;
   }
@@ -2154,10 +2189,12 @@ document.getElementById("saveNewIngredient").addEventListener("click", () => {
   enqueue("createIngredient", payload);
 
   document.getElementById("niLabelOutput").innerHTML = "";
-  document.getElementById("niLabelOutput").appendChild(buildLabelDownload({
-    commonName: name, inciName: inci, dateArrival: new Date().toISOString().slice(0, 10),
-    dateExpiry: payload.firstRestockExpiry, brand: payload.supplier, primaryFunction: payload.func
-  }));
+  if (isIng) {
+    document.getElementById("niLabelOutput").appendChild(buildLabelDownload({
+      commonName: name, inciName: inci, dateArrival: new Date().toISOString().slice(0, 10),
+      dateExpiry: payload.firstRestockExpiry, brand: payload.supplier, primaryFunction: payload.func
+    }));
+  }
   document.getElementById("niMsg").textContent = "Saved — code " + code + ". Will sync when online (code may be renumbered if another device claimed it first).";
   buildDashboard();
 });
@@ -3003,7 +3040,7 @@ document.getElementById("planPdfInput").addEventListener("change", async (e) => 
     if (!pctMatch) return;
     const pct = parseFloat(pctMatch[1]);
     const lower = line.toLowerCase();
-    const found = cache.ingredients.find(i => i.type === "Ingredient" && lower.includes(i.name.toLowerCase()));
+    const found = cache.ingredients.find(i => itemType(i) === "Ingredient" && lower.includes(i.name.toLowerCase()));
     if (found) pdfMatchedRows.push({ code: found.code, name: found.name, phase: found.phase || "", percent: pct });
   });
   const summary = document.getElementById("planPdfMatchSummary");
@@ -3187,16 +3224,16 @@ function buildMonthlyReport(type, logs, period) {
   const moves = reportMovements(logs);
   const inP = m => m.day >= period.from && m.day <= period.to;
   const inPrev = m => m.day >= period.prevFrom && m.day <= period.prevTo;
-  const unit = code => itemType(items[code] || {}) === "Packaging" ? "" : "g";
+  const unit = code => items[code] ? qtyUnit(items[code]) : "g";
   const nameOf = code => items[code] ? items[code].name : code;
   const typeOf = code => itemType(items[code] || {});
   const value = (code, qty) => { const c = unitCost(items[code]); return c === null ? null : qty * c; };
   const val = value;
   const sumVals = list => list.reduce((t, v) => t + (v || 0), 0);
   const tables = [];
-  const byType = (rows, build) => ["Ingredient", "Packaging"].forEach(t => {
+  const byType = (rows, build) => ["Ingredient", "Packaging", "Labels"].forEach(t => {
     const list = rows.filter(r => typeOf(r.code) === t);
-    if (list.length) build(list, t === "Ingredient" ? "Ingredients" : "Packaging");
+    if (list.length) build(list, t === "Ingredient" ? "Ingredients" : t);
   });
 
   if (type === "consumption") {
@@ -3365,7 +3402,7 @@ document.getElementById("generateReport").addEventListener("click", () => {
     title = "Full Inventory Snapshot";
     rowsHtml = "<table><tr><th>Code</th><th>Name</th><th>Type</th><th>Available</th></tr>";
     cache.ingredients.forEach(i => {
-      rowsHtml += "<tr><td>" + i.code + "</td><td>" + escapeHtml(i.name) + "</td><td>" + itemType(i) + "</td><td>" + fmtQty(i.qty) + (itemType(i) === "Packaging" ? "" : "g") + "</td></tr>";
+      rowsHtml += "<tr><td>" + i.code + "</td><td>" + escapeHtml(i.name) + "</td><td>" + itemType(i) + "</td><td>" + fmtQty(i.qty) + qtyUnit(i) + "</td></tr>";
     });
     rowsHtml += "</table>";
   } else if (type === "lowstock") {
@@ -4044,7 +4081,7 @@ async function countStart() {
     // Discontinued items with nothing left aren't counted; anything with stock is.
     const items = cache.ingredients
       .filter(i => !((i.discontinued || localDisc.indexOf(i.code) >= 0) && (parseFloat(i.qty) || 0) <= 0))
-      .map(i => ({ code: i.code, name: i.name, type: itemType(i), recorded: round2(i.qty) }));
+      .map(i => ({ code: i.code, name: i.name, type: itemType(i) === "Ingredient" ? "Ingredient" : "Packaging", recorded: round2(i.qty) }));
     if (!items.length) throw new Error("No items found to count. Check the inventory has synced.");
     countStep("Step 3 of 3: freezing " + items.length + " items on the Count Day sheet…");
     const sessionId = "CD-" + new Date().toISOString().slice(0, 10) + "-" + Math.random().toString(36).slice(2, 6);
