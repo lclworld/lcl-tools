@@ -1149,7 +1149,7 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 // Shown after the sync status so anyone can tell at a glance which version
 // a phone is running. Raise it with each release (along with CACHE_NAME in
 // service-worker.js).
-const APP_VERSION = "v1.7";
+const APP_VERSION = "v1.8";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -3709,8 +3709,14 @@ function newSpendCard(fields) {
     frozen: { estimate: false, actual: false }, tithe: { locked: false, amount: null, edited: false }, formula: []
   }, fields);
 }
-const sameProduct = (card, code, name) => code ? card.productCode === code : !card.productCode && card.product === name;
-function planFor(code, name) { return loadPlans().find(p => code ? p.productCode === code : !p.productCode && p.name === name); }
+// Same product = same name, and the same product code when there is one
+// (a code can end up reused, e.g. Pot Balm and Beard Balm both on IBH-B2001).
+const sameProduct = (card, code, name) => card.product === name && (card.productCode || "") === (code || "");
+// The formula a batch was pushed from: same name and code, the latest save before the push.
+function planFor(code, name, pushedAt) {
+  return loadPlans().filter(p => p.name === name && (p.productCode || "") === (code || "") && (!pushedAt || (p.savedAt || "") <= pushedAt))
+    .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""))[0];
+}
 // Units made = the quantities filled in on the formula's pricing tiers.
 function planUnits(plan) {
   if (!plan || !plan.tierInputs) return "";
@@ -3729,7 +3735,7 @@ function cardFromPlan(plan) {
   return card;
 }
 function cardFromBatch(batch) {
-  const plan = planFor(batch.productCode, batch.name);
+  const plan = planFor(batch.productCode, batch.name, batch.pushedAt);
   const card = newSpendCard({
     batchId: batch.id, planId: plan ? plan.id : undefined, productCode: batch.productCode || "", product: batch.name, batchSize: num(batch.batchSize),
     units: planUnits(plan), status: "actual", actualAt: batch.pushedAt || new Date().toISOString(),
@@ -3740,14 +3746,23 @@ function cardFromBatch(batch) {
   persistCard(card);
   return card;
 }
-// Saved formulas and pushed batches that no card follows yet. A formula that
-// has been pushed shows as its batch.
+// Saved formulas and pushed batches that no card follows yet. Each batch is
+// its own order. A formula shows unless it was pushed after it was saved (its
+// batch stands for it then); when the same formula was saved more than once,
+// only the latest save is offered.
 function untrackedSources() {
   const cards = loadSpend().projects;
-  const batches = loadBatches().filter(b => !cards.some(c => c.batchId === b.id || (!c.batchId && c.status !== "estimate" && sameProduct(c, b.productCode, b.name))));
   const pushed = loadBatches();
-  const plans = loadPlans().filter(p => !cards.some(c => c.planId === p.id || sameProduct(c, p.productCode, p.name)) &&
-    !pushed.some(b => p.productCode ? b.productCode === p.productCode : b.name === p.name));
+  const batches = pushed.filter(b => !cards.some(c => c.batchId === b.id));
+  const latest = {};
+  loadPlans().forEach(p => {
+    const k = p.name + "|" + (p.productCode || "");
+    if (!latest[k] || (p.savedAt || "") > (latest[k].savedAt || "")) latest[k] = p;
+  });
+  // Saving and pushing often happen together, in either order, so a push from 10 minutes before the save counts.
+  const pushedAfter = (b, p) => Date.parse(b.pushedAt || 0) >= Date.parse(p.savedAt || 0) - 600000;
+  const plans = Object.values(latest).filter(p => !cards.some(c => c.planId === p.id) &&
+    !pushed.some(b => b.name === p.name && (b.productCode || "") === (p.productCode || "") && pushedAfter(b, p)));
   return { batches: batches.sort((a, b) => (b.pushedAt || "").localeCompare(a.pushedAt || "")), plans: plans.sort((a, b) => a.name.localeCompare(b.name)) };
 }
 
