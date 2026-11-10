@@ -169,10 +169,11 @@
   .spend-table td:not(:first-child), .spend-table th:not(:first-child) { text-align: right; }
   .spend-warn td { color: #b4441a; }
   .spend-warn-note { margin-top: 8px; font-size: 0.78rem; font-weight: 700; color: #b4441a; }
-  .bill-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
-  .bill-row input, .bill-row select { margin: 0; min-width: 0; }
-  .bill-row .b-name, .bill-row .i-name { flex: 2; }
-  .bill-row .b-amt { flex: 1; }
+  /* Bill: name across the top, then amount · how often · Remove. Item: name · Remove. */
+  .bill-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .bill-row input, .bill-row select { margin: 0; min-width: 0; width: 100%; }
+  .bill-row .b-name { grid-column: 1 / -1; }
+  .bill-row.item-row { grid-template-columns: 1fr auto; padding-bottom: 0; border-bottom: 0; }
   .rk-unverified-wrap { margin-top: 10px; text-transform: none; letter-spacing: 0; }
   .verify-form { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
   .verify-form .row-btns { margin-top: 10px; }
@@ -3531,8 +3532,10 @@ const ghs = v => "GHS " + (Math.round(v * 100) / 100).toLocaleString("en-GB", { 
 
 // All bills as one cost per working day.
 function dailyRunningCost(d) {
-  const perWeek = d.bills.reduce((t, b) => t + (b.frequency === "weekly" ? num(b.amount) : num(b.amount) * 12 / 52), 0);
-  return perWeek / (num(d.settings.workingDays) || 5);
+  // Daily bills are per working day; weekly and monthly ones are spread over the working days.
+  const days = num(d.settings.workingDays) || 5;
+  const perWeek = d.bills.reduce((t, b) => t + (b.frequency === "daily" ? num(b.amount) * days : b.frequency === "weekly" ? num(b.amount) : num(b.amount) * 12 / 52), 0);
+  return perWeek / days;
 }
 
 // Usage logs (for Actual ingredient lines) are read on demand and kept for the session.
@@ -4211,20 +4214,24 @@ function renderSpendSettings(body) {
     '<h3 class="section-title">Tithe</h3><div class="card"><div class="form-grid"><div><label>Tithe % of gross profit</label><input id="setTithe" inputmode="decimal" value="' + escapeHtml(String(d.settings.tithePct)) + '"></div><div></div></div>' +
     '<label class="toggle-switch" style="margin-top:10px;"><input type="checkbox" id="setDiff"' + (num(d.settings.diffNote) ? " checked" : "") + '> Show the tithe difference note on Actual cards</label></div>' +
     '<h3 class="section-title">Item list</h3><div class="card"><div id="itemRows"></div><button class="btn ghost" id="itemAdd">+ Add item</button></div>' +
-    '<button class="btn primary" id="spendSettingsSave">Save settings</button><div class="hint" id="spendSettingsMsg"></div>';
+    '<div class="hint" id="spendSettingsMsg">Changes save as you type.</div>';
   body.innerHTML = html;
-  const bills = d.bills.map(b => Object.assign({}, b)), items = d.items.slice();
+  const bills = d.bills.map(b => Object.assign({}, b));
+  // Each item remembers its saved name, so a rename can follow it onto open cards.
+  const items = d.items.map(n => ({ name: n, saved: n }));
+  const freqs = [["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]];
   const drawBills = () => {
     document.getElementById("billRows").innerHTML = bills.length ? bills.map((b, i) =>
-      '<div class="bill-row" data-i="' + i + '"><input class="b-name" placeholder="e.g. Electricity" value="' + escapeHtml(b.name) + '"><input class="b-amt" inputmode="decimal" placeholder="GHS" value="' + escapeHtml(String(b.amount || "")) + '">' +
-      '<select class="b-freq"><option value="monthly"' + (b.frequency !== "weekly" ? " selected" : "") + '>Monthly</option><option value="weekly"' + (b.frequency === "weekly" ? " selected" : "") + '>Weekly</option></select>' +
+      '<div class="bill-row" data-i="' + i + '"><input class="b-name" placeholder="Bill, e.g. Electricity" value="' + escapeHtml(b.name) + '">' +
+      '<input class="b-amt" inputmode="decimal" placeholder="Amount (GHS)" value="' + escapeHtml(String(b.amount || "")) + '">' +
+      '<select class="b-freq">' + freqs.map(([v, l]) => '<option value="' + v + '"' + ((b.frequency || "monthly") === v ? " selected" : "") + '>' + l + '</option>').join("") + '</select>' +
       '<button type="button" class="icon-btn b-rm">Remove</button></div>').join("") : '<div class="empty-state">No bills yet.</div>';
     document.querySelectorAll("#billRows .bill-row").forEach(r => {
       const b = bills[+r.dataset.i];
-      r.querySelector(".b-name").addEventListener("input", e => { b.name = e.target.value; });
-      r.querySelector(".b-amt").addEventListener("input", e => { b.amount = e.target.value; showDaily(); });
-      r.querySelector(".b-freq").addEventListener("change", e => { b.frequency = e.target.value; showDaily(); });
-      r.querySelector(".b-rm").addEventListener("click", () => { bills.splice(+r.dataset.i, 1); drawBills(); showDaily(); });
+      r.querySelector(".b-name").addEventListener("input", e => { b.name = e.target.value; saveSoon(); });
+      r.querySelector(".b-amt").addEventListener("input", e => { b.amount = e.target.value; saveSoon(); });
+      r.querySelector(".b-freq").addEventListener("change", e => { b.frequency = e.target.value; saveSoon(); });
+      r.querySelector(".b-rm").addEventListener("click", () => { bills.splice(+r.dataset.i, 1); drawBills(); saveSoon(); });
     });
   };
   const showDaily = () => {
@@ -4232,35 +4239,49 @@ function renderSpendSettings(body) {
   };
   const drawItems = () => {
     document.getElementById("itemRows").innerHTML = items.map((it, i) =>
-      '<div class="bill-row item-row" data-i="' + i + '"><input class="i-name" value="' + escapeHtml(it) + '"><button type="button" class="icon-btn i-rm">Remove</button></div>').join("");
+      '<div class="bill-row item-row" data-i="' + i + '"><input class="i-name" placeholder="Item name" value="' + escapeHtml(it.name) + '"><button type="button" class="icon-btn i-rm">Remove</button></div>').join("");
     document.querySelectorAll("#itemRows .item-row").forEach(r => {
-      r.querySelector(".i-name").addEventListener("input", e => { items[+r.dataset.i] = e.target.value; });
-      r.querySelector(".i-rm").addEventListener("click", () => { items.splice(+r.dataset.i, 1); drawItems(); });
+      r.querySelector(".i-name").addEventListener("input", e => { items[+r.dataset.i].name = e.target.value; saveSoon(); });
+      r.querySelector(".i-rm").addEventListener("click", () => { items.splice(+r.dataset.i, 1); drawItems(); saveSoon(); });
     });
   };
-  drawBills(); drawItems(); showDaily();
-  document.getElementById("setDays").addEventListener("input", showDaily);
-  document.getElementById("billAdd").addEventListener("click", () => { bills.push({ name: "", amount: "", frequency: "monthly" }); drawBills(); });
-  document.getElementById("itemAdd").addEventListener("click", () => { items.push(""); drawItems(); });
-  document.getElementById("spendSettingsSave").addEventListener("click", () => {
+  // Bills and items half filled in stay on screen but are only saved once complete.
+  const saveNow = () => {
     const dd = loadSpend();
-    // A renamed item is renamed on open cards too, so reports keep grouping it.
     const renames = {};
-    dd.items.forEach((old, i) => { if (items[i] !== undefined && items[i].trim() && items[i].trim() !== old) renames[old] = items[i].trim(); });
+    items.forEach(it => { const n = it.name.trim(); if (it.saved && n && n !== it.saved) renames[it.saved] = n; });
     dd.bills = bills.filter(b => b.name.trim() && num(b.amount) > 0).map(b => ({ name: b.name.trim(), amount: num(b.amount), frequency: b.frequency || "monthly" }));
-    dd.items = Array.from(new Set(items.map(i => i.trim()).filter(Boolean)));
+    dd.items = Array.from(new Set(items.map(i => i.name.trim()).filter(Boolean)));
     dd.settings = { workingDays: num(document.getElementById("setDays").value) || 5, tithePct: num(document.getElementById("setTithe").value), diffNote: document.getElementById("setDiff").checked ? 1 : 0 };
+    // A renamed item is renamed on open cards too, so reports keep grouping it.
     const renamed = [];
     dd.projects.forEach(p => {
       if (p.status === "closed") return;
       let changed = false;
-      ["estimate", "actual"].forEach(s => (p.lines[s] || []).forEach(l => { if (renames[l.item]) { l.item = renames[l.item]; changed = true; } }));
+      ["estimate", "actual"].forEach(st => (p.lines[st] || []).forEach(l => { if (renames[l.item]) { l.item = renames[l.item]; changed = true; } }));
       if (changed) renamed.push(p.id);
     });
+    items.forEach(it => { if (it.name.trim()) it.saved = it.name.trim(); });
     saveSpend(dd);
     renamed.forEach(id => queueCardSave(id));
     queueSpendSettings();
-    document.getElementById("spendSettingsMsg").textContent = "Saved.";
+    const waiting = bills.length - dd.bills.length;
+    document.getElementById("spendSettingsMsg").textContent = "Saved." + (waiting ? " " + waiting + " bill" + (waiting === 1 ? " needs" : "s need") + " a name and an amount before it counts." : "");
+  };
+  let timer = null;
+  const saveSoon = () => { showDaily(); clearTimeout(timer); timer = setTimeout(saveNow, 600); };
+  drawBills(); drawItems(); showDaily();
+  ["setDays", "setTithe"].forEach(id => document.getElementById(id).addEventListener("input", saveSoon));
+  document.getElementById("setDiff").addEventListener("change", saveSoon);
+  document.getElementById("billAdd").addEventListener("click", () => {
+    bills.push({ name: "", amount: "", frequency: "monthly" });
+    drawBills();
+    document.querySelector("#billRows .bill-row:last-child .b-name").focus();
+  });
+  document.getElementById("itemAdd").addEventListener("click", () => {
+    items.push({ name: "", saved: "" });
+    drawItems();
+    document.querySelector("#itemRows .item-row:last-child .i-name").focus();
   });
 }
 
