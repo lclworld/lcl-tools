@@ -3526,6 +3526,21 @@ function loadSpend() {
   };
 }
 function saveSpend(d) { localStorage.setItem(SPEND_KEY, JSON.stringify(d)); }
+// Clears the half-typed entries an earlier version saved letter by letter
+// ("50 ml", "50 ml BL" … for "50 ml black jar"): an item that is only the start
+// of a longer one goes, unless it is a starter item or a card still uses it.
+function tidySpendItems(d) {
+  const used = new Set();
+  d.projects.forEach(p => ["estimate", "actual"].forEach(st => (p.lines[st] || []).forEach(l => { if (l.item) used.add(l.item.trim().toLowerCase()); })));
+  const keep = d.items.filter(it => {
+    const low = it.trim().toLowerCase();
+    if (SPEND_STARTER_ITEMS.some(x => x.toLowerCase() === low) || used.has(low)) return true;
+    return !d.items.some(o => o.trim().toLowerCase() !== low && o.trim().toLowerCase().startsWith(low));
+  });
+  const changed = keep.length !== d.items.length;
+  d.items = Array.from(new Set(keep.map(i => i.trim())));
+  return changed;
+}
 const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 const r2 = v => Math.round(v * 100) / 100;
 const ghs = v => "GHS " + (Math.round(v * 100) / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3644,7 +3659,7 @@ function cardSummary(card, d) {
 // from the Sheet can never drop it. A card already waiting in the queue is
 // replaced (under a new id, so a send already under way can't clear the newer
 // copy), and the send itself waits for a pause in typing.
-let spendSaveTimer = null, spendItemsAdded = false;
+let spendSaveTimer = null;
 function persistCard(card) {
   const d = loadSpend();
   card.summary = cardSummary(card, d);
@@ -3657,12 +3672,18 @@ function persistCard(card) {
   });
   const i = d.projects.findIndex(p => p.id === card.id);
   if (i >= 0) d.projects[i] = card; else d.projects.push(card);
-  (card.lines.estimate || []).concat(card.lines.actual || []).forEach(l => {
-    const name = (l.item || "").trim();
-    if (name && !d.items.some(x => x.toLowerCase() === name.toLowerCase())) { d.items.push(name); spendItemsAdded = true; }
-  });
   saveSpend(d);
   queueCardSave(card.id);
+}
+// A new item joins the dropdown list once it has been typed in full (when
+// the field is left), never letter by letter.
+function rememberItem(name) {
+  name = (name || "").trim();
+  const d = loadSpend();
+  if (!name || d.items.some(x => x.toLowerCase() === name.toLowerCase())) return;
+  d.items.push(name);
+  saveSpend(d);
+  queueSpendSettings();
 }
 function queueReplacing(type, match, payload) {
   const q = loadQueue().filter(x => !(x.type === type && match(x)));
@@ -3675,7 +3696,6 @@ function queueCardSave(id) {
   const card = loadSpend().projects.find(p => p.id === id);
   if (!card) return;
   queueReplacing("saveProject", x => x.payload.cardId === id, { cardId: id, card: JSON.stringify(card) });
-  if (spendItemsAdded) { spendItemsAdded = false; queueSpendSettings(); }
 }
 function queueSpendSettings() {
   const d = loadSpend();
@@ -3700,7 +3720,10 @@ async function syncSpend() {
       bills: data.bills, items: data.items.length ? data.items : local.items,
       settings: Object.assign({}, local.settings, data.settings)
     };
-    saveSpend({ projects: projects, bills: s.bills, items: s.items, settings: s.settings });
+    const merged = { projects: projects, bills: s.bills, items: s.items, settings: s.settings };
+    const tidied = tidySpendItems(merged);
+    saveSpend(merged);
+    if (tidied) queueSpendSettings();
   } catch (e) { /* offline: keep this phone's copy */ }
 }
 
@@ -4112,6 +4135,7 @@ function renderSpendLines(card, stage) {
     const item = row.querySelector(".sl-item");
     if (item) {
       item.addEventListener("input", () => { l.item = item.value; saveLines(); });
+      item.addEventListener("change", () => rememberItem(item.value));
       attachSuggestList(item, () => loadSpend().items, v => { l.item = v; saveLines(); });
     }
     row.querySelectorAll(".sl-type").forEach(b => b.addEventListener("click", () => { l.type = b.dataset.t; l.edited = false; saveLines(); renderSpendLines(card, stage); }));
