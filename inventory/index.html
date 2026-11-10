@@ -159,6 +159,20 @@
   .report-card h2 { font-size: 0.9rem; margin: 18px 0 6px; color: var(--brown); }
   .report-card table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
   .report-card th, .report-card td { padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  .spend-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .spend-line { padding: 10px 0 12px; border-bottom: 1px solid var(--border); }
+  .spend-line.off { opacity: 0.5; }
+  .spend-line-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .spend-amount label .pill { margin-left: 6px; }
+  .spend-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .spend-table th, .spend-table td { padding: 7px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+  .spend-table td:not(:first-child), .spend-table th:not(:first-child) { text-align: right; }
+  .spend-warn td { color: #b4441a; }
+  .spend-warn-note { margin-top: 8px; font-size: 0.78rem; font-weight: 700; color: #b4441a; }
+  .bill-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .bill-row input, .bill-row select { margin: 0; min-width: 0; }
+  .bill-row .b-name, .bill-row .i-name { flex: 2; }
+  .bill-row .b-amt { flex: 1; }
   .rk-unverified-wrap { margin-top: 10px; text-transform: none; letter-spacing: 0; }
   .verify-form { padding: 4px 0 12px; border-bottom: 1px solid var(--border); }
   .verify-form .row-btns { margin-top: 10px; }
@@ -587,10 +601,23 @@
       <div class="stat"><div class="num" id="mgrStatValue">GHS —</div><div class="lbl">Est. Inventory Value</div></div>
     </div>
     <button class="btn primary" id="openPlanningFromHome" style="margin-top:0;">Open Development Studio</button>
+    <button class="btn primary" id="openSpendFromHome">Project Spend Tracker</button>
     <button class="btn primary" id="openReportsFromHome">Open Reports</button>
     <button class="btn primary" id="openCountAuditFromHome">Count Day Audit</button>
     <div class="hint" style="margin-bottom:10px;">Formula, INCI, production sheet, and the full five-tier pricing engine now live together in one place, Development Studio. Turn on only what a given product needs.</div>
     <button class="btn dark" id="managerLogout">← Back to Employee View</button>
+  </div>
+
+  <!-- PROJECT SPEND TRACKER — manager only -->
+  <div class="screen" id="spend">
+    <button class="btn dark" id="closeSpend" style="margin-top:0;">← Back to Manager</button>
+    <h2 class="title" style="margin-top:14px;">Project Spend Tracker</h2>
+    <div class="toggle" id="spendTabs">
+      <button type="button" data-view="cards" class="active">Cards</button>
+      <button type="button" data-view="reports">Reports</button>
+      <button type="button" data-view="settings">Settings</button>
+    </div>
+    <div id="spendBody" style="margin-top:12px;"></div>
   </div>
 
   <!-- AVAILABILITY CROSS-CHECK — employee + manager -->
@@ -1113,7 +1140,7 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 // Shown after the sync status so anyone can tell at a glance which version
 // a phone is running. Raise it with each release (along with CACHE_NAME in
 // service-worker.js).
-const APP_VERSION = "v1.5";
+const APP_VERSION = "v1.6";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -1735,6 +1762,11 @@ function addRestockRow() {
       '<div class="used-result">Actual content: <span class="rk-net">—</span></div>' +
     '</div>' +
 
+    '<button type="button" class="rk-toggle-price">+ Price paid (optional, updates stored cost)</button>' +
+    '<div class="rk-price form-grid" style="display:none;">' +
+      '<div><label>Paid for this quantity (GHS)</label><input class="rk-paid" inputmode="decimal" placeholder="e.g. 400"></div>' +
+      '<div><label>Delivery (GHS)</label><input class="rk-delivery" inputmode="decimal" placeholder="e.g. 20"></div>' +
+    '</div>' +
     '<button type="button" class="rk-toggle-extra">+ Add Quality Control / Expiry (optional)</button>' +
     '<div class="rk-extra" style="display:none;">' +
       '<div class="form-grid">' +
@@ -1764,6 +1796,10 @@ function addRestockRow() {
     }
   });
 
+  div.querySelector(".rk-toggle-price").addEventListener("click", () => {
+    div.querySelector(".rk-price").style.display = "grid";
+    div.querySelector(".rk-toggle-price").style.display = "none";
+  });
   div.querySelector(".rk-toggle-extra").addEventListener("click", () => {
     div.querySelector(".rk-extra").style.display = "block";
     div.querySelector(".rk-toggle-extra").style.display = "none";
@@ -1824,8 +1860,12 @@ document.getElementById("saveRestock").addEventListener("click", () => {
     const expiry = extraOpen ? row.querySelector(".expiry-input").value : "";
     const entry = { code: code, name: name, qty: qty, qc: qc, expiry: expiry, date: date, loggedBy: currentWorker };
     if (unverified) Object.assign(entry, { unverified: true, restockId: "rs-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7) });
+    // A price paid sets the stored unit cost: (paid + delivery) ÷ quantity.
+    const paid = row.querySelector(".rk-paid").value.trim();
+    if (paid !== "" && qty > 0 && qc !== "Rejected") Object.assign(entry, { paid: parseFloat(paid) || 0, delivery: parseFloat(row.querySelector(".rk-delivery").value) || 0 });
     entries.push(entry);
     const ing = cache.ingredients.find(i => i.code === code);
+    if (ing && entry.paid !== undefined) { ing.costPerKg = entry.paid; ing.shipping = entry.delivery; ing.moq = qty; }
     if (ing) { ing.qty = ing.qty + qty; touchLastUpdated(ing); }
     labelJobs.push({ commonName: name, inciName: row.dataset.inci, dateArrival: date, dateExpiry: expiry, brand: row.dataset.supplier, primaryFunction: row.dataset.func });
   });
@@ -2724,7 +2764,8 @@ document.getElementById("savePlan").addEventListener("click", () => {
     productCode: plan.productCode, brief: plan.brief, toggles: plan.toggles, inci: plan.inci, tierInputs: plan.tierInputs
   }) }));
   refreshPlanLoadSelect();
-  document.getElementById("planMsg").textContent = "Saved \"" + name + "\" — searchable from Load a Saved Formula next time, from Planning or a fresh quote either way.";
+  upsertCardFromStudio("estimate");
+  document.getElementById("planMsg").textContent = "Saved \"" + name + "\" — searchable from Load a Saved Formula next time. Its Estimate card is in Project Spend Tracker.";
 });
 
 document.getElementById("pushPlan").addEventListener("click", () => {
@@ -2792,7 +2833,8 @@ document.getElementById("pushConfirm").addEventListener("click", () => {
   saveBatches(batches);
   enqueue("pushToProduction", Object.assign({}, batch, { notes: packNotes(batch.notes, { productCode: batch.productCode, brief: brief }) }));
   document.getElementById("pushOverlay").classList.remove("show");
-  document.getElementById("planMsg").textContent = "Pushed to Production — employees will see \"" + name + "\" on their Production tab.";
+  upsertCardFromStudio("actual");
+  document.getElementById("planMsg").textContent = "Pushed to Production — employees will see \"" + name + "\" on their Production tab. Its card in Project Spend Tracker is now Actual.";
   renderProductionList();
 });
 
@@ -3423,6 +3465,729 @@ document.getElementById("generateReport").addEventListener("click", () => {
   preview.innerHTML = '<div class="card"><h3 style="font-family:\'Playfair Display\',serif; margin-top:0;">' + title + '</h3><div class="hint">' + new Date().toLocaleDateString() + '</div>' + rowsHtml + '<button class="btn primary" id="printThisReport">Export as PDF</button></div>';
   document.getElementById("printThisReport").addEventListener("click", () => openPrintWindow(title, "<h1>" + title + "</h1><div class='meta'>LCL Inventory · " + new Date().toLocaleDateString() + "</div>" + rowsHtml));
 });
+
+// ===================================================================
+// PROJECT SPEND TRACKER — manager only
+// One card per product made for a client. It opens as an Estimate when a
+// formula is saved in Development Studio and becomes Actual when pushed to
+// production. Cards, bills, settings and the item list live in the backend
+// Sheet (Projects, Spend Lines, Running Costs, Item List) and a copy is kept
+// on this phone so the tracker works offline.
+// ===================================================================
+const SPEND_KEY = "lcl_inv_spend_v1";
+const SPEND_STARTER_ITEMS = ["Packaging", "Packaging delivery", "Ingredients", "Ingredients delivery", "Labels", "Labels delivery", "Cartons", "Cartons delivery"];
+const PRODUCT_TYPES = ["Lotion", "Body butter", "Lip balm", "Lip gloss", "Shampoo", "Conditioner", "Cleanser", "Serum", "Scrub", "Hair oil", "Body oil"];
+function loadSpend() {
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem(SPEND_KEY)) || {}; } catch (e) { /* start fresh */ }
+  return {
+    projects: d.projects || [], bills: d.bills || [], items: d.items && d.items.length ? d.items : SPEND_STARTER_ITEMS.slice(),
+    settings: Object.assign({ workingDays: 5, tithePct: 10, diffNote: 1 }, d.settings || {})
+  };
+}
+function saveSpend(d) { localStorage.setItem(SPEND_KEY, JSON.stringify(d)); }
+const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+const r2 = v => Math.round(v * 100) / 100;
+const ghs = v => "GHS " + (Math.round(v * 100) / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// All bills as one cost per working day.
+function dailyRunningCost(d) {
+  const perWeek = d.bills.reduce((t, b) => t + (b.frequency === "weekly" ? num(b.amount) : num(b.amount) * 12 / 52), 0);
+  return perWeek / (num(d.settings.workingDays) || 5);
+}
+
+// Usage logs (for Actual ingredient lines) are read on demand and kept for the session.
+let spendLogs = null;
+async function loadSpendLogs(force) {
+  if (spendLogs && !force) return spendLogs;
+  if (!isConfigured()) return null;
+  try {
+    const res = await fetchWithTimeout(SCRIPT_URL + "?action=getLogs", {}, 90000);
+    const data = await res.json();
+    if (data.status === "ok") spendLogs = data;
+  } catch (e) { /* offline: Actual ingredient lines wait until the logs can be read */ }
+  return spendLogs;
+}
+
+function stockItem(code) { return loadCache().ingredients.find(i => i.code === code); }
+
+// Ingredient lines the app fills itself. Estimate: the formula × batch size.
+// Actual: usage logged against the card's product code since it was pushed.
+function autoIngredientLines(card, stage) {
+  const qtyByCode = {};
+  if (stage === "estimate") {
+    (card.formula || []).forEach(f => { qtyByCode[f.code] = (qtyByCode[f.code] || 0) + num(f.grams); });
+  } else if (spendLogs && card.productCode) {
+    const code = card.productCode.trim().toLowerCase();
+    const since = (card.actualAt || "").slice(0, 10);
+    spendLogs.use.forEach(([itemCode, qty, date, purpose]) => {
+      if (!/^Product batch/.test(purpose) || String(date).slice(0, 10) < since) return;
+      const at = purpose.indexOf(" — ");
+      const codes = at < 0 ? [] : purpose.slice(at + 3).split(/[,\/]/).map(c => c.trim().toLowerCase());
+      if (codes.indexOf(code) >= 0) qtyByCode[itemCode] = (qtyByCode[itemCode] || 0) + num(qty);
+    });
+  }
+  return Object.keys(qtyByCode).map(code => {
+    const ing = stockItem(code);
+    const c = unitCost(ing);
+    return { key: "ing:" + code, auto: true, item: "Ingredients", type: "stock", stockCode: code, stockName: ing ? ing.name : code,
+      qty: r2(qtyByCode[code]), suggested: c === null ? null : r2(qtyByCode[code] * c) };
+  });
+}
+
+// The lines a stage counts: frozen ones as saved, otherwise manual lines plus
+// the auto lines (with any switch-off or edited amount kept from the card).
+function stageLines(card, stage) {
+  const saved = (card.lines && card.lines[stage]) || [];
+  if (card.frozen && card.frozen[stage]) return saved;
+  const manual = saved.filter(l => !l.auto).map(l => {
+    if (l.type !== "stock") return l;
+    const c = unitCost(stockItem(l.stockCode));
+    return Object.assign({}, l, { suggested: c === null ? null : r2(num(l.qty) * c) });
+  });
+  const auto = autoIngredientLines(card, stage).map(a => {
+    const o = saved.find(l => l.auto && l.key === a.key);
+    return o ? Object.assign(a, { off: o.off, edited: o.edited, amount: o.amount }) : a;
+  });
+  return auto.concat(manual);
+}
+function lineAmount(l) {
+  if (l.off) return 0;
+  if (l.type === "bought" || l.edited) return num(l.amount);
+  return num(l.suggested);
+}
+
+// Every figure on the card, for both stages.
+function cardFigures(card, d) {
+  const pct = num(d.settings.tithePct) / 100;
+  const daily = dailyRunningCost(d);
+  const hasEst = card.hadEstimate !== false;
+  const out = {};
+  ["estimate", "actual"].forEach(stage => {
+    const moneyIn = stage === "estimate" ? num(card.moneyIn.expected) : num(card.moneyIn.paid !== "" ? card.moneyIn.paid : card.moneyIn.expected);
+    const spend = stageLines(card, stage).reduce((t, l) => t + lineAmount(l), 0);
+    const gross = moneyIn - spend;
+    const days = num(card.days[stage]);
+    const running = days * daily;
+    let tithe;
+    if (card.tithe.locked) tithe = num(card.tithe.amount);
+    else tithe = Math.max(0, gross * pct);
+    const net = gross - tithe - running;
+    out[stage] = { moneyIn, spend, gross, tithe, days, running, net, margin: moneyIn ? net / moneyIn * 100 : null };
+  });
+  out.hasEstimate = hasEst;
+  out.diffOnActual = Math.max(0, out.actual.gross * pct);
+  return out;
+}
+
+// Client paid locks tithe at 10% of the Estimate's gross profit. A card that
+// skipped planning has no estimate, so its tithe is typed in by hand.
+function updateTitheLock(card, d) {
+  const paid = String(card.moneyIn.paid).trim() !== "";
+  if (!paid) { if (!card.tithe.edited) card.tithe = { locked: false, amount: null, edited: false }; return; }
+  if (card.tithe.locked) return;
+  if (card.hadEstimate === false) return; // waits for the tithe typed by hand
+  const f = cardFigures(Object.assign({}, card, { tithe: { locked: false } }), d);
+  card.tithe = { locked: true, amount: r2(Math.max(0, f.estimate.gross * num(d.settings.tithePct) / 100)), edited: false, at: new Date().toISOString() };
+}
+
+function cardSummary(card, d) {
+  const f = cardFigures(card, d);
+  const s = card.status === "estimate" ? f.estimate : f.actual;
+  return { moneyIn: r2(s.moneyIn), net: r2(s.net), margin: s.margin === null ? "" : r2(s.margin) };
+}
+
+// Saves the card here and queues it for the Sheet straight away, so a refresh
+// from the Sheet can never drop it. A card already waiting in the queue is
+// replaced (under a new id, so a send already under way can't clear the newer
+// copy), and the send itself waits for a pause in typing.
+let spendSaveTimer = null, spendItemsAdded = false;
+function persistCard(card) {
+  const d = loadSpend();
+  card.summary = cardSummary(card, d);
+  card.updatedAt = new Date().toISOString();
+  // Each line as the card shows it, auto ingredient lines included, for the Spend Lines tab.
+  card.sheetLines = {};
+  ["estimate", "actual"].forEach(stage => {
+    if (stage === "actual" && card.status === "estimate") { card.sheetLines.actual = []; return; }
+    card.sheetLines[stage] = stageLines(card, stage).map(l => ({ item: l.item, type: l.type, stockName: l.stockName || "", qty: l.qty, amount: r2(lineAmount(l)), edited: !!l.edited, auto: !!l.auto, off: !!l.off }));
+  });
+  const i = d.projects.findIndex(p => p.id === card.id);
+  if (i >= 0) d.projects[i] = card; else d.projects.push(card);
+  (card.lines.estimate || []).concat(card.lines.actual || []).forEach(l => {
+    const name = (l.item || "").trim();
+    if (name && !d.items.some(x => x.toLowerCase() === name.toLowerCase())) { d.items.push(name); spendItemsAdded = true; }
+  });
+  saveSpend(d);
+  queueCardSave(card.id);
+}
+function queueReplacing(type, match, payload) {
+  const q = loadQueue().filter(x => !(x.type === type && match(x)));
+  q.push({ id: Date.now() + "-" + Math.random().toString(36).slice(2), type: type, payload: payload });
+  saveQueue(q);
+  clearTimeout(spendSaveTimer);
+  spendSaveTimer = setTimeout(trySync, 1200);
+}
+function queueCardSave(id) {
+  const card = loadSpend().projects.find(p => p.id === id);
+  if (!card) return;
+  queueReplacing("saveProject", x => x.payload.cardId === id, { cardId: id, card: JSON.stringify(card) });
+  if (spendItemsAdded) { spendItemsAdded = false; queueSpendSettings(); }
+}
+function queueSpendSettings() {
+  const d = loadSpend();
+  queueReplacing("saveSpendSettings", () => true, { bills: JSON.stringify(d.bills), settings: JSON.stringify(d.settings), items: JSON.stringify(d.items) });
+}
+
+// Pulls cards from the Sheet. Anything this phone still has waiting to send wins.
+async function syncSpend() {
+  if (!isConfigured()) return;
+  try {
+    const res = await fetchWithTimeout(SCRIPT_URL + "?action=getProjects", {}, 90000);
+    const data = await res.json();
+    if (data.status !== "ok") return;
+    const local = loadSpend();
+    const q = loadQueue();
+    const pending = q.filter(x => x.type === "saveProject").map(x => x.payload.cardId);
+    const deleting = q.filter(x => x.type === "deleteProject").map(x => x.payload.id);
+    const projects = data.projects.filter(p => pending.indexOf(p.id) < 0 && deleting.indexOf(p.id) < 0)
+      .concat(local.projects.filter(p => pending.indexOf(p.id) >= 0));
+    const settingsWaiting = q.some(x => x.type === "saveSpendSettings");
+    const s = settingsWaiting ? local : {
+      bills: data.bills, items: data.items.length ? data.items : local.items,
+      settings: Object.assign({}, local.settings, data.settings)
+    };
+    saveSpend({ projects: projects, bills: s.bills, items: s.items, settings: s.settings });
+  } catch (e) { /* offline: keep this phone's copy */ }
+}
+
+// Called from Development Studio on Save Formula ("estimate") and Push to Production ("actual").
+function upsertCardFromStudio(stage) {
+  const productCode = document.getElementById("planProductCode").value.trim();
+  const product = document.getElementById("planName").value.trim();
+  const batchSize = num(document.getElementById("planBatchSize").value);
+  const rows = collectPlanRows();
+  const tiers = collectTierInputs();
+  const units = Object.keys(tiers).reduce((t, k) => t + num(tiers[k]["ti-qty"]), 0);
+  const d = loadSpend();
+  const same = p => p.status !== "closed" && (productCode ? p.productCode === productCode : !p.productCode && p.product === product);
+  let card = d.projects.find(same);
+  const now = new Date().toISOString();
+  if (!card) {
+    card = {
+      id: "card-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6), productCode: productCode, client: "", product: product,
+      productType: "", batchSize: batchSize, units: units, status: stage, hadEstimate: stage === "estimate", createdAt: now,
+      actualAt: stage === "actual" ? now : null, closedAt: null, moneyIn: { expected: "", paid: "" }, days: { estimate: "", actual: "" },
+      lines: { estimate: [], actual: [] }, frozen: { estimate: false, actual: false }, tithe: { locked: false, amount: null, edited: false }, formula: []
+    };
+  }
+  card.product = product || card.product;
+  card.batchSize = batchSize || card.batchSize;
+  if (units) card.units = units;
+  if (stage === "estimate" && card.status === "estimate") {
+    card.formula = rows.map(r => ({ code: r.code, name: r.name, grams: r2(batchSize * r.percent / 100) }));
+  }
+  if (stage === "actual" && card.status === "estimate") {
+    // The estimate is kept exactly as it stood when production started.
+    card.lines.estimate = stageLines(card, "estimate");
+    card.frozen.estimate = true;
+    card.status = "actual";
+    card.actualAt = now;
+  }
+  persistCard(card);
+  return card;
+}
+
+// ---------- screen ----------
+let spendView = "cards", spendOpenId = null, spendFilter = "open";
+function openSpendTracker() {
+  spendOpenId = null;
+  spendView = "cards";
+  goToScreen("spend", "Spend Tracker");
+  renderSpend();
+  Promise.all([syncSpend(), loadSpendLogs(true)]).then(() => { if (!spendFocused()) renderSpend(); });
+}
+function spendFocused() {
+  const a = document.activeElement;
+  return a && document.getElementById("spend").contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName);
+}
+function renderSpend() {
+  document.querySelectorAll("#spendTabs button").forEach(b => b.classList.toggle("active", b.dataset.view === spendView));
+  const body = document.getElementById("spendBody");
+  if (spendView === "settings") return renderSpendSettings(body);
+  if (spendView === "reports") return renderSpendReports(body);
+  if (spendOpenId) return renderSpendCard(body);
+  renderSpendList(body);
+}
+
+function statusLabel(s) { return s === "estimate" ? "Estimate" : s === "actual" ? "Actual · Open" : "Closed"; }
+function renderSpendList(body) {
+  const d = loadSpend();
+  const list = d.projects.filter(p => spendFilter === "all" || (spendFilter === "open" ? p.status !== "closed" : p.status === "closed"))
+    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  const groups = {};
+  list.forEach(p => { const c = p.client || "No client yet"; (groups[c] = groups[c] || []).push(p); });
+  let html = '<div class="toggle" id="spendFilter">' + [["open", "Open"], ["closed", "Closed"], ["all", "All"]].map(([v, l]) =>
+    '<button type="button" data-f="' + v + '" class="' + (spendFilter === v ? "active" : "") + '">' + l + '</button>').join("") + '</div>';
+  if (!list.length) html += '<div class="empty-state">No cards yet. Saving a formula in Development Studio opens one as an Estimate; pushing to production makes it Actual.</div>';
+  Object.keys(groups).sort().forEach(client => {
+    html += '<h3 class="section-title">' + escapeHtml(client) + '</h3><div class="card">';
+    groups[client].forEach(p => {
+      const s = cardSummary(p, d);
+      const low = s.margin !== "" && s.margin < 20;
+      html += '<div class="ing-row spend-row" data-id="' + p.id + '"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(p.product || "Untitled") + '</div>' +
+        '<div class="ing-meta">' + escapeHtml(p.productCode || "no product code") + (p.productType ? " · " + escapeHtml(p.productType) : "") + ' · ' + statusLabel(p.status) + '</div></div>' +
+        '<span class="pill ' + (low ? "low" : "ok") + '">' + (s.margin === "" ? "—" : s.margin.toFixed(0) + "%") + '</span></div>';
+    });
+    html += '</div>';
+  });
+  html += '<button class="btn ghost" id="spendNewCard">+ New card (order that skipped planning)</button>';
+  body.innerHTML = html;
+  body.querySelectorAll("#spendFilter button").forEach(b => b.addEventListener("click", () => { spendFilter = b.dataset.f; renderSpend(); }));
+  body.querySelectorAll(".spend-row").forEach(r => r.addEventListener("click", () => { spendOpenId = r.dataset.id; renderSpend(); window.scrollTo(0, 0); }));
+  document.getElementById("spendNewCard").addEventListener("click", () => {
+    const now = new Date().toISOString();
+    const card = { id: "card-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6), productCode: "", client: "", product: "", productType: "", batchSize: "", units: "",
+      status: "actual", hadEstimate: false, createdAt: now, actualAt: now, closedAt: null, moneyIn: { expected: "", paid: "" }, days: { estimate: "", actual: "" },
+      lines: { estimate: [], actual: [] }, frozen: { estimate: true, actual: false }, tithe: { locked: false, amount: null, edited: false }, formula: [] };
+    persistCard(card);
+    spendOpenId = card.id;
+    renderSpend();
+  });
+}
+
+// A small "type to filter" list under an input, for the item and product type fields.
+function attachSuggestList(input, getValues, onPick) {
+  const box = document.createElement("div");
+  box.className = "autocomplete-list";
+  box.style.display = "none";
+  box.style.position = "static"; // pushes the line down rather than covering its buttons
+  input.parentNode.classList.add("autocomplete");
+  input.parentNode.appendChild(box);
+  const show = () => {
+    const q = input.value.trim().toLowerCase();
+    const vals = getValues().filter(v => v.toLowerCase().includes(q) && v.toLowerCase() !== q).slice(0, 8);
+    box.innerHTML = "";
+    vals.forEach(v => {
+      const el = document.createElement("div");
+      el.textContent = v;
+      el.addEventListener("pointerdown", e => e.preventDefault());
+      el.addEventListener("click", () => { input.value = v; box.style.display = "none"; onPick(v); });
+      box.appendChild(el);
+    });
+    box.style.display = vals.length ? "block" : "none";
+  };
+  input.addEventListener("focus", show);
+  input.addEventListener("input", show);
+  // Hidden a moment after leaving the field, so the layout doesn't shift under a tap that's still landing.
+  input.addEventListener("blur", () => { setTimeout(() => { box.style.display = "none"; }, 200); });
+}
+
+function renderSpendCard(body) {
+  const d = loadSpend();
+  const card = d.projects.find(p => p.id === spendOpenId);
+  if (!card) { spendOpenId = null; return renderSpend(); }
+  const locked = card.status === "closed";
+  const dis = locked ? " disabled" : "";
+  const stage = card.status === "estimate" ? "estimate" : "actual";
+  const field = (label, key, val, extra) => '<div><label>' + label + '</label><input data-k="' + key + '" value="' + escapeHtml(String(val === undefined || val === null ? "" : val)) + '"' + (extra || "") + dis + '></div>';
+  let html = '<button class="btn dark" id="spendBack" style="margin-top:0;">← All cards</button>' +
+    '<div class="card" style="margin-top:14px;"><div class="spend-head"><h3 class="section-title" style="margin:0;">' + escapeHtml(card.product || "New card") + '</h3>' +
+    '<span class="pill ' + (locked ? "ok" : "gap") + '">' + statusLabel(card.status) + '</span></div>' +
+    '<div class="form-grid">' + field("Client", "client", card.client, ' placeholder="e.g. InstaBrand"') + field("Product Code", "productCode", card.productCode) + '</div>' +
+    '<div class="form-grid">' + field("Product", "product", card.product) + field("Product type", "productType", card.productType, ' placeholder="e.g. Lotion"') + '</div>' +
+    '<div class="form-grid">' + field("Batch size (g)", "batchSize", card.batchSize, ' inputmode="decimal"') + field("Units made", "units", card.units, ' inputmode="numeric" placeholder="from pricing tiers"') + '</div>' +
+    '<div class="form-grid">' + (stage === "estimate"
+      ? field("Expected price (GHS)", "moneyIn.expected", card.moneyIn.expected, ' inputmode="decimal"') + field("Client paid (GHS)", "moneyIn.paid", card.moneyIn.paid, ' inputmode="decimal" placeholder="locks tithe"')
+      : field("Client paid (GHS)", "moneyIn.paid", card.moneyIn.paid, ' inputmode="decimal"') + (card.hadEstimate === false ? field("Expected price (GHS)", "moneyIn.expected", card.moneyIn.expected, ' inputmode="decimal"') : '<div></div>')) + '</div>' +
+    '<div class="form-grid">' + (stage === "estimate" ? field("Estimated days", "days.estimate", card.days.estimate, ' inputmode="decimal"') : field("Days spent", "days.actual", card.days.actual, ' inputmode="decimal"') + (card.hadEstimate !== false ? '<div><label>Estimated days</label><div class="used-result" style="margin-top:0;">' + (card.days.estimate || "—") + '</div></div>' : '<div></div>')) + '</div>' +
+    '</div>';
+  html += '<h3 class="section-title">' + (stage === "estimate" ? "Planned spend" : "Actual spend") + '</h3><div class="card" id="spendLines"></div>';
+  html += '<h3 class="section-title">Result</h3><div class="card" id="spendResult"></div>';
+  html += locked
+    ? '<button class="btn dark" id="spendReopen">Reopen card</button>'
+    : (stage === "actual" ? '<button class="btn primary" id="spendClose">Close card (locks it)</button>' : '') + '<button class="btn dark" id="spendDelete">Delete card</button>';
+  html += '<div class="hint" id="spendMsg"></div>';
+  body.innerHTML = html;
+
+  document.getElementById("spendBack").addEventListener("click", () => { spendOpenId = null; renderSpend(); });
+  body.querySelectorAll("input[data-k]").forEach(inp => inp.addEventListener("input", () => {
+    const [a, b] = inp.dataset.k.split(".");
+    if (b) card[a][b] = inp.value; else card[a] = inp.value;
+    if (inp.dataset.k === "moneyIn.paid") updateTitheLock(card, loadSpend());
+    persistCard(card);
+    renderSpendResult(card);
+  }));
+  const typeInp = body.querySelector('input[data-k="productType"]');
+  if (!locked) attachSuggestList(typeInp, () => {
+    const used = loadSpend().projects.map(p => p.productType).filter(Boolean);
+    return Array.from(new Set(PRODUCT_TYPES.concat(used)));
+  }, v => { card.productType = v; persistCard(card); });
+  const clientInp = body.querySelector('input[data-k="client"]');
+  if (!locked) attachSuggestList(clientInp, () => Array.from(new Set(loadSpend().projects.map(p => p.client).filter(Boolean))), v => { card.client = v; persistCard(card); });
+
+  renderSpendLines(card, stage);
+  renderSpendResult(card);
+  const close = document.getElementById("spendClose");
+  if (close) close.addEventListener("click", () => {
+    if (!confirm("Close this card? Its figures lock.")) return;
+    card.lines.actual = stageLines(card, "actual");
+    card.frozen.actual = true;
+    card.status = "closed";
+    card.closedAt = new Date().toISOString();
+    persistCard(card);
+    renderSpend();
+  });
+  const reopen = document.getElementById("spendReopen");
+  if (reopen) reopen.addEventListener("click", () => {
+    if (!confirm("Reopen this card so it can be changed?")) return;
+    card.status = "actual";
+    card.frozen.actual = false;
+    card.closedAt = null;
+    persistCard(card);
+    renderSpend();
+  });
+  const del = document.getElementById("spendDelete");
+  if (del) del.addEventListener("click", () => {
+    if (!confirm("Delete this card? This can't be undone.")) return;
+    const dd = loadSpend();
+    dd.projects = dd.projects.filter(p => p.id !== card.id);
+    saveSpend(dd);
+    saveQueue(loadQueue().filter(x => !(x.type === "saveProject" && x.payload.cardId === card.id)));
+    enqueue("deleteProject", { id: card.id });
+    spendOpenId = null;
+    renderSpend();
+  });
+}
+
+function renderSpendLines(card, stage) {
+  const wrap = document.getElementById("spendLines");
+  const locked = card.status === "closed";
+  const dis = locked ? " disabled" : "";
+  const lines = stageLines(card, stage);
+  let html = "";
+  if (stage === "actual" && !card.frozen.actual && card.productCode && !spendLogs) html += '<div class="hint">Ingredient usage for this product code will show once the app can read the logs (needs internet).</div>';
+  if (!lines.length) html += '<div class="empty-state">No spend lines yet.</div>';
+  lines.forEach((l, i) => {
+    const amt = lineAmount(l);
+    html += '<div class="spend-line' + (l.off ? " off" : "") + '" data-i="' + i + '">';
+    if (l.auto) {
+      html += '<div class="spend-line-top"><div><div class="ing-name">' + escapeHtml(l.stockName) + '</div><div class="ing-meta">Ingredients · from stock · ' + fmtQty(l.qty) + 'g · auto' +
+        (l.suggested === null ? ' · no cost on Master Items' : '') + '</div></div>' +
+        (locked ? '' : '<label class="toggle-switch"><input type="checkbox" class="sl-on"' + (l.off ? '' : ' checked') + '> Count</label>') + '</div>';
+    } else {
+      html += '<div class="spend-line-top"><div class="sl-item-wrap" style="flex:1;"><input class="sl-item" placeholder="Item, e.g. Packaging" value="' + escapeHtml(l.item || "") + '"' + dis + '></div>' +
+        (locked ? '' : '<button type="button" class="icon-btn sl-remove">Remove</button>') + '</div>' +
+        '<div class="toggle"><button type="button" class="sl-type' + (l.type === "bought" ? " active" : "") + '" data-t="bought"' + dis + '>Bought</button><button type="button" class="sl-type' + (l.type === "stock" ? " active" : "") + '" data-t="stock"' + dis + '>From stock</button></div>';
+      if (l.type === "stock") {
+        html += '<div class="form-grid"><div class="sl-stock-wrap"><label>Stock item</label><input class="sl-stock" placeholder="Search…" value="' + escapeHtml(l.stockName || "") + '"' + dis + '></div>' +
+          '<div><label>Quantity' + (l.stockCode ? (qtyUnit(stockItem(l.stockCode) || {}) ? " (g)" : " (count)") : "") + '</label><input class="sl-qty" inputmode="decimal" value="' + escapeHtml(String(l.qty || "")) + '"' + dis + '></div></div>';
+      }
+    }
+    const showAmt = l.type === "bought" ? num(l.amount) || "" : r2(amt);
+    html += '<div class="spend-amount"><label>Amount (GHS)' + (l.edited ? ' <span class="pill flag">edited</span>' : '') + '</label><input class="sl-amount" inputmode="decimal" value="' + (l.off ? "" : showAmt) + '"' + (l.off ? " disabled" : dis) + '>' +
+      (l.edited && l.suggested !== null && l.suggested !== undefined ? '<div class="hint">Suggested ' + ghs(l.suggested) + '</div>' : '') +
+      (l.type === "stock" && !l.auto && l.edited && !locked ? '<label class="toggle-switch"><input type="checkbox" class="sl-store"' + (l.updateStored ? " checked" : "") + '> Also update stored cost</label>' : '') + '</div></div>';
+  });
+  if (!locked) html += '<button class="btn ghost" id="slAdd">+ Add</button>';
+  wrap.innerHTML = html;
+  if (locked) return;
+
+  const d = loadSpend();
+  const saveLines = () => {
+    // Auto lines are stored only by what was changed on them; manual lines in full.
+    card.lines[stage] = card.frozen[stage] ? lines : lines.filter(l => !l.auto || l.off || l.edited)
+      .map(l => l.auto ? { key: l.key, auto: true, off: !!l.off, edited: !!l.edited, amount: l.amount } : l);
+    persistCard(card);
+    renderSpendResult(card);
+  };
+  wrap.querySelectorAll(".spend-line").forEach(row => {
+    const l = lines[+row.dataset.i];
+    const on = row.querySelector(".sl-on");
+    if (on) on.addEventListener("change", () => { l.off = !on.checked; saveLines(); renderSpendLines(card, stage); });
+    const item = row.querySelector(".sl-item");
+    if (item) {
+      item.addEventListener("input", () => { l.item = item.value; saveLines(); });
+      attachSuggestList(item, () => loadSpend().items, v => { l.item = v; saveLines(); });
+    }
+    row.querySelectorAll(".sl-type").forEach(b => b.addEventListener("click", () => { l.type = b.dataset.t; l.edited = false; saveLines(); renderSpendLines(card, stage); }));
+    const rm = row.querySelector(".sl-remove");
+    if (rm) rm.addEventListener("click", () => { lines.splice(+row.dataset.i, 1); saveLines(); renderSpendLines(card, stage); });
+    const stock = row.querySelector(".sl-stock");
+    if (stock) attachAutocomplete(stock, ing => { l.stockCode = ing.code; l.stockName = ing.name; l.edited = false; saveLines(); renderSpendLines(card, stage); });
+    const qty = row.querySelector(".sl-qty");
+    if (qty) qty.addEventListener("input", () => {
+      l.qty = qty.value;
+      const c = unitCost(stockItem(l.stockCode));
+      l.suggested = c === null ? null : r2(num(l.qty) * c);
+      if (!l.edited) row.querySelector(".sl-amount").value = l.suggested === null ? "" : l.suggested;
+      saveLines();
+    });
+    const amount = row.querySelector(".sl-amount");
+    amount.addEventListener("input", () => {
+      l.amount = amount.value;
+      if (l.type === "stock") l.edited = true;
+      saveLines();
+    });
+    amount.addEventListener("change", () => { if (l.type === "stock") renderSpendLines(card, stage); });
+    const store = row.querySelector(".sl-store");
+    if (store) store.addEventListener("change", () => {
+      l.updateStored = store.checked;
+      if (store.checked && num(l.qty) > 0) {
+        // New stored unit cost = this amount ÷ this quantity.
+        enqueue("setItemCost", { code: l.stockCode, paid: num(l.amount), delivery: 0, qty: num(l.qty) });
+        const cache = loadCache();
+        const ing = cache.ingredients.find(x => x.code === l.stockCode);
+        if (ing) { ing.costPerKg = num(l.amount); ing.shipping = 0; ing.moq = num(l.qty); saveCache(cache); }
+      }
+      saveLines();
+    });
+  });
+  const add = document.getElementById("slAdd");
+  if (add) add.addEventListener("click", () => {
+    lines.push({ id: "l" + Date.now(), item: "", type: "bought", amount: "" });
+    saveLines();
+    renderSpendLines(card, stage);
+  });
+}
+
+function renderSpendResult(card) {
+  const el = document.getElementById("spendResult");
+  if (!el) return;
+  const d = loadSpend();
+  const f = cardFigures(card, d);
+  const est = f.estimate, act = f.actual;
+  const both = card.status !== "estimate" && card.hadEstimate !== false;
+  const pctTxt = m => m === null ? "—" : m.toFixed(0) + "%";
+  const warn = m => m !== null && m < 20 ? ' class="spend-warn"' : '';
+  const row = (k, a, b, bold, cls) => '<tr' + (bold ? ' style="font-weight:800;"' : '') + (cls || '') + '><td>' + k + '</td>' + (both ? '<td>' + a + '</td>' : '') + '<td>' + b + '</td></tr>';
+  const one = card.status === "estimate" ? est : act;
+  const titheCell = (s, stageName) => {
+    const lockedTxt = card.tithe.locked ? " (locked)" : "";
+    return ghs(s.tithe) + (stageName === "actual" || !both ? lockedTxt : "");
+  };
+  let html = '<table class="spend-table"><tr><th></th>' + (both ? '<th>Estimated</th><th>Actual</th>' : '<th>' + (card.status === "estimate" ? "Estimate" : "Actual") + '</th>') + '</tr>' +
+    row("Money in", ghs(est.moneyIn), ghs(one.moneyIn)) +
+    row("Spend lines", ghs(est.spend), ghs(one.spend)) +
+    row("Gross profit", ghs(est.gross), ghs(one.gross), true) +
+    row("Tithe", titheCell(est, "estimate"), titheCell(one, both ? "actual" : "")) +
+    row("Running cost", ghs(est.running) + " (" + est.days + " d)", ghs(one.running) + " (" + one.days + " d)") +
+    row("Net take home", ghs(est.net), ghs(one.net), true) +
+    row("Margin", pctTxt(est.margin), pctTxt(one.margin), true, warn(both ? Math.min(est.margin === null ? 100 : est.margin, act.margin === null ? 100 : act.margin) : one.margin)) +
+    '</table>';
+  if ((one.margin !== null && one.margin < 20) || (both && est.margin !== null && est.margin < 20)) html += '<div class="spend-warn-note">Margin is under 20%.</div>';
+  const locked = card.status === "closed";
+  // Tithe: shown locked once paid; typed by hand when there was no estimate.
+  if (card.tithe.locked || card.hadEstimate === false) {
+    html += '<div class="form-grid" style="margin-top:10px;"><div><label>Tithe paid (GHS)' + (card.tithe.edited ? ' <span class="pill flag">edited</span>' : '') + '</label><input id="spendTithe" inputmode="decimal" value="' +
+      (card.tithe.amount === null || card.tithe.amount === undefined ? "" : card.tithe.amount) + '"' + (locked ? " disabled" : "") + (card.hadEstimate === false && !card.tithe.locked ? ' placeholder="Type when the client pays"' : '') + '></div><div></div></div>';
+  } else if (!String(card.moneyIn.paid).trim()) {
+    html += '<div class="hint">Tithe is ' + num(d.settings.tithePct) + '% of gross profit. It locks from the Estimate once Client paid is entered.</div>';
+  }
+  if (card.tithe.locked && card.status !== "estimate" && num(d.settings.diffNote)) {
+    html += '<div class="hint">Tithe paid ' + ghs(card.tithe.amount) + ' · On actual gross profit ' + ghs(f.diffOnActual) + ' · Difference ' + ghs(Math.abs(num(card.tithe.amount) - f.diffOnActual)) + '</div>';
+  }
+  if (!d.bills.length) html += '<div class="hint">No running costs set yet. Add your bills under Settings.</div>';
+  el.innerHTML = html;
+  const t = document.getElementById("spendTithe");
+  if (t) t.addEventListener("input", () => {
+    const v = t.value.trim();
+    card.tithe = v === "" ? { locked: false, amount: null, edited: false } : { locked: true, amount: num(v), edited: card.hadEstimate !== false, at: card.tithe.at || new Date().toISOString() };
+    persistCard(card);
+    const keep = t.selectionStart;
+    renderSpendResult(card);
+    const again = document.getElementById("spendTithe");
+    if (again) { again.focus(); try { again.setSelectionRange(keep, keep); } catch (e) {} }
+  });
+}
+
+// ---------- settings ----------
+function renderSpendSettings(body) {
+  const d = loadSpend();
+  let html = '<h3 class="section-title">Running costs</h3><div class="card"><div id="billRows"></div><button class="btn ghost" id="billAdd">+ Add bill</button>' +
+    '<div class="form-grid"><div><label>Working days per week</label><input id="setDays" inputmode="numeric" value="' + escapeHtml(String(d.settings.workingDays)) + '"></div>' +
+    '<div><label>Daily running cost</label><div class="used-result" id="setDaily" style="margin-top:0;"></div></div></div></div>' +
+    '<h3 class="section-title">Tithe</h3><div class="card"><div class="form-grid"><div><label>Tithe % of gross profit</label><input id="setTithe" inputmode="decimal" value="' + escapeHtml(String(d.settings.tithePct)) + '"></div><div></div></div>' +
+    '<label class="toggle-switch" style="margin-top:10px;"><input type="checkbox" id="setDiff"' + (num(d.settings.diffNote) ? " checked" : "") + '> Show the tithe difference note on Actual cards</label></div>' +
+    '<h3 class="section-title">Item list</h3><div class="card"><div id="itemRows"></div><button class="btn ghost" id="itemAdd">+ Add item</button></div>' +
+    '<button class="btn primary" id="spendSettingsSave">Save settings</button><div class="hint" id="spendSettingsMsg"></div>';
+  body.innerHTML = html;
+  const bills = d.bills.map(b => Object.assign({}, b)), items = d.items.slice();
+  const drawBills = () => {
+    document.getElementById("billRows").innerHTML = bills.length ? bills.map((b, i) =>
+      '<div class="bill-row" data-i="' + i + '"><input class="b-name" placeholder="e.g. Electricity" value="' + escapeHtml(b.name) + '"><input class="b-amt" inputmode="decimal" placeholder="GHS" value="' + escapeHtml(String(b.amount || "")) + '">' +
+      '<select class="b-freq"><option value="monthly"' + (b.frequency !== "weekly" ? " selected" : "") + '>Monthly</option><option value="weekly"' + (b.frequency === "weekly" ? " selected" : "") + '>Weekly</option></select>' +
+      '<button type="button" class="icon-btn b-rm">Remove</button></div>').join("") : '<div class="empty-state">No bills yet.</div>';
+    document.querySelectorAll("#billRows .bill-row").forEach(r => {
+      const b = bills[+r.dataset.i];
+      r.querySelector(".b-name").addEventListener("input", e => { b.name = e.target.value; });
+      r.querySelector(".b-amt").addEventListener("input", e => { b.amount = e.target.value; showDaily(); });
+      r.querySelector(".b-freq").addEventListener("change", e => { b.frequency = e.target.value; showDaily(); });
+      r.querySelector(".b-rm").addEventListener("click", () => { bills.splice(+r.dataset.i, 1); drawBills(); showDaily(); });
+    });
+  };
+  const showDaily = () => {
+    document.getElementById("setDaily").textContent = ghs(dailyRunningCost({ bills: bills, settings: { workingDays: document.getElementById("setDays").value } })) + " a day";
+  };
+  const drawItems = () => {
+    document.getElementById("itemRows").innerHTML = items.map((it, i) =>
+      '<div class="bill-row item-row" data-i="' + i + '"><input class="i-name" value="' + escapeHtml(it) + '"><button type="button" class="icon-btn i-rm">Remove</button></div>').join("");
+    document.querySelectorAll("#itemRows .item-row").forEach(r => {
+      r.querySelector(".i-name").addEventListener("input", e => { items[+r.dataset.i] = e.target.value; });
+      r.querySelector(".i-rm").addEventListener("click", () => { items.splice(+r.dataset.i, 1); drawItems(); });
+    });
+  };
+  drawBills(); drawItems(); showDaily();
+  document.getElementById("setDays").addEventListener("input", showDaily);
+  document.getElementById("billAdd").addEventListener("click", () => { bills.push({ name: "", amount: "", frequency: "monthly" }); drawBills(); });
+  document.getElementById("itemAdd").addEventListener("click", () => { items.push(""); drawItems(); });
+  document.getElementById("spendSettingsSave").addEventListener("click", () => {
+    const dd = loadSpend();
+    // A renamed item is renamed on open cards too, so reports keep grouping it.
+    const renames = {};
+    dd.items.forEach((old, i) => { if (items[i] !== undefined && items[i].trim() && items[i].trim() !== old) renames[old] = items[i].trim(); });
+    dd.bills = bills.filter(b => b.name.trim() && num(b.amount) > 0).map(b => ({ name: b.name.trim(), amount: num(b.amount), frequency: b.frequency || "monthly" }));
+    dd.items = Array.from(new Set(items.map(i => i.trim()).filter(Boolean)));
+    dd.settings = { workingDays: num(document.getElementById("setDays").value) || 5, tithePct: num(document.getElementById("setTithe").value), diffNote: document.getElementById("setDiff").checked ? 1 : 0 };
+    const renamed = [];
+    dd.projects.forEach(p => {
+      if (p.status === "closed") return;
+      let changed = false;
+      ["estimate", "actual"].forEach(s => (p.lines[s] || []).forEach(l => { if (renames[l.item]) { l.item = renames[l.item]; changed = true; } }));
+      if (changed) renamed.push(p.id);
+    });
+    saveSpend(dd);
+    renamed.forEach(id => queueCardSave(id));
+    queueSpendSettings();
+    document.getElementById("spendSettingsMsg").textContent = "Saved.";
+  });
+}
+
+// ---------- reports ----------
+let spendReportType = "order";
+function renderSpendReports(body) {
+  const d = loadSpend();
+  const now = new Date();
+  const first = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString().slice(0, 10);
+  const clients = Array.from(new Set(d.projects.map(p => p.client).filter(Boolean))).sort();
+  const types = Array.from(new Set(d.projects.map(p => p.productType).filter(Boolean))).sort();
+  body.innerHTML = '<div class="card"><label>Report</label><select id="srType"><option value="order">Order report</option><option value="product">Product report</option><option value="monthly">Monthly report</option></select>' +
+    '<div id="srClientWrap"><label>Client</label><select id="srClient">' + (clients.length ? clients.map(c => '<option>' + escapeHtml(c) + '</option>').join("") : '<option value="">No clients yet</option>') + '</select></div>' +
+    '<div id="srTypeWrap" style="display:none;"><label>Product type</label><select id="srProdType">' + (types.length ? types.map(c => '<option>' + escapeHtml(c) + '</option>').join("") : '<option value="">No product types yet</option>') + '</select></div>' +
+    '<div class="form-grid"><div><label>From</label><input type="date" id="srFrom" value="' + first + '"></div><div><label>To</label><input type="date" id="srTo" value="' + todayIso() + '"></div></div>' +
+    '<label class="toggle-switch" style="margin-top:10px;"><input type="checkbox" id="srEst"> Include Estimates (projected income)</label>' +
+    '<button class="btn primary" id="srGo">Generate</button></div><div id="srOut"></div>';
+  const sync = () => {
+    const t = document.getElementById("srType").value;
+    document.getElementById("srClientWrap").style.display = t === "order" ? "block" : "none";
+    document.getElementById("srTypeWrap").style.display = t === "product" ? "block" : "none";
+  };
+  document.getElementById("srType").value = spendReportType;
+  sync();
+  document.getElementById("srType").addEventListener("change", () => { spendReportType = document.getElementById("srType").value; sync(); });
+  document.getElementById("srGo").addEventListener("click", async () => {
+    const out = document.getElementById("srOut");
+    out.innerHTML = '<div class="empty-state">Working it out…</div>';
+    await loadSpendLogs();
+    const rep = buildSpendReport(spendReportType, {
+      client: document.getElementById("srClient").value, productType: document.getElementById("srProdType").value,
+      from: document.getElementById("srFrom").value, to: document.getElementById("srTo").value, withEstimates: document.getElementById("srEst").checked
+    });
+    out.innerHTML = '<div class="card report-card"><h3 style="font-family:\'Playfair Display\',serif; margin-top:0;">' + escapeHtml(rep.title) + '</h3><div class="hint">' + escapeHtml(rep.sub) + '</div>' + rep.html +
+      '<button class="btn primary" id="srPdf">Export as PDF</button></div>';
+    document.getElementById("srPdf").addEventListener("click", () => openPrintWindow(rep.title, "<h1>" + escapeHtml(rep.title) + "</h1><div class='meta'>LCL · " + escapeHtml(rep.sub) + "</div>" + rep.html));
+  });
+}
+
+function cardDate(p) { return (p.closedAt || p.actualAt || p.createdAt || "").slice(0, 10); }
+function tableHtml(title, headers, rows, boldLast) {
+  if (!rows.length) return (title ? "<h2>" + escapeHtml(title) + "</h2>" : "") + "<p>Nothing in this period.</p>";
+  return (title ? "<h2>" + escapeHtml(title) + "</h2>" : "") + "<div style='overflow-x:auto;'><table><tr>" + headers.map(h => "<th>" + h + "</th>").join("") + "</tr>" +
+    rows.map((r, i) => "<tr" + (boldLast && i === rows.length - 1 ? " style='font-weight:700;'" : "") + ">" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("") + "</table></div>";
+}
+function buildSpendReport(type, o) {
+  const d = loadSpend();
+  const pct = m => m === null ? "—" : m.toFixed(1) + "%";
+  const inRange = (p, from, to) => { const day = cardDate(p); return day >= from && day <= to; };
+  const counts = p => p.status !== "estimate" || o.withEstimates;
+  const fig = p => { const f = cardFigures(p, d); return p.status === "estimate" ? f.estimate : f.actual; };
+  const sub = fmtDay(o.from) + " – " + fmtDay(o.to) + (o.withEstimates ? " · including Estimates" : " · Actual cards only");
+  const totalsOf = cards => cards.reduce((t, p) => { const f = fig(p); ["moneyIn", "spend", "gross", "tithe", "running", "net", "days"].forEach(k => { t[k] += f[k]; }); return t; },
+    { moneyIn: 0, spend: 0, gross: 0, tithe: 0, running: 0, net: 0, days: 0 });
+
+  if (type === "order") {
+    const cards = d.projects.filter(p => p.client === o.client && counts(p) && inRange(p, o.from, o.to));
+    const t = totalsOf(cards);
+    let html = tableHtml("Order total", ["Money in", "Spend", "Gross profit", "Tithe", "Running cost", "Net take home", "Margin"],
+      [[ghs(t.moneyIn), ghs(t.spend), ghs(t.gross), ghs(t.tithe), ghs(t.running), ghs(t.net), pct(t.moneyIn ? t.net / t.moneyIn * 100 : null)]]);
+    html += tableHtml("Per product", ["Product", "Code", "Status", "Money in", "Spend", "Gross", "Tithe", "Running", "Net", "Margin"],
+      cards.map(p => { const f = fig(p); return [escapeHtml(p.product), escapeHtml(p.productCode || ""), statusLabel(p.status), ghs(f.moneyIn), ghs(f.spend), ghs(f.gross), ghs(f.tithe), ghs(f.running), ghs(f.net), pct(f.margin)]; }));
+    cards.forEach(p => {
+      const f = cardFigures(p, d);
+      if (p.status !== "estimate" && p.hadEstimate !== false) {
+        html += tableHtml(p.product + " — estimated vs actual", ["", "Estimated", "Actual"], [
+          ["Money in", ghs(f.estimate.moneyIn), ghs(f.actual.moneyIn)], ["Spend", ghs(f.estimate.spend), ghs(f.actual.spend)], ["Gross profit", ghs(f.estimate.gross), ghs(f.actual.gross)],
+          ["Tithe", ghs(f.estimate.tithe), ghs(f.actual.tithe)], ["Running cost", ghs(f.estimate.running), ghs(f.actual.running)], ["Net take home", ghs(f.estimate.net), ghs(f.actual.net)],
+          ["Margin", pct(f.estimate.margin), pct(f.actual.margin)]]);
+      }
+      const stage = p.status === "estimate" ? "estimate" : "actual";
+      html += tableHtml(p.product + " — spend lines", ["Item", "Bought / From stock", "Stock item", "Qty", "Amount"],
+        stageLines(p, stage).filter(l => !l.off).map(l => [escapeHtml(l.item || ""), l.type === "bought" ? "Bought" : "From stock", escapeHtml(l.stockName || ""), l.qty === undefined ? "" : fmtQty(l.qty), ghs(lineAmount(l)) + (l.edited ? " (edited)" : "")]));
+    });
+    return { title: "Order report — " + (o.client || "no client"), sub, html };
+  }
+
+  if (type === "product") {
+    const cards = d.projects.filter(p => p.productType === o.productType && counts(p) && inRange(p, o.from, o.to));
+    const t = totalsOf(cards);
+    const litres = cards.reduce((s, p) => s + num(p.batchSize) / 1000, 0);
+    const units = cards.reduce((s, p) => s + num(p.units), 0);
+    const margins = cards.map(p => ({ p, m: fig(p).margin })).filter(x => x.m !== null).sort((a, b) => b.m - a.m);
+    const avgMargin = margins.length ? margins.reduce((s, x) => s + x.m, 0) / margins.length : null;
+    const byItem = {};
+    cards.forEach(p => stageLines(p, p.status === "estimate" ? "estimate" : "actual").forEach(l => { const k = l.item || "Other"; byItem[k] = (byItem[k] || 0) + lineAmount(l); }));
+    const gaps = cards.filter(p => p.status !== "estimate" && p.hadEstimate !== false).map(p => { const f = cardFigures(p, d); return f.actual.spend - f.estimate.spend; });
+    const avgGap = gaps.length ? gaps.reduce((s, g) => s + g, 0) / gaps.length : null;
+    let html = tableHtml("Summary", ["Batches", "Litres made", "Units made", "Total spend", "Cost per litre", "Cost per unit", "Average margin", "Average gap, actual − estimated cost"],
+      [[cards.length, fmtQty(litres), units || "—", ghs(t.spend), litres ? ghs(t.spend / litres) : "—", units ? ghs(t.spend / units) : "—", pct(avgMargin), avgGap === null ? "—" : (avgGap >= 0 ? "+" : "−") + ghs(Math.abs(avgGap))]]);
+    if (margins.length) html += tableHtml("Best and worst batch", ["", "Product", "Client", "Code", "Margin"], [
+      ["Best", escapeHtml(margins[0].p.product), escapeHtml(margins[0].p.client || ""), escapeHtml(margins[0].p.productCode || ""), pct(margins[0].m)],
+      ["Worst", escapeHtml(margins[margins.length - 1].p.product), escapeHtml(margins[margins.length - 1].p.client || ""), escapeHtml(margins[margins.length - 1].p.productCode || ""), pct(margins[margins.length - 1].m)]]);
+    html += tableHtml("Share of cost per item", ["Item", "Spend", "Share"], Object.keys(byItem).sort((a, b) => byItem[b] - byItem[a])
+      .map(k => [escapeHtml(k), ghs(byItem[k]), t.spend ? (byItem[k] / t.spend * 100).toFixed(0) + "%" : "—"]));
+    html += tableHtml("Batches", ["Product", "Client", "Code", "Batch (g)", "Units", "Spend", "Net", "Margin"], cards.map(p => { const f = fig(p); return [escapeHtml(p.product), escapeHtml(p.client || ""), escapeHtml(p.productCode || ""), fmtQty(num(p.batchSize)), p.units || "—", ghs(f.spend), ghs(f.net), pct(f.margin)]; }));
+    return { title: "Product report — " + (o.productType || "no type"), sub, html };
+  }
+
+  // Monthly: cards closed in the period (plus open Estimates/Actuals dated in it when asked).
+  const pick = (from, to) => d.projects.filter(p => (p.status === "closed" ? true : o.withEstimates) && inRange(p, from, to));
+  const cards = pick(o.from, o.to);
+  const len = (Date.parse(o.to) - Date.parse(o.from)) / 86400000 + 1;
+  const prevTo = new Date(Date.parse(o.from) - 86400000).toISOString().slice(0, 10);
+  const prevFrom = new Date(Date.parse(o.from) - len * 86400000).toISOString().slice(0, 10);
+  const prev = pick(prevFrom, prevTo);
+  const t = totalsOf(cards), pt = totalsOf(prev);
+  const orders = new Set(cards.map(p => p.client || p.id)).size, prevOrders = new Set(prev.map(p => p.client || p.id)).size;
+  const change = (a, b) => b ? ((a - b) / Math.abs(b) * 100 >= 0 ? "+" : "") + ((a - b) / Math.abs(b) * 100).toFixed(0) + "%" : "—";
+  let html = tableHtml("Totals", ["", "This period", "Previous period", "Change"], [
+    ["Received", ghs(t.moneyIn), ghs(pt.moneyIn), change(t.moneyIn, pt.moneyIn)], ["Spent", ghs(t.spend), ghs(pt.spend), change(t.spend, pt.spend)],
+    ["Gross profit", ghs(t.gross), ghs(pt.gross), change(t.gross, pt.gross)], ["Tithe paid", ghs(t.tithe), ghs(pt.tithe), change(t.tithe, pt.tithe)],
+    ["Running cost", ghs(t.running), ghs(pt.running), change(t.running, pt.running)], ["Net take home", ghs(t.net), ghs(pt.net), change(t.net, pt.net)],
+    ["Orders", orders, prevOrders, change(orders, prevOrders)], ["Production days", fmtQty(t.days), fmtQty(pt.days), change(t.days, pt.days)]]);
+  const byItem = {};
+  cards.forEach(p => stageLines(p, p.status === "estimate" ? "estimate" : "actual").forEach(l => { const k = l.item || "Other"; byItem[k] = (byItem[k] || 0) + lineAmount(l); }));
+  html += tableHtml("Spend per item", ["Item", "Spend"], Object.keys(byItem).sort((a, b) => byItem[b] - byItem[a]).map(k => [escapeHtml(k), ghs(byItem[k])]));
+  const byClient = {};
+  cards.forEach(p => { const k = p.client || "No client"; const f = fig(p); const c = byClient[k] = byClient[k] || { moneyIn: 0, net: 0 }; c.moneyIn += f.moneyIn; c.net += f.net; });
+  html += tableHtml("Orders ranked by margin", ["Client", "Money in", "Net take home", "Margin"], Object.keys(byClient)
+    .map(k => ({ k, m: byClient[k].moneyIn ? byClient[k].net / byClient[k].moneyIn * 100 : null })).sort((a, b) => (b.m === null ? -1e9 : b.m) - (a.m === null ? -1e9 : a.m))
+    .map(x => [escapeHtml(x.k), ghs(byClient[x.k].moneyIn), ghs(byClient[x.k].net), pct(x.m)]));
+  return { title: "Monthly report", sub: sub.replace("Actual cards only", "closed cards") + " · compared with " + fmtDay(prevFrom) + " – " + fmtDay(prevTo), html };
+}
+
+document.getElementById("openSpendFromHome").addEventListener("click", openSpendTracker);
+document.getElementById("closeSpend").addEventListener("click", () => { spendOpenId = null; goToScreen("managerHome", "Manager"); });
+document.querySelectorAll("#spendTabs button").forEach(b => b.addEventListener("click", () => { spendView = b.dataset.view; spendOpenId = null; renderSpend(); }));
 
 // ---------- Availability Cross-Check (employee + manager) ----------
 function addCcRow() {

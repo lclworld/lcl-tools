@@ -102,6 +102,7 @@ function doGet(e) {
     if (action === 'getIngredients') return jsonOut_(getIngredients_());
     if (action === 'getProductionData') return jsonOut_(getProductionData_());
     if (action === 'getLogs') return jsonOut_(getLogs_());
+    if (action === 'getProjects') return jsonOut_(getProjects_());
     // These carry only a "code" field, small enough to also ride as a
     // URL parameter — so if Apps Script's own redirect handling ever turns
     // the POST into a GET, the action still succeeds instead of piling up
@@ -155,6 +156,10 @@ function doPost(e) {
       case 'completeProductionBatch': result = completeProductionBatch_(payload); break;
       case 'applyCountAdjustment': result = applyCountAdjustment_(payload); break;
       case 'verifyRestock': result = verifyRestock_(payload); break;
+      case 'saveProject': result = saveProject_(payload); break;
+      case 'deleteProject': result = deleteProject_(payload); break;
+      case 'saveSpendSettings': result = saveSpendSettings_(payload); break;
+      case 'setItemCost': result = setItemCost_(payload); break;
       default: return jsonOut_({ status: 'error', message: 'Unknown POST action: ' + action });
     }
     if (actionId && action !== 'login' && result && result.status === 'ok') {
@@ -294,6 +299,9 @@ function logRestock_(p) {
   entries.forEach(e => {
     if (String(e.qc).toLowerCase() === 'rejected') return; // failed QC never logged as restock
     const row = [e.name, e.code, e.qty, e.date, e.qc, e.loggedBy || ''];
+    if (e.paid !== undefined && e.paid !== '' && Number(e.qty) > 0) {
+      setItemCost_({ code: e.code, paid: e.paid, delivery: e.delivery, qty: e.qty });
+    }
     if (e.unverified) {
       while (row.length < cols.id) row.push('');
       row[cols.status - 1] = VERIFY_PENDING;
@@ -558,4 +566,106 @@ function applyCountAdjustment_(p) {
     ['COUNT DAY', 'ITEM NAME', 'REF CODE', 'RECORDED', 'COUNTED', 'ADJUSTMENT', 'APPROVED BY', 'DATE']);
   audit.getRange(audit.getLastRow() + 1, 1, auditRows.length, 8).setValues(auditRows);
   return { status: 'ok' };
+}
+
+
+// ---------- Project Spend Tracker (manager only) ----------
+// Each card is kept whole as JSON in Projects (the app's source of truth),
+// with its spend lines also written out row by row in Spend Lines so they
+// can be read in the Sheet. Running Costs holds the bills plus the tracker's
+// settings; Item List holds the spend-line dropdown.
+const PROJECT_HEADERS = ['ID', 'PRODUCT CODE', 'CLIENT', 'PRODUCT', 'PRODUCT TYPE', 'BATCH SIZE (g)', 'STATUS', 'MONEY IN', 'NET TAKE HOME', 'MARGIN %', 'UPDATED', 'CARD (JSON)'];
+const SPEND_LINE_HEADERS = ['CARD ID', 'PRODUCT CODE', 'CLIENT', 'STAGE', 'ITEM', 'TYPE', 'STOCK ITEM', 'QUANTITY', 'AMOUNT (GHS)', 'EDITED', 'AUTO'];
+const RUNNING_COST_HEADERS = ['NAME', 'AMOUNT (GHS)', 'FREQUENCY'];
+
+function getProjects_() {
+  const projects = [];
+  const sh = getOrCreateSheet_('Projects', PROJECT_HEADERS);
+  sh.getDataRange().getValues().slice(1).forEach(r => {
+    if (!r[0]) return;
+    try { projects.push(JSON.parse(r[11])); } catch (err) { /* a hand-edited JSON cell is skipped, not fatal */ }
+  });
+  const bills = [], settings = {};
+  getOrCreateSheet_('Running Costs', RUNNING_COST_HEADERS).getDataRange().getValues().slice(1).forEach(r => {
+    if (!r[0]) return;
+    if (r[2] === 'setting') settings[r[0]] = r[1];
+    else bills.push({ name: String(r[0]), amount: Number(r[1]) || 0, frequency: String(r[2] || 'monthly').toLowerCase() });
+  });
+  const items = getOrCreateSheet_('Item List', ['ITEM']).getDataRange().getValues().slice(1).map(r => String(r[0])).filter(Boolean);
+  return { status: 'ok', projects: projects, bills: bills, settings: settings, items: items };
+}
+
+function saveProject_(p) {
+  const card = typeof p.card === 'string' ? JSON.parse(p.card) : p.card;
+  const sh = getOrCreateSheet_('Projects', PROJECT_HEADERS);
+  const row = [card.id, card.productCode || '', card.client || '', card.product || '', card.productType || '', card.batchSize || '',
+    card.status, card.summary ? card.summary.moneyIn : '', card.summary ? card.summary.net : '', card.summary ? card.summary.margin : '',
+    new Date(), JSON.stringify(card)];
+  const ids = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().map(r => String(r[0])) : [];
+  const at = ids.indexOf(String(card.id));
+  if (at >= 0) sh.getRange(at + 2, 1, 1, row.length).setValues([row]);
+  else sh.appendRow(row);
+  writeSpendLines_(card);
+  return { status: 'ok' };
+}
+function deleteProject_(p) {
+  const sh = getOrCreateSheet_('Projects', PROJECT_HEADERS);
+  const ids = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().map(r => String(r[0])) : [];
+  const at = ids.indexOf(String(p.id));
+  if (at >= 0) sh.deleteRow(at + 2);
+  writeSpendLines_({ id: p.id, lines: {} });
+  return { status: 'ok' };
+}
+// Replaces this card's rows in Spend Lines with its current lines.
+function writeSpendLines_(card) {
+  const sh = getOrCreateSheet_('Spend Lines', SPEND_LINE_HEADERS);
+  const data = sh.getDataRange().getValues();
+  const keep = data.slice(1).filter(r => r[0] !== '' && String(r[0]) !== String(card.id));
+  const mine = [];
+  ['estimate', 'actual'].forEach(stage => {
+    (((card.sheetLines || card.lines || {})[stage]) || []).forEach(l => {
+      if (l.off) return;
+      mine.push([card.id, card.productCode || '', card.client || '', stage, l.item || '', l.type || '', l.stockName || '', l.qty === undefined ? '' : l.qty,
+        Number(l.amount) || 0, l.edited ? 'yes' : '', l.auto ? 'yes' : '']);
+    });
+  });
+  const rows = keep.concat(mine);
+  if (data.length > 1) sh.getRange(2, 1, data.length - 1, SPEND_LINE_HEADERS.length).clearContent();
+  if (rows.length) sh.getRange(2, 1, rows.length, SPEND_LINE_HEADERS.length).setValues(rows);
+}
+
+function saveSpendSettings_(p) {
+  const bills = typeof p.bills === 'string' ? JSON.parse(p.bills) : (p.bills || []);
+  const settings = typeof p.settings === 'string' ? JSON.parse(p.settings) : (p.settings || {});
+  const items = typeof p.items === 'string' ? JSON.parse(p.items) : (p.items || []);
+  const rc = getOrCreateSheet_('Running Costs', RUNNING_COST_HEADERS);
+  const rows = bills.map(b => [b.name, Number(b.amount) || 0, b.frequency || 'monthly'])
+    .concat(Object.keys(settings).map(k => [k, settings[k], 'setting']));
+  replaceRows_(rc, RUNNING_COST_HEADERS.length, rows);
+  replaceRows_(getOrCreateSheet_('Item List', ['ITEM']), 1, items.map(i => [i]));
+  return { status: 'ok' };
+}
+function replaceRows_(sh, width, rows) {
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, width).clearContent();
+  if (rows.length) sh.getRange(2, 1, rows.length, width).setValues(rows);
+}
+
+// Stored unit cost is (COST + SHIPPING COST) ÷ MOQ on Master Items, so a
+// purchase of qty for paid + delivery sets it to exactly that price.
+function setItemCost_(p) {
+  const sh = sheet_(SHEET_NAMES.ITEMS);
+  const data = sh.getDataRange().getValues();
+  const h = data[0];
+  const cCode = h.indexOf('NEW REF CODE'), cCost = h.indexOf('COST') >= 0 ? h.indexOf('COST') : h.indexOf('COST PER KG'),
+    cShip = h.indexOf('SHIPPING COST'), cMoq = h.indexOf('MOQ');
+  const qty = Number(p.qty);
+  if (cCost < 0 || cMoq < 0 || !(qty > 0)) return { status: 'error', message: 'Master Items needs COST and MOQ columns, and a quantity' };
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][cCode]) !== String(p.code)) continue;
+    sh.getRange(r + 1, cCost + 1).setValue(Number(p.paid) || 0);
+    if (cShip >= 0) sh.getRange(r + 1, cShip + 1).setValue(Number(p.delivery) || 0);
+    sh.getRange(r + 1, cMoq + 1).setValue(qty);
+    return { status: 'ok' };
+  }
+  return { status: 'ok', notFound: true };
 }
