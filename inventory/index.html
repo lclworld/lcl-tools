@@ -614,7 +614,6 @@
     <h2 class="title" style="margin-top:14px;">Project Spend Tracker</h2>
     <div class="toggle" id="spendTabs">
       <button type="button" data-view="cards" class="active">Cards</button>
-      <button type="button" data-view="reports">Reports</button>
       <button type="button" data-view="settings">Settings</button>
     </div>
     <div id="spendBody" style="margin-top:12px;"></div>
@@ -837,6 +836,11 @@
           <option value="movement">Stock Movement</option>
           <option value="waste">Waste Report</option>
         </optgroup>
+        <optgroup label="Project spend">
+          <option value="spendOrder">Order report (by client)</option>
+          <option value="spendProduct">Product report (by product type)</option>
+          <option value="spendMonthly">Monthly spend report</option>
+        </optgroup>
         <optgroup label="Right now">
           <option value="inventory">Full Inventory Snapshot</option>
           <option value="lowstock">Low Stock Report</option>
@@ -850,6 +854,11 @@
           <div><label>From</label><input type="date" id="reportFrom"></div>
           <div><label>To</label><input type="date" id="reportTo"></div>
         </div>
+      </div>
+      <div id="reportSpendWrap" style="display:none;">
+        <div id="reportClientWrap"><label>Client</label><select id="reportClient"></select></div>
+        <div id="reportProdTypeWrap"><label>Product type</label><select id="reportProdType"></select></div>
+        <label class="toggle-switch" style="margin-top:10px;"><input type="checkbox" id="reportWithEst"> Include Estimates (projected income)</label>
       </div>
       <button class="btn primary" id="generateReport">Generate</button>
       <div class="hint">Opens your browser's print dialog with a report-formatted page — choose "Save as PDF" as the destination. That's the real, working mechanism for PDF output from a page with no backend PDF service.</div>
@@ -1140,7 +1149,7 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 // Shown after the sync status so anyone can tell at a glance which version
 // a phone is running. Raise it with each release (along with CACHE_NAME in
 // service-worker.js).
-const APP_VERSION = "v1.6";
+const APP_VERSION = "v1.7";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -2764,7 +2773,7 @@ document.getElementById("savePlan").addEventListener("click", () => {
     productCode: plan.productCode, brief: plan.brief, toggles: plan.toggles, inci: plan.inci, tierInputs: plan.tierInputs
   }) }));
   refreshPlanLoadSelect();
-  upsertCardFromStudio("estimate");
+  upsertCardFromStudio("estimate", plan.id);
   document.getElementById("planMsg").textContent = "Saved \"" + name + "\" — searchable from Load a Saved Formula next time. Its Estimate card is in Project Spend Tracker.";
 });
 
@@ -2833,7 +2842,7 @@ document.getElementById("pushConfirm").addEventListener("click", () => {
   saveBatches(batches);
   enqueue("pushToProduction", Object.assign({}, batch, { notes: packNotes(batch.notes, { productCode: batch.productCode, brief: brief }) }));
   document.getElementById("pushOverlay").classList.remove("show");
-  upsertCardFromStudio("actual");
+  upsertCardFromStudio("actual", batch.id);
   document.getElementById("planMsg").textContent = "Pushed to Production — employees will see \"" + name + "\" on their Production tab. Its card in Project Spend Tracker is now Actual.";
   renderProductionList();
 });
@@ -3180,6 +3189,7 @@ document.getElementById("exportPlanPdf").addEventListener("click", () => {
 // Log row (getLogs). Each report is a list of tables, so the preview, the PDF
 // and the Excel file all show exactly the same numbers.
 const MONTHLY_REPORTS = ["consumption", "byproduct", "restock", "movement", "waste"];
+const SPEND_REPORTS = { spendOrder: "order", spendProduct: "product", spendMonthly: "monthly" };
 (function fillReportPeriods() {
   const sel = document.getElementById("reportPeriod");
   const now = new Date();
@@ -3196,7 +3206,19 @@ const MONTHLY_REPORTS = ["consumption", "byproduct", "restock", "movement", "was
   sel.appendChild(custom);
   sel.addEventListener("change", () => { document.getElementById("reportRange").style.display = sel.value === "custom" ? "grid" : "none"; });
   document.getElementById("reportType").addEventListener("change", function() {
-    document.getElementById("reportPeriodWrap").style.display = MONTHLY_REPORTS.indexOf(this.value) >= 0 ? "block" : "none";
+    const spend = SPEND_REPORTS[this.value];
+    document.getElementById("reportPeriodWrap").style.display = MONTHLY_REPORTS.indexOf(this.value) >= 0 || spend ? "block" : "none";
+    document.getElementById("reportSpendWrap").style.display = spend ? "block" : "none";
+    if (!spend) return;
+    // Clients and product types come from the Project Spend Tracker cards.
+    const d = loadSpend();
+    const fill = (id, values, none) => {
+      document.getElementById(id).innerHTML = values.length ? values.map(v => '<option>' + escapeHtml(v) + '</option>').join("") : '<option value="">' + none + '</option>';
+    };
+    fill("reportClient", Array.from(new Set(d.projects.map(p => p.client).filter(Boolean))).sort(), "No clients on cards yet");
+    fill("reportProdType", Array.from(new Set(d.projects.map(p => p.productType).filter(Boolean))).sort(), "No product types on cards yet");
+    document.getElementById("reportClientWrap").style.display = spend === "order" ? "block" : "none";
+    document.getElementById("reportProdTypeWrap").style.display = spend === "product" ? "block" : "none";
   });
 })();
 
@@ -3433,8 +3455,25 @@ async function generateMonthlyReport(type) {
   });
 }
 
+// Project spend reports read the tracker's cards (fresh from the Sheet when online).
+async function generateSpendReport(kind) {
+  const preview = document.getElementById("reportPreview");
+  const period = reportPeriod();
+  if (!period) { preview.innerHTML = '<div class="empty-state">Pick a From and To date (From before To).</div>'; return; }
+  preview.innerHTML = '<div class="empty-state">Working it out…</div>';
+  await Promise.all([syncSpend(), loadSpendLogs()]);
+  const rep = buildSpendReport(kind, {
+    client: document.getElementById("reportClient").value, productType: document.getElementById("reportProdType").value,
+    from: period.from, to: period.to, withEstimates: document.getElementById("reportWithEst").checked
+  });
+  preview.innerHTML = '<div class="card report-card"><h3 style="font-family:\'Playfair Display\',serif; margin-top:0;">' + escapeHtml(rep.title) + '</h3><div class="hint">' + escapeHtml(rep.sub) + '</div>' + rep.html +
+    '<button class="btn primary" id="printThisReport">Export as PDF</button></div>';
+  document.getElementById("printThisReport").addEventListener("click", () => openPrintWindow(rep.title, "<h1>" + escapeHtml(rep.title) + "</h1><div class='meta'>LCL · " + escapeHtml(rep.sub) + "</div>" + rep.html));
+}
+
 document.getElementById("generateReport").addEventListener("click", () => {
   const type = document.getElementById("reportType").value;
+  if (SPEND_REPORTS[type]) { generateSpendReport(SPEND_REPORTS[type]); return; }
   if (MONTHLY_REPORTS.indexOf(type) >= 0) { generateMonthlyReport(type); return; }
   const cache = loadCache();
   const preview = document.getElementById("reportPreview");
@@ -3661,8 +3700,59 @@ async function syncSpend() {
   } catch (e) { /* offline: keep this phone's copy */ }
 }
 
+function newSpendCard(fields) {
+  const now = new Date().toISOString();
+  return Object.assign({
+    id: "card-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6), productCode: "", client: "", product: "", productType: "",
+    batchSize: "", units: "", status: "estimate", hadEstimate: true, createdAt: now, actualAt: null, closedAt: null,
+    moneyIn: { expected: "", paid: "" }, days: { estimate: "", actual: "" }, lines: { estimate: [], actual: [] },
+    frozen: { estimate: false, actual: false }, tithe: { locked: false, amount: null, edited: false }, formula: []
+  }, fields);
+}
+const sameProduct = (card, code, name) => code ? card.productCode === code : !card.productCode && card.product === name;
+function planFor(code, name) { return loadPlans().find(p => code ? p.productCode === code : !p.productCode && p.name === name); }
+// Units made = the quantities filled in on the formula's pricing tiers.
+function planUnits(plan) {
+  if (!plan || !plan.tierInputs) return "";
+  const n = Object.keys(plan.tierInputs).filter(k => !plan.toggles || plan.toggles[k]).reduce((t, k) => t + num(plan.tierInputs[k]["ti-qty"]), 0);
+  return n || "";
+}
+function formulaFromPlan(plan) {
+  return (plan.rows || []).map(r => ({ code: r.code, name: r.name, grams: r2(num(plan.batchSize) * num(r.percent) / 100) }));
+}
+
+// Starts a card from something Development Studio already has: a saved
+// formula (Estimate) or a pushed batch (Actual, with its formula as the estimate).
+function cardFromPlan(plan) {
+  const card = newSpendCard({ planId: plan.id, productCode: plan.productCode || "", product: plan.name, batchSize: num(plan.batchSize), units: planUnits(plan), formula: formulaFromPlan(plan) });
+  persistCard(card);
+  return card;
+}
+function cardFromBatch(batch) {
+  const plan = planFor(batch.productCode, batch.name);
+  const card = newSpendCard({
+    batchId: batch.id, planId: plan ? plan.id : undefined, productCode: batch.productCode || "", product: batch.name, batchSize: num(batch.batchSize),
+    units: planUnits(plan), status: "actual", actualAt: batch.pushedAt || new Date().toISOString(),
+    formula: plan ? formulaFromPlan(plan) : (batch.rows || []).map(r => ({ code: r.code, name: r.name, grams: num(r.proposedQty) }))
+  });
+  card.lines.estimate = stageLines(card, "estimate");
+  card.frozen.estimate = true;
+  persistCard(card);
+  return card;
+}
+// Saved formulas and pushed batches that no card follows yet. A formula that
+// has been pushed shows as its batch.
+function untrackedSources() {
+  const cards = loadSpend().projects;
+  const batches = loadBatches().filter(b => !cards.some(c => c.batchId === b.id || (!c.batchId && c.status !== "estimate" && sameProduct(c, b.productCode, b.name))));
+  const pushed = loadBatches();
+  const plans = loadPlans().filter(p => !cards.some(c => c.planId === p.id || sameProduct(c, p.productCode, p.name)) &&
+    !pushed.some(b => p.productCode ? b.productCode === p.productCode : b.name === p.name));
+  return { batches: batches.sort((a, b) => (b.pushedAt || "").localeCompare(a.pushedAt || "")), plans: plans.sort((a, b) => a.name.localeCompare(b.name)) };
+}
+
 // Called from Development Studio on Save Formula ("estimate") and Push to Production ("actual").
-function upsertCardFromStudio(stage) {
+function upsertCardFromStudio(stage, sourceId) {
   const productCode = document.getElementById("planProductCode").value.trim();
   const product = document.getElementById("planName").value.trim();
   const batchSize = num(document.getElementById("planBatchSize").value);
@@ -3670,30 +3760,28 @@ function upsertCardFromStudio(stage) {
   const tiers = collectTierInputs();
   const units = Object.keys(tiers).reduce((t, k) => t + num(tiers[k]["ti-qty"]), 0);
   const d = loadSpend();
-  const same = p => p.status !== "closed" && (productCode ? p.productCode === productCode : !p.productCode && p.product === product);
-  let card = d.projects.find(same);
   const now = new Date().toISOString();
-  if (!card) {
-    card = {
-      id: "card-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6), productCode: productCode, client: "", product: product,
-      productType: "", batchSize: batchSize, units: units, status: stage, hadEstimate: stage === "estimate", createdAt: now,
-      actualAt: stage === "actual" ? now : null, closedAt: null, moneyIn: { expected: "", paid: "" }, days: { estimate: "", actual: "" },
-      lines: { estimate: [], actual: [] }, frozen: { estimate: false, actual: false }, tithe: { locked: false, amount: null, edited: false }, formula: []
-    };
-  }
-  card.product = product || card.product;
-  card.batchSize = batchSize || card.batchSize;
-  if (units) card.units = units;
-  if (stage === "estimate" && card.status === "estimate") {
+  let card;
+  if (stage === "estimate") {
+    card = d.projects.find(p => p.status !== "closed" && sameProduct(p, productCode, product));
+    if (card && card.status !== "estimate") return card; // already in production: its estimate stays as pushed
+    card = card || newSpendCard({ productCode: productCode, product: product });
+    card.planId = sourceId;
     card.formula = rows.map(r => ({ code: r.code, name: r.name, grams: r2(batchSize * r.percent / 100) }));
-  }
-  if (stage === "actual" && card.status === "estimate") {
+  } else {
+    // A repeat push of the same product is a new order, so it only picks up an Estimate.
+    card = d.projects.find(p => p.status === "estimate" && sameProduct(p, productCode, product)) || newSpendCard({ productCode: productCode, product: product, status: "actual" });
+    if (!card.formula.length) card.formula = rows.map(r => ({ code: r.code, name: r.name, grams: r2(batchSize * r.percent / 100) }));
     // The estimate is kept exactly as it stood when production started.
     card.lines.estimate = stageLines(card, "estimate");
     card.frozen.estimate = true;
     card.status = "actual";
     card.actualAt = now;
+    card.batchId = sourceId;
   }
+  card.product = product || card.product;
+  card.batchSize = batchSize || card.batchSize;
+  if (units) card.units = units;
   persistCard(card);
   return card;
 }
@@ -3715,7 +3803,6 @@ function renderSpend() {
   document.querySelectorAll("#spendTabs button").forEach(b => b.classList.toggle("active", b.dataset.view === spendView));
   const body = document.getElementById("spendBody");
   if (spendView === "settings") return renderSpendSettings(body);
-  if (spendView === "reports") return renderSpendReports(body);
   if (spendOpenId) return renderSpendCard(body);
   renderSpendList(body);
 }
@@ -3729,7 +3816,13 @@ function renderSpendList(body) {
   list.forEach(p => { const c = p.client || "No client yet"; (groups[c] = groups[c] || []).push(p); });
   let html = '<div class="toggle" id="spendFilter">' + [["open", "Open"], ["closed", "Closed"], ["all", "All"]].map(([v, l]) =>
     '<button type="button" data-f="' + v + '" class="' + (spendFilter === v ? "active" : "") + '">' + l + '</button>').join("") + '</div>';
-  if (!list.length) html += '<div class="empty-state">No cards yet. Saving a formula in Development Studio opens one as an Estimate; pushing to production makes it Actual.</div>';
+  const src = untrackedSources();
+  html += '<div class="card"><label>Start a card from</label><select id="spendFrom"><option value="">— pick a product —</option>' +
+    (src.batches.length ? '<optgroup label="Pushed to production">' + src.batches.map(b => '<option value="batch:' + b.id + '">' + escapeHtml(b.name) + (b.productCode ? ' · ' + escapeHtml(b.productCode) : '') + ' · pushed ' + fmtDay((b.pushedAt || "").slice(0, 10)) + '</option>').join("") + '</optgroup>' : '') +
+    (src.plans.length ? '<optgroup label="Saved formulas">' + src.plans.map(p => '<option value="plan:' + p.id + '">' + escapeHtml(p.name) + (p.productCode ? ' · ' + escapeHtml(p.productCode) : '') + ' (' + p.batchSize + 'g)</option>').join("") + '</optgroup>' : '') +
+    '<optgroup label="Other"><option value="blank">Order that skipped planning</option></optgroup></select>' +
+    '<div class="hint">' + (src.batches.length + src.plans.length) + ' from Development Studio not tracked yet. New saves and pushes get a card on their own.</div></div>';
+  if (!list.length) html += '<div class="empty-state">No cards yet. Pick a product above to start one.</div>';
   Object.keys(groups).sort().forEach(client => {
     html += '<h3 class="section-title">' + escapeHtml(client) + '</h3><div class="card">';
     groups[client].forEach(p => {
@@ -3741,18 +3834,24 @@ function renderSpendList(body) {
     });
     html += '</div>';
   });
-  html += '<button class="btn ghost" id="spendNewCard">+ New card (order that skipped planning)</button>';
   body.innerHTML = html;
   body.querySelectorAll("#spendFilter button").forEach(b => b.addEventListener("click", () => { spendFilter = b.dataset.f; renderSpend(); }));
   body.querySelectorAll(".spend-row").forEach(r => r.addEventListener("click", () => { spendOpenId = r.dataset.id; renderSpend(); window.scrollTo(0, 0); }));
-  document.getElementById("spendNewCard").addEventListener("click", () => {
-    const now = new Date().toISOString();
-    const card = { id: "card-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6), productCode: "", client: "", product: "", productType: "", batchSize: "", units: "",
-      status: "actual", hadEstimate: false, createdAt: now, actualAt: now, closedAt: null, moneyIn: { expected: "", paid: "" }, days: { estimate: "", actual: "" },
-      lines: { estimate: [], actual: [] }, frozen: { estimate: true, actual: false }, tithe: { locked: false, amount: null, edited: false }, formula: [] };
-    persistCard(card);
+  document.getElementById("spendFrom").addEventListener("change", e => {
+    const v = e.target.value;
+    if (!v) return;
+    let card;
+    if (v === "blank") {
+      card = newSpendCard({ status: "actual", hadEstimate: false, actualAt: new Date().toISOString(), frozen: { estimate: true, actual: false } });
+      persistCard(card);
+    } else if (v.indexOf("batch:") === 0) {
+      card = cardFromBatch(loadBatches().find(b => b.id === v.slice(6)));
+    } else {
+      card = cardFromPlan(loadPlans().find(p => p.id === v.slice(5)));
+    }
     spendOpenId = card.id;
     renderSpend();
+    window.scrollTo(0, 0);
   });
 }
 
@@ -4064,41 +4163,6 @@ function renderSpendSettings(body) {
 }
 
 // ---------- reports ----------
-let spendReportType = "order";
-function renderSpendReports(body) {
-  const d = loadSpend();
-  const now = new Date();
-  const first = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString().slice(0, 10);
-  const clients = Array.from(new Set(d.projects.map(p => p.client).filter(Boolean))).sort();
-  const types = Array.from(new Set(d.projects.map(p => p.productType).filter(Boolean))).sort();
-  body.innerHTML = '<div class="card"><label>Report</label><select id="srType"><option value="order">Order report</option><option value="product">Product report</option><option value="monthly">Monthly report</option></select>' +
-    '<div id="srClientWrap"><label>Client</label><select id="srClient">' + (clients.length ? clients.map(c => '<option>' + escapeHtml(c) + '</option>').join("") : '<option value="">No clients yet</option>') + '</select></div>' +
-    '<div id="srTypeWrap" style="display:none;"><label>Product type</label><select id="srProdType">' + (types.length ? types.map(c => '<option>' + escapeHtml(c) + '</option>').join("") : '<option value="">No product types yet</option>') + '</select></div>' +
-    '<div class="form-grid"><div><label>From</label><input type="date" id="srFrom" value="' + first + '"></div><div><label>To</label><input type="date" id="srTo" value="' + todayIso() + '"></div></div>' +
-    '<label class="toggle-switch" style="margin-top:10px;"><input type="checkbox" id="srEst"> Include Estimates (projected income)</label>' +
-    '<button class="btn primary" id="srGo">Generate</button></div><div id="srOut"></div>';
-  const sync = () => {
-    const t = document.getElementById("srType").value;
-    document.getElementById("srClientWrap").style.display = t === "order" ? "block" : "none";
-    document.getElementById("srTypeWrap").style.display = t === "product" ? "block" : "none";
-  };
-  document.getElementById("srType").value = spendReportType;
-  sync();
-  document.getElementById("srType").addEventListener("change", () => { spendReportType = document.getElementById("srType").value; sync(); });
-  document.getElementById("srGo").addEventListener("click", async () => {
-    const out = document.getElementById("srOut");
-    out.innerHTML = '<div class="empty-state">Working it out…</div>';
-    await loadSpendLogs();
-    const rep = buildSpendReport(spendReportType, {
-      client: document.getElementById("srClient").value, productType: document.getElementById("srProdType").value,
-      from: document.getElementById("srFrom").value, to: document.getElementById("srTo").value, withEstimates: document.getElementById("srEst").checked
-    });
-    out.innerHTML = '<div class="card report-card"><h3 style="font-family:\'Playfair Display\',serif; margin-top:0;">' + escapeHtml(rep.title) + '</h3><div class="hint">' + escapeHtml(rep.sub) + '</div>' + rep.html +
-      '<button class="btn primary" id="srPdf">Export as PDF</button></div>';
-    document.getElementById("srPdf").addEventListener("click", () => openPrintWindow(rep.title, "<h1>" + escapeHtml(rep.title) + "</h1><div class='meta'>LCL · " + escapeHtml(rep.sub) + "</div>" + rep.html));
-  });
-}
-
 function cardDate(p) { return (p.closedAt || p.actualAt || p.createdAt || "").slice(0, 10); }
 function tableHtml(title, headers, rows, boldLast) {
   if (!rows.length) return (title ? "<h2>" + escapeHtml(title) + "</h2>" : "") + "<p>Nothing in this period.</p>";
