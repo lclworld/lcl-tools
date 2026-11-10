@@ -1149,7 +1149,7 @@ function reconcileNewIngredientCode(tentativeCode, realCode) {
 // Shown after the sync status so anyone can tell at a glance which version
 // a phone is running. Raise it with each release (along with CACHE_NAME in
 // service-worker.js).
-const APP_VERSION = "v1.8";
+const APP_VERSION = "v1.9";
 function renderSyncStatus() {
   const cache = loadCache();
   const queueLen = loadQueue().length;
@@ -3557,13 +3557,14 @@ function autoIngredientLines(card, stage) {
   if (stage === "estimate") {
     (card.formula || []).forEach(f => { qtyByCode[f.code] = (qtyByCode[f.code] || 0) + num(f.grams); });
   } else if (spendLogs && card.productCode) {
-    const code = card.productCode.trim().toLowerCase();
+    // Usage logged against any of the card's product codes, counted once per entry.
+    const mine = card.productCode.split(/[,\/]/).map(c => c.trim().toLowerCase()).filter(Boolean);
     const since = (card.actualAt || "").slice(0, 10);
     spendLogs.use.forEach(([itemCode, qty, date, purpose]) => {
       if (!/^Product batch/.test(purpose) || String(date).slice(0, 10) < since) return;
       const at = purpose.indexOf(" — ");
       const codes = at < 0 ? [] : purpose.slice(at + 3).split(/[,\/]/).map(c => c.trim().toLowerCase());
-      if (codes.indexOf(code) >= 0) qtyByCode[itemCode] = (qtyByCode[itemCode] || 0) + num(qty);
+      if (codes.some(c => mine.indexOf(c) >= 0)) qtyByCode[itemCode] = (qtyByCode[itemCode] || 0) + num(qty);
     });
   }
   return Object.keys(qtyByCode).map(code => {
@@ -3727,22 +3728,60 @@ function formulaFromPlan(plan) {
   return (plan.rows || []).map(r => ({ code: r.code, name: r.name, grams: r2(num(plan.batchSize) * num(r.percent) / 100) }));
 }
 
-// Starts a card from something Development Studio already has: a saved
-// formula (Estimate) or a pushed batch (Actual, with its formula as the estimate).
+// A card can hold several products (e.g. a hair oil and a balm made together
+// with shared purchases). Each product is a part: a saved formula ("plan") or
+// a pushed batch ("batch"). The card's product, codes, batch size, units and
+// formula are the parts added together.
+function partFromPlan(plan) {
+  return { kind: "plan", id: plan.id, name: plan.name, productCode: plan.productCode || "", batchSize: num(plan.batchSize), units: planUnits(plan), formula: formulaFromPlan(plan), actualAt: null };
+}
+function partFromBatch(batch) {
+  const plan = planFor(batch.productCode, batch.name, batch.pushedAt);
+  return { kind: "batch", id: batch.id, planId: plan ? plan.id : undefined, name: batch.name, productCode: batch.productCode || "", batchSize: num(batch.batchSize),
+    units: planUnits(plan), actualAt: batch.pushedAt || new Date().toISOString(),
+    formula: plan ? formulaFromPlan(plan) : (batch.rows || []).map(r => ({ code: r.code, name: r.name, grams: num(r.proposedQty) })) };
+}
+// Cards made before products could be combined have their one product as fields.
+function cardParts(card) {
+  if (card.parts && card.parts.length) return card.parts;
+  if (!card.product && !card.formula.length) return [];
+  return [{ kind: card.batchId ? "batch" : "plan", id: card.batchId || card.planId || "", planId: card.planId, name: card.product, productCode: card.productCode,
+    batchSize: card.batchSize, units: card.units, formula: card.formula || [], actualAt: card.actualAt }];
+}
+function applyParts(card, parts) {
+  card.parts = parts;
+  card.product = parts.map(p => p.name).join(" + ");
+  card.productCode = Array.from(new Set(parts.map(p => p.productCode).filter(Boolean))).join(", ");
+  card.batchSize = r2(parts.reduce((t, p) => t + num(p.batchSize), 0)) || "";
+  card.units = parts.reduce((t, p) => t + num(p.units), 0) || "";
+  card.formula = [].concat(...parts.map(p => p.formula || []));
+  const pushed = parts.filter(p => p.kind === "batch" && p.actualAt).map(p => p.actualAt).sort();
+  if (pushed.length) card.actualAt = pushed[0];
+  if (card.formula.length) card.hadEstimate = true;
+  // Once anything is in production the card is Actual, with the estimate kept as planned.
+  if (card.status === "estimate" && pushed.length) {
+    card.lines.estimate = stageLines(card, "estimate");
+    card.frozen.estimate = true;
+    card.status = "actual";
+  } else if (card.frozen.estimate && card.status !== "closed") {
+    // Products changed after the estimate was frozen: rebuild it from the new
+    // formulas, keeping planned lines typed by hand and any edits.
+    card.lines.estimate = (card.lines.estimate || []).filter(l => !l.auto || l.off || l.edited)
+      .map(l => l.auto ? { key: l.key, auto: true, off: !!l.off, edited: !!l.edited, amount: l.amount } : l);
+    card.frozen.estimate = false;
+    card.lines.estimate = stageLines(card, "estimate");
+    card.frozen.estimate = true;
+  }
+}
 function cardFromPlan(plan) {
-  const card = newSpendCard({ planId: plan.id, productCode: plan.productCode || "", product: plan.name, batchSize: num(plan.batchSize), units: planUnits(plan), formula: formulaFromPlan(plan) });
+  const card = newSpendCard({});
+  applyParts(card, [partFromPlan(plan)]);
   persistCard(card);
   return card;
 }
 function cardFromBatch(batch) {
-  const plan = planFor(batch.productCode, batch.name, batch.pushedAt);
-  const card = newSpendCard({
-    batchId: batch.id, planId: plan ? plan.id : undefined, productCode: batch.productCode || "", product: batch.name, batchSize: num(batch.batchSize),
-    units: planUnits(plan), status: "actual", actualAt: batch.pushedAt || new Date().toISOString(),
-    formula: plan ? formulaFromPlan(plan) : (batch.rows || []).map(r => ({ code: r.code, name: r.name, grams: num(r.proposedQty) }))
-  });
-  card.lines.estimate = stageLines(card, "estimate");
-  card.frozen.estimate = true;
+  const card = newSpendCard({});
+  applyParts(card, [partFromBatch(batch)]);
   persistCard(card);
   return card;
 }
@@ -3751,9 +3790,14 @@ function cardFromBatch(batch) {
 // batch stands for it then); when the same formula was saved more than once,
 // only the latest save is offered.
 function untrackedSources() {
-  const cards = loadSpend().projects;
+  const tracked = new Set();
+  loadSpend().projects.forEach(c => {
+    cardParts(c).forEach(p => tracked.add(p.id));
+    if (c.planId) tracked.add(c.planId);
+    if (c.batchId) tracked.add(c.batchId);
+  });
   const pushed = loadBatches();
-  const batches = pushed.filter(b => !cards.some(c => c.batchId === b.id));
+  const batches = pushed.filter(b => !tracked.has(b.id));
   const latest = {};
   loadPlans().forEach(p => {
     const k = p.name + "|" + (p.productCode || "");
@@ -3761,12 +3805,29 @@ function untrackedSources() {
   });
   // Saving and pushing often happen together, in either order, so a push from 10 minutes before the save counts.
   const pushedAfter = (b, p) => Date.parse(b.pushedAt || 0) >= Date.parse(p.savedAt || 0) - 600000;
-  const plans = Object.values(latest).filter(p => !cards.some(c => c.planId === p.id) &&
+  const plans = Object.values(latest).filter(p => !tracked.has(p.id) &&
     !pushed.some(b => b.name === p.name && (b.productCode || "") === (p.productCode || "") && pushedAfter(b, p)));
   return { batches: batches.sort((a, b) => (b.pushedAt || "").localeCompare(a.pushedAt || "")), plans: plans.sort((a, b) => a.name.localeCompare(b.name)) };
 }
+function sourceOptions(src) {
+  return (src.batches.length ? '<optgroup label="Pushed to production">' + src.batches.map(b => '<option value="batch:' + b.id + '">' + escapeHtml(b.name) + (b.productCode ? ' · ' + escapeHtml(b.productCode) : '') + ' · pushed ' + fmtDay((b.pushedAt || "").slice(0, 10)) + '</option>').join("") + '</optgroup>' : '') +
+    (src.plans.length ? '<optgroup label="Saved formulas">' + src.plans.map(p => '<option value="plan:' + p.id + '">' + escapeHtml(p.name) + (p.productCode ? ' · ' + escapeHtml(p.productCode) : '') + ' (' + p.batchSize + 'g)</option>').join("") + '</optgroup>' : '');
+}
+function partFromChoice(v) {
+  if (v.indexOf("batch:") === 0) { const b = loadBatches().find(x => x.id === v.slice(6)); return b && partFromBatch(b); }
+  const p = loadPlans().find(x => x.id === v.slice(5)); return p && partFromPlan(p);
+}
+
+// Swaps the matching part for the new one in the same place, or adds it at the end.
+function replacePart(parts, match, part) {
+  const i = parts.findIndex(match);
+  const out = parts.slice();
+  if (i >= 0) out[i] = part; else out.push(part);
+  return out;
+}
 
 // Called from Development Studio on Save Formula ("estimate") and Push to Production ("actual").
+// The product is found on any open card that holds it as a planned part.
 function upsertCardFromStudio(stage, sourceId) {
   const productCode = document.getElementById("planProductCode").value.trim();
   const product = document.getElementById("planName").value.trim();
@@ -3774,29 +3835,22 @@ function upsertCardFromStudio(stage, sourceId) {
   const rows = collectPlanRows();
   const tiers = collectTierInputs();
   const units = Object.keys(tiers).reduce((t, k) => t + num(tiers[k]["ti-qty"]), 0);
+  const formula = rows.map(r => ({ code: r.code, name: r.name, grams: r2(batchSize * r.percent / 100) }));
+  const isThis = part => part.name === product && (part.productCode || "") === productCode;
   const d = loadSpend();
-  const now = new Date().toISOString();
-  let card;
+  const holds = (c, kind) => c.status !== "closed" && cardParts(c).some(p => isThis(p) && (!kind || p.kind === kind));
+  let card = d.projects.find(c => holds(c, "plan"));
   if (stage === "estimate") {
-    card = d.projects.find(p => p.status !== "closed" && sameProduct(p, productCode, product));
-    if (card && card.status !== "estimate") return card; // already in production: its estimate stays as pushed
-    card = card || newSpendCard({ productCode: productCode, product: product });
-    card.planId = sourceId;
-    card.formula = rows.map(r => ({ code: r.code, name: r.name, grams: r2(batchSize * r.percent / 100) }));
+    if (!card && d.projects.some(c => holds(c, "batch"))) return null; // already in production: its estimate stays as pushed
+    card = card || newSpendCard({});
+    applyParts(card, replacePart(cardParts(card), p => isThis(p),
+      { kind: "plan", id: sourceId, name: product, productCode: productCode, batchSize: batchSize, units: units, formula: formula, actualAt: null }));
   } else {
-    // A repeat push of the same product is a new order, so it only picks up an Estimate.
-    card = d.projects.find(p => p.status === "estimate" && sameProduct(p, productCode, product)) || newSpendCard({ productCode: productCode, product: product, status: "actual" });
-    if (!card.formula.length) card.formula = rows.map(r => ({ code: r.code, name: r.name, grams: r2(batchSize * r.percent / 100) }));
-    // The estimate is kept exactly as it stood when production started.
-    card.lines.estimate = stageLines(card, "estimate");
-    card.frozen.estimate = true;
-    card.status = "actual";
-    card.actualAt = now;
-    card.batchId = sourceId;
+    // A repeat push of the same product is a new order, so it only picks up a planned part.
+    card = card || newSpendCard({});
+    applyParts(card, replacePart(cardParts(card), p => isThis(p) && p.kind === "plan",
+      { kind: "batch", id: sourceId, name: product, productCode: productCode, batchSize: batchSize, units: units, formula: formula, actualAt: new Date().toISOString() }));
   }
-  card.product = product || card.product;
-  card.batchSize = batchSize || card.batchSize;
-  if (units) card.units = units;
   persistCard(card);
   return card;
 }
@@ -3832,11 +3886,9 @@ function renderSpendList(body) {
   let html = '<div class="toggle" id="spendFilter">' + [["open", "Open"], ["closed", "Closed"], ["all", "All"]].map(([v, l]) =>
     '<button type="button" data-f="' + v + '" class="' + (spendFilter === v ? "active" : "") + '">' + l + '</button>').join("") + '</div>';
   const src = untrackedSources();
-  html += '<div class="card"><label>Start a card from</label><select id="spendFrom"><option value="">— pick a product —</option>' +
-    (src.batches.length ? '<optgroup label="Pushed to production">' + src.batches.map(b => '<option value="batch:' + b.id + '">' + escapeHtml(b.name) + (b.productCode ? ' · ' + escapeHtml(b.productCode) : '') + ' · pushed ' + fmtDay((b.pushedAt || "").slice(0, 10)) + '</option>').join("") + '</optgroup>' : '') +
-    (src.plans.length ? '<optgroup label="Saved formulas">' + src.plans.map(p => '<option value="plan:' + p.id + '">' + escapeHtml(p.name) + (p.productCode ? ' · ' + escapeHtml(p.productCode) : '') + ' (' + p.batchSize + 'g)</option>').join("") + '</optgroup>' : '') +
+  html += '<div class="card"><label>Start a card from</label><select id="spendFrom"><option value="">— pick a product —</option>' + sourceOptions(src) +
     '<optgroup label="Other"><option value="blank">Order that skipped planning</option></optgroup></select>' +
-    '<div class="hint">' + (src.batches.length + src.plans.length) + ' from Development Studio not tracked yet. New saves and pushes get a card on their own.</div></div>';
+    '<div class="hint">' + (src.batches.length + src.plans.length) + ' from Development Studio not tracked yet. New saves and pushes get a card on their own. To track several products together, start with one, then add the others inside the card.</div></div>';
   if (!list.length) html += '<div class="empty-state">No cards yet. Pick a product above to start one.</div>';
   Object.keys(groups).sort().forEach(client => {
     html += '<h3 class="section-title">' + escapeHtml(client) + '</h3><div class="card">';
@@ -3908,6 +3960,7 @@ function renderSpendCard(body) {
   let html = '<button class="btn dark" id="spendBack" style="margin-top:0;">← All cards</button>' +
     '<div class="card" style="margin-top:14px;"><div class="spend-head"><h3 class="section-title" style="margin:0;">' + escapeHtml(card.product || "New card") + '</h3>' +
     '<span class="pill ' + (locked ? "ok" : "gap") + '">' + statusLabel(card.status) + '</span></div>' +
+    '<label>Products in this card</label><div id="spendParts"></div>' +
     '<div class="form-grid">' + field("Client", "client", card.client, ' placeholder="e.g. InstaBrand"') + field("Product Code", "productCode", card.productCode) + '</div>' +
     '<div class="form-grid">' + field("Product", "product", card.product) + field("Product type", "productType", card.productType, ' placeholder="e.g. Lotion"') + '</div>' +
     '<div class="form-grid">' + field("Batch size (g)", "batchSize", card.batchSize, ' inputmode="decimal"') + field("Units made", "units", card.units, ' inputmode="numeric" placeholder="from pricing tiers"') + '</div>' +
@@ -3940,6 +3993,7 @@ function renderSpendCard(body) {
   const clientInp = body.querySelector('input[data-k="client"]');
   if (!locked) attachSuggestList(clientInp, () => Array.from(new Set(loadSpend().projects.map(p => p.client).filter(Boolean))), v => { card.client = v; persistCard(card); });
 
+  renderSpendParts(card);
   renderSpendLines(card, stage);
   renderSpendResult(card);
   const close = document.getElementById("spendClose");
@@ -3972,6 +4026,39 @@ function renderSpendCard(body) {
     spendOpenId = null;
     renderSpend();
   });
+}
+
+// The products a card covers, with Remove and "+ Add another product".
+function renderSpendParts(card) {
+  const wrap = document.getElementById("spendParts");
+  const locked = card.status === "closed";
+  const parts = cardParts(card);
+  let html = parts.length ? parts.map((p, i) =>
+    '<div class="ing-row"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(p.name) + '</div><div class="ing-meta">' + escapeHtml(p.productCode || "no product code") + ' · ' + fmtQty(num(p.batchSize)) + 'g · ' +
+      (p.kind === "batch" ? 'pushed ' + fmtDay((p.actualAt || "").slice(0, 10)) : 'planned') + '</div></div>' +
+      (locked || parts.length < 2 ? '' : '<button type="button" class="icon-btn part-rm" data-i="' + i + '">Remove</button>') + '</div>').join("")
+    : '<div class="hint" style="margin:4px 0 8px;">No products from Development Studio on this card.</div>';
+  if (!locked) {
+    const src = untrackedSources();
+    if (src.batches.length || src.plans.length) html += '<select id="spendAddPart" style="margin:8px 0 6px;"><option value="">+ Add another product…</option>' + sourceOptions(src) + '</select>';
+  }
+  wrap.innerHTML = html;
+  const add = document.getElementById("spendAddPart");
+  if (add) add.addEventListener("change", () => {
+    const part = add.value && partFromChoice(add.value);
+    if (!part) return;
+    applyParts(card, cardParts(card).concat([part]));
+    persistCard(card);
+    renderSpend();
+  });
+  wrap.querySelectorAll(".part-rm").forEach(b => b.addEventListener("click", () => {
+    const parts = cardParts(card).slice();
+    if (!confirm("Take " + parts[+b.dataset.i].name + " off this card?")) return;
+    parts.splice(+b.dataset.i, 1);
+    applyParts(card, parts);
+    persistCard(card);
+    renderSpend();
+  }));
 }
 
 function renderSpendLines(card, stage) {
