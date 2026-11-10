@@ -161,6 +161,8 @@
   .report-card th, .report-card td { padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
   .spend-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
   .spend-line { padding: 10px 0 12px; border-bottom: 1px solid var(--border); }
+  .spend-part { border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; }
+  .spend-part .part-type { padding: 7px 10px; font-size: 0.82rem; }
   .spend-line.off { opacity: 0.5; }
   .spend-line-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .spend-amount label .pill { margin-left: 6px; }
@@ -742,6 +744,7 @@
     </details>
 
     <div><label>Product Code</label><input id="planProductCode" placeholder="e.g. ASR-014"></div>
+    <div><label>Spend card (Project Spend Tracker)</label><select id="planSpendCard"></select></div>
     <label>Notes for whoever produces this</label><input id="planNotes" placeholder="Optional — shown to employees on push">
     <button class="btn dark" id="savePlan">Save Formula</button>
     <button class="btn primary" id="pushPlan">Push to Production</button>
@@ -2573,6 +2576,8 @@ function startNewPlan() {
   document.getElementById("planLoadSelect").value = "";
   document.getElementById("planMsg").textContent = "";
   document.getElementById("inciHighlightNote").textContent = "";
+  document.getElementById("planSpendCard").dataset.chosen = "";
+  refreshStudioSpendCard();
   recalcStudio();
   window.scrollTo(0, 0);
 }
@@ -2583,6 +2588,8 @@ function loadFormulaRecord(plan) {
   document.getElementById("planBatchSize").value = plan.batchSize;
   document.getElementById("planNotes").value = plan.notes || "";
   document.getElementById("planProductCode").value = plan.productCode || "";
+  document.getElementById("planSpendCard").dataset.chosen = "";
+  refreshStudioSpendCard();
   fillBrief(plan.brief);
   document.getElementById("planRows").innerHTML = "";
   const cache = loadCache();
@@ -2848,7 +2855,11 @@ document.getElementById("pushConfirm").addEventListener("click", () => {
   renderProductionList();
 });
 
+document.getElementById("planSpendCard").addEventListener("change", e => { e.target.dataset.chosen = e.target.value; });
+document.getElementById("planSpendCard").addEventListener("focus", refreshStudioSpendCard);
 document.getElementById("openPlanningFromHome").addEventListener("click", () => {
+  document.getElementById("planSpendCard").dataset.chosen = "";
+  refreshStudioSpendCard();
   refreshPlanLoadSelect();
   if (!document.querySelectorAll("#planRows tr").length) {
     for (let i = 0; i < 5; i++) addPlanRow();
@@ -3217,7 +3228,7 @@ const SPEND_REPORTS = { spendOrder: "order", spendProduct: "product", spendMonth
       document.getElementById(id).innerHTML = values.length ? values.map(v => '<option>' + escapeHtml(v) + '</option>').join("") : '<option value="">' + none + '</option>';
     };
     fill("reportClient", Array.from(new Set(d.projects.map(p => p.client).filter(Boolean))).sort(), "No clients on cards yet");
-    fill("reportProdType", Array.from(new Set(d.projects.map(p => p.productType).filter(Boolean))).sort(), "No product types on cards yet");
+    fill("reportProdType", Array.from(new Set(d.projects.flatMap(c => { const ps = cardParts(c); return ps.length ? ps.map(x => x.productType || (ps.length === 1 ? c.productType : "")) : [c.productType]; }).filter(Boolean))).sort(), "No product types on cards yet");
     document.getElementById("reportClientWrap").style.display = spend === "order" ? "block" : "none";
     document.getElementById("reportProdTypeWrap").style.display = spend === "product" ? "block" : "none";
   });
@@ -3571,25 +3582,37 @@ function stockItem(code) { return loadCache().ingredients.find(i => i.code === c
 // Ingredient lines the app fills itself. Estimate: the formula × batch size.
 // Actual: usage logged against the card's product code since it was pushed.
 function autoIngredientLines(card, stage) {
-  const qtyByCode = {};
+  const qtyByCode = {}, plannedByCode = {};
   if (stage === "estimate") {
     (card.formula || []).forEach(f => { qtyByCode[f.code] = (qtyByCode[f.code] || 0) + num(f.grams); });
-  } else if (spendLogs && card.productCode) {
-    // Usage logged against any of the card's product codes, counted once per entry.
-    const mine = card.productCode.split(/[,\/]/).map(c => c.trim().toLowerCase()).filter(Boolean);
-    const since = (card.actualAt || "").slice(0, 10);
-    spendLogs.use.forEach(([itemCode, qty, date, purpose]) => {
-      if (!/^Product batch/.test(purpose) || String(date).slice(0, 10) < since) return;
+  } else {
+    // Product by product: what was logged as used for it since it was pushed
+    // (usage is tagged with its product code, or its name when it had none).
+    // A product with nothing logged yet (not made yet) counts at its formula.
+    let parts = cardParts(card);
+    if (!parts.length && card.productCode) parts = [{ kind: "batch", name: "", productCode: card.productCode, actualAt: card.actualAt, formula: [] }];
+    const keysOf = p => [p.name].concat(String(p.productCode || "").split(/[,\/]/)).map(k => (k || "").trim().toLowerCase()).filter(Boolean);
+    const used = parts.map(() => ({}));
+    if (spendLogs) spendLogs.use.forEach(([itemCode, qty, date, purpose]) => {
       const at = purpose.indexOf(" — ");
-      const codes = at < 0 ? [] : purpose.slice(at + 3).split(/[,\/]/).map(c => c.trim().toLowerCase());
-      if (codes.some(c => mine.indexOf(c) >= 0)) qtyByCode[itemCode] = (qtyByCode[itemCode] || 0) + num(qty);
+      if (!/^Product batch/.test(purpose) || at < 0) return;
+      const tag = purpose.slice(at + 3).trim().toLowerCase();
+      const tags = [tag].concat(tag.split(/[,\/]/).map(c => c.trim()));
+      const day = String(date).slice(0, 10);
+      // Counted once, for the first product on the card it belongs to.
+      const i = parts.findIndex(p => p.kind === "batch" && day >= String(p.actualAt || card.actualAt || "").slice(0, 10) && keysOf(p).some(k => tags.indexOf(k) >= 0));
+      if (i >= 0) used[i][itemCode] = (used[i][itemCode] || 0) + num(qty);
+    });
+    parts.forEach((p, i) => {
+      if (Object.keys(used[i]).length) Object.keys(used[i]).forEach(c => { qtyByCode[c] = (qtyByCode[c] || 0) + used[i][c]; });
+      else (p.formula || []).forEach(f => { qtyByCode[f.code] = (qtyByCode[f.code] || 0) + num(f.grams); plannedByCode[f.code] = (plannedByCode[f.code] || 0) + num(f.grams); });
     });
   }
   return Object.keys(qtyByCode).map(code => {
     const ing = stockItem(code);
     const c = unitCost(ing);
     return { key: "ing:" + code, auto: true, item: "Ingredients", type: "stock", stockCode: code, stockName: ing ? ing.name : code,
-      qty: r2(qtyByCode[code]), suggested: c === null ? null : r2(qtyByCode[code] * c) };
+      qty: r2(qtyByCode[code]), planned: r2(plannedByCode[code] || 0), suggested: c === null ? null : r2(qtyByCode[code] * c) };
   });
 }
 
@@ -3771,8 +3794,8 @@ function partFromBatch(batch) {
 function cardParts(card) {
   if (card.parts && card.parts.length) return card.parts;
   if (!card.product && !card.formula.length) return [];
-  return [{ kind: card.batchId ? "batch" : "plan", id: card.batchId || card.planId || "", planId: card.planId, name: card.product, productCode: card.productCode,
-    batchSize: card.batchSize, units: card.units, formula: card.formula || [], actualAt: card.actualAt }];
+  return [{ kind: card.batchId || card.status !== "estimate" ? "batch" : "plan", id: card.batchId || card.planId || "", planId: card.planId, name: card.product, productCode: card.productCode,
+    productType: card.productType, batchSize: card.batchSize, units: card.units, formula: card.formula || [], actualAt: card.actualAt }];
 }
 function applyParts(card, parts) {
   card.parts = parts;
@@ -3781,6 +3804,8 @@ function applyParts(card, parts) {
   card.batchSize = r2(parts.reduce((t, p) => t + num(p.batchSize), 0)) || "";
   card.units = parts.reduce((t, p) => t + num(p.units), 0) || "";
   card.formula = [].concat(...parts.map(p => p.formula || []));
+  const types = Array.from(new Set(parts.map(p => (p.productType || "").trim()).filter(Boolean)));
+  if (types.length || parts.length > 1) card.productType = types.join(" + ");
   const pushed = parts.filter(p => p.kind === "batch" && p.actualAt).map(p => p.actualAt).sort();
   if (pushed.length) card.actualAt = pushed[0];
   if (card.formula.length) card.hadEstimate = true;
@@ -3844,6 +3869,22 @@ function partFromChoice(v) {
   const p = loadPlans().find(x => x.id === v.slice(5)); return p && partFromPlan(p);
 }
 
+// Development Studio's "Spend card" choice: which open card this product's
+// save and push go onto. It starts on the card already holding the product.
+function refreshStudioSpendCard() {
+  const sel = document.getElementById("planSpendCard");
+  if (!sel) return;
+  const product = document.getElementById("planName").value.trim();
+  const code = document.getElementById("planProductCode").value.trim();
+  const open = loadSpend().projects.filter(c => c.status !== "closed");
+  const holder = open.find(c => cardParts(c).some(p => p.name === product && (p.productCode || "") === code));
+  const keep = sel.dataset.chosen && open.some(c => c.id === sel.dataset.chosen) ? sel.dataset.chosen : (holder ? holder.id : "");
+  sel.innerHTML = '<option value="">Its own new card</option>' + open
+    .sort((a, b) => (a.client || "~").localeCompare(b.client || "~"))
+    .map(c => '<option value="' + c.id + '">' + escapeHtml((c.client || "No client yet") + " — " + (c.product || "Untitled") + " · " + statusLabel(c.status)) + '</option>').join("");
+  sel.value = keep;
+}
+
 // Swaps the matching part for the new one in the same place, or adds it at the end.
 function replacePart(parts, match, part) {
   const i = parts.findIndex(match);
@@ -3865,7 +3906,14 @@ function upsertCardFromStudio(stage, sourceId) {
   const isThis = part => part.name === product && (part.productCode || "") === productCode;
   const d = loadSpend();
   const holds = (c, kind) => c.status !== "closed" && cardParts(c).some(p => isThis(p) && (!kind || p.kind === kind));
-  let card = d.projects.find(c => holds(c, "plan"));
+  const chosenId = (document.getElementById("planSpendCard") || {}).value;
+  const chosen = chosenId && d.projects.find(c => c.id === chosenId && c.status !== "closed");
+  let card = chosen || d.projects.find(c => holds(c, "plan"));
+  // Moving the product to the chosen card takes its planned part off any other card.
+  if (chosen) d.projects.filter(c => c.id !== chosen.id && holds(c, "plan")).forEach(c => {
+    applyParts(c, cardParts(c).filter(p => !(isThis(p) && p.kind === "plan")));
+    persistCard(c);
+  });
   if (stage === "estimate") {
     if (!card && d.projects.some(c => holds(c, "batch"))) return null; // already in production: its estimate stays as pushed
     card = card || newSpendCard({});
@@ -3878,6 +3926,8 @@ function upsertCardFromStudio(stage, sourceId) {
       { kind: "batch", id: sourceId, name: product, productCode: productCode, batchSize: batchSize, units: units, formula: formula, actualAt: new Date().toISOString() }));
   }
   persistCard(card);
+  const sel = document.getElementById("planSpendCard");
+  if (sel) { sel.dataset.chosen = card.id; refreshStudioSpendCard(); }
   return card;
 }
 
@@ -3988,7 +4038,7 @@ function renderSpendCard(body) {
     '<span class="pill ' + (locked ? "ok" : "gap") + '">' + statusLabel(card.status) + '</span></div>' +
     '<label>Products in this card</label><div id="spendParts"></div>' +
     '<div class="form-grid">' + field("Client", "client", card.client, ' placeholder="e.g. InstaBrand"') + field("Product Code", "productCode", card.productCode) + '</div>' +
-    '<div class="form-grid">' + field("Product", "product", card.product) + field("Product type", "productType", card.productType, ' placeholder="e.g. Lotion"') + '</div>' +
+    '<div class="form-grid">' + field("Product", "product", card.product) + (cardParts(card).length ? '<div></div>' : field("Product type", "productType", card.productType, ' placeholder="e.g. Lotion"')) + '</div>' +
     '<div class="form-grid">' + field("Batch size (g)", "batchSize", card.batchSize, ' inputmode="decimal"') + field("Units made", "units", card.units, ' inputmode="numeric" placeholder="from pricing tiers"') + '</div>' +
     '<div class="form-grid">' + (stage === "estimate"
       ? field("Expected price (GHS)", "moneyIn.expected", card.moneyIn.expected, ' inputmode="decimal"') + field("Client paid (GHS)", "moneyIn.paid", card.moneyIn.paid, ' inputmode="decimal" placeholder="locks tithe"')
@@ -4012,7 +4062,7 @@ function renderSpendCard(body) {
     renderSpendResult(card);
   }));
   const typeInp = body.querySelector('input[data-k="productType"]');
-  if (!locked) attachSuggestList(typeInp, () => {
+  if (!locked && typeInp) attachSuggestList(typeInp, () => {
     const used = loadSpend().projects.map(p => p.productType).filter(Boolean);
     return Array.from(new Set(PRODUCT_TYPES.concat(used)));
   }, v => { card.productType = v; persistCard(card); });
@@ -4060,15 +4110,37 @@ function renderSpendParts(card) {
   const locked = card.status === "closed";
   const parts = cardParts(card);
   let html = parts.length ? parts.map((p, i) =>
-    '<div class="ing-row"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(p.name) + '</div><div class="ing-meta">' + escapeHtml(p.productCode || "no product code") + ' · ' + fmtQty(num(p.batchSize)) + 'g · ' +
+    '<div class="spend-part"><div class="ing-row" style="border:0; padding-bottom:4px;"><div class="ing-row-info"><div class="ing-name">' + escapeHtml(p.name) + '</div><div class="ing-meta">' + escapeHtml(p.productCode || "no product code") + ' · ' + fmtQty(num(p.batchSize)) + 'g · ' +
       (p.kind === "batch" ? 'pushed ' + fmtDay((p.actualAt || "").slice(0, 10)) : 'planned') + '</div></div>' +
-      (locked || parts.length < 2 ? '' : '<button type="button" class="icon-btn part-rm" data-i="' + i + '">Remove</button>') + '</div>').join("")
+      (locked || parts.length < 2 ? '' : '<button type="button" class="icon-btn part-rm" data-i="' + i + '">Remove</button>') + '</div>' +
+      '<div class="part-type-wrap"><input class="part-type" data-i="' + i + '" placeholder="Product type, e.g. Hair oil" value="' + escapeHtml(p.productType || "") + '"' + (locked ? " disabled" : "") + '></div></div>').join("")
     : '<div class="hint" style="margin:4px 0 8px;">No products from Development Studio on this card.</div>';
   if (!locked) {
     const src = untrackedSources();
     if (src.batches.length || src.plans.length) html += '<select id="spendAddPart" style="margin:8px 0 6px;"><option value="">+ Add another product…</option>' + sourceOptions(src) + '</select>';
+    // Another open card can be folded into this one, e.g. a push that landed on its own card.
+    const others = loadSpend().projects.filter(c => c.id !== card.id && c.status !== "closed")
+      .sort((a, b) => ((b.client && b.client === card.client) ? 1 : 0) - ((a.client && a.client === card.client) ? 1 : 0));
+    const sameClient = card.client && others.some(c => c.client === card.client);
+    if (others.length) html += (sameClient ? '<div class="hint" style="margin:6px 0 0;">' + escapeHtml(card.client) + ' has another open card.</div>' : '') +
+      '<select id="spendMerge" style="margin:6px 0;"><option value="">Combine this card into another card…</option>' +
+      others.map(c => '<option value="' + c.id + '">' + escapeHtml((c.client || "No client yet") + " — " + (c.product || "Untitled") + " · " + statusLabel(c.status)) + '</option>').join("") + '</select>';
   }
   wrap.innerHTML = html;
+  wrap.querySelectorAll(".part-type").forEach(inp => {
+    const set = v => { const ps = cardParts(card).slice(); ps[+inp.dataset.i] = Object.assign({}, ps[+inp.dataset.i], { productType: v }); applyParts(card, ps); persistCard(card); };
+    inp.addEventListener("input", () => set(inp.value));
+    if (!locked) attachSuggestList(inp, () => Array.from(new Set(PRODUCT_TYPES.concat(loadSpend().projects.flatMap(c => cardParts(c).map(x => x.productType)).filter(Boolean)))), set);
+  });
+  const merge = document.getElementById("spendMerge");
+  if (merge) merge.addEventListener("change", () => {
+    const target = loadSpend().projects.find(c => c.id === merge.value);
+    if (!target) return;
+    if (!confirm("Move everything on this card (products, spend lines, money and days) into " + (target.client || "the") + " card \"" + (target.product || "Untitled") + "\"? This card is then removed.")) { merge.value = ""; return; }
+    spendOpenId = mergeCards(card, target).id;
+    renderSpend();
+    window.scrollTo(0, 0);
+  });
   const add = document.getElementById("spendAddPart");
   if (add) add.addEventListener("change", () => {
     const part = add.value && partFromChoice(add.value);
@@ -4087,6 +4159,39 @@ function renderSpendParts(card) {
   }));
 }
 
+// Folds one card into another: products, hand-typed spend lines, money in,
+// days and any tithe already locked are added to the target, then the first
+// card is removed.
+function mergeCards(src, dst) {
+  const manual = lines => (lines || []).filter(l => !l.auto);
+  const sum = (a, b) => (String(a).trim() === "" && String(b).trim() === "") ? "" : r2(num(a) + num(b));
+  dst.lines.estimate = (dst.lines.estimate || []).concat(manual(src.lines.estimate));
+  // An Estimate folded into an Actual card brings its planned purchases into
+  // the actual spend too (as editable lines), like its not-yet-made products.
+  const intoActual = src.status === "estimate" && dst.status !== "estimate" ? manual(src.lines.estimate).map(l => Object.assign({}, l, { id: "l" + Date.now() + Math.random().toString(36).slice(2, 5) })) : manual(src.lines.actual);
+  dst.lines.actual = (dst.lines.actual || []).concat(intoActual);
+  dst.moneyIn = { expected: sum(dst.moneyIn.expected, src.moneyIn.expected), paid: sum(dst.moneyIn.paid, src.moneyIn.paid) };
+  dst.days = { estimate: sum(dst.days.estimate, src.days.estimate), actual: sum(dst.days.actual, src.days.actual) };
+  if (src.tithe.locked || dst.tithe.locked) {
+    dst.tithe = { locked: true, amount: r2((dst.tithe.locked ? num(dst.tithe.amount) : 0) + (src.tithe.locked ? num(src.tithe.amount) : 0)), edited: !!(dst.tithe.edited || src.tithe.edited), at: dst.tithe.at || src.tithe.at };
+  }
+  dst.client = dst.client || src.client;
+  if (src.status !== "estimate" && dst.status === "estimate") {
+    dst.lines.estimate = stageLines(dst, "estimate");
+    dst.frozen.estimate = true;
+    dst.status = "actual";
+    dst.actualAt = src.actualAt || new Date().toISOString();
+  }
+  applyParts(dst, cardParts(dst).concat(cardParts(src)));
+  persistCard(dst);
+  const d = loadSpend();
+  d.projects = d.projects.filter(p => p.id !== src.id);
+  saveSpend(d);
+  saveQueue(loadQueue().filter(x => !(x.type === "saveProject" && x.payload.cardId === src.id)));
+  enqueue("deleteProject", { id: src.id });
+  return dst;
+}
+
 function renderSpendLines(card, stage) {
   const wrap = document.getElementById("spendLines");
   const locked = card.status === "closed";
@@ -4099,7 +4204,8 @@ function renderSpendLines(card, stage) {
     const amt = lineAmount(l);
     html += '<div class="spend-line' + (l.off ? " off" : "") + '" data-i="' + i + '">';
     if (l.auto) {
-      html += '<div class="spend-line-top"><div><div class="ing-name">' + escapeHtml(l.stockName) + '</div><div class="ing-meta">Ingredients · from stock · ' + fmtQty(l.qty) + 'g · auto' +
+      html += '<div class="spend-line-top"><div><div class="ing-name">' + escapeHtml(l.stockName) + '</div><div class="ing-meta">Ingredients · from stock · ' + fmtQty(l.qty) + 'g · ' +
+        (stage === "actual" && l.planned ? (l.planned >= l.qty ? 'planned, not made yet' : fmtQty(l.planned) + 'g planned, not made yet') : 'auto') +
         (l.suggested === null ? ' · no cost on Master Items' : '') + '</div></div>' +
         (locked ? '' : '<label class="toggle-switch"><input type="checkbox" class="sl-on"' + (l.off ? '' : ' checked') + '> Count</label>') + '</div>';
     } else {
@@ -4349,24 +4455,38 @@ function buildSpendReport(type, o) {
   }
 
   if (type === "product") {
-    const cards = d.projects.filter(p => p.productType === o.productType && counts(p) && inRange(p, o.from, o.to));
-    const t = totalsOf(cards);
-    const litres = cards.reduce((s, p) => s + num(p.batchSize) / 1000, 0);
-    const units = cards.reduce((s, p) => s + num(p.units), 0);
-    const margins = cards.map(p => ({ p, m: fig(p).margin })).filter(x => x.m !== null).sort((a, b) => b.m - a.m);
+    // Each product on a card counts under its own type. A card with several
+    // products is shared out by batch size (a 1,000 g oil and a 500 g balm
+    // take 2/3 and 1/3 of its money, spend and profit).
+    const entries = [];
+    d.projects.filter(p => counts(p) && inRange(p, o.from, o.to)).forEach(c => {
+      const parts = cardParts(c);
+      if (!parts.length) { if (c.productType === o.productType) entries.push({ c, p: { name: c.product, productCode: c.productCode, batchSize: c.batchSize, units: c.units }, share: 1 }); return; }
+      const total = parts.reduce((t, x) => t + num(x.batchSize), 0);
+      parts.forEach(x => {
+        const type = x.productType || (parts.length === 1 ? c.productType : "");
+        if (type === o.productType) entries.push({ c, p: x, share: total ? num(x.batchSize) / total : 1 / parts.length });
+      });
+    });
+    const t = { moneyIn: 0, spend: 0, gross: 0, tithe: 0, running: 0, net: 0 };
+    entries.forEach(e => { const f = fig(e.c); Object.keys(t).forEach(k => { t[k] += f[k] * e.share; }); });
+    const litres = entries.reduce((s, e) => s + num(e.p.batchSize) / 1000, 0);
+    const units = entries.reduce((s, e) => s + num(e.p.units), 0);
+    const margins = entries.map(e => ({ e, m: fig(e.c).margin })).filter(x => x.m !== null).sort((a, b) => b.m - a.m);
     const avgMargin = margins.length ? margins.reduce((s, x) => s + x.m, 0) / margins.length : null;
     const byItem = {};
-    cards.forEach(p => stageLines(p, p.status === "estimate" ? "estimate" : "actual").forEach(l => { const k = l.item || "Other"; byItem[k] = (byItem[k] || 0) + lineAmount(l); }));
-    const gaps = cards.filter(p => p.status !== "estimate" && p.hadEstimate !== false).map(p => { const f = cardFigures(p, d); return f.actual.spend - f.estimate.spend; });
+    entries.forEach(e => stageLines(e.c, e.c.status === "estimate" ? "estimate" : "actual").forEach(l => { const k = l.item || "Other"; byItem[k] = (byItem[k] || 0) + lineAmount(l) * e.share; }));
+    const gaps = entries.filter(e => e.c.status !== "estimate" && e.c.hadEstimate !== false).map(e => { const f = cardFigures(e.c, d); return (f.actual.spend - f.estimate.spend) * e.share; });
     const avgGap = gaps.length ? gaps.reduce((s, g) => s + g, 0) / gaps.length : null;
+    const label = e => escapeHtml(e.p.name || e.c.product) + (e.share < 1 ? " (" + Math.round(e.share * 100) + "% of a shared card)" : "");
     let html = tableHtml("Summary", ["Batches", "Litres made", "Units made", "Total spend", "Cost per litre", "Cost per unit", "Average margin", "Average gap, actual − estimated cost"],
-      [[cards.length, fmtQty(litres), units || "—", ghs(t.spend), litres ? ghs(t.spend / litres) : "—", units ? ghs(t.spend / units) : "—", pct(avgMargin), avgGap === null ? "—" : (avgGap >= 0 ? "+" : "−") + ghs(Math.abs(avgGap))]]);
+      [[entries.length, fmtQty(litres), units || "—", ghs(t.spend), litres ? ghs(t.spend / litres) : "—", units ? ghs(t.spend / units) : "—", pct(avgMargin), avgGap === null ? "—" : (avgGap >= 0 ? "+" : "−") + ghs(Math.abs(avgGap))]]);
     if (margins.length) html += tableHtml("Best and worst batch", ["", "Product", "Client", "Code", "Margin"], [
-      ["Best", escapeHtml(margins[0].p.product), escapeHtml(margins[0].p.client || ""), escapeHtml(margins[0].p.productCode || ""), pct(margins[0].m)],
-      ["Worst", escapeHtml(margins[margins.length - 1].p.product), escapeHtml(margins[margins.length - 1].p.client || ""), escapeHtml(margins[margins.length - 1].p.productCode || ""), pct(margins[margins.length - 1].m)]]);
+      ["Best", label(margins[0].e), escapeHtml(margins[0].e.c.client || ""), escapeHtml(margins[0].e.p.productCode || ""), pct(margins[0].m)],
+      ["Worst", label(margins[margins.length - 1].e), escapeHtml(margins[margins.length - 1].e.c.client || ""), escapeHtml(margins[margins.length - 1].e.p.productCode || ""), pct(margins[margins.length - 1].m)]]);
     html += tableHtml("Share of cost per item", ["Item", "Spend", "Share"], Object.keys(byItem).sort((a, b) => byItem[b] - byItem[a])
       .map(k => [escapeHtml(k), ghs(byItem[k]), t.spend ? (byItem[k] / t.spend * 100).toFixed(0) + "%" : "—"]));
-    html += tableHtml("Batches", ["Product", "Client", "Code", "Batch (g)", "Units", "Spend", "Net", "Margin"], cards.map(p => { const f = fig(p); return [escapeHtml(p.product), escapeHtml(p.client || ""), escapeHtml(p.productCode || ""), fmtQty(num(p.batchSize)), p.units || "—", ghs(f.spend), ghs(f.net), pct(f.margin)]; }));
+    html += tableHtml("Batches", ["Product", "Client", "Code", "Batch (g)", "Units", "Spend", "Net", "Margin"], entries.map(e => { const f = fig(e.c); return [label(e), escapeHtml(e.c.client || ""), escapeHtml(e.p.productCode || ""), fmtQty(num(e.p.batchSize)), e.p.units || "—", ghs(f.spend * e.share), ghs(f.net * e.share), pct(f.margin)]; }));
     return { title: "Product report — " + (o.productType || "no type"), sub, html };
   }
 
