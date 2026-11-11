@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>LCL Social Planner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,700&family=Urbanist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --orange: #FF914D; --yellow: #FFDE59; --pink: #F25C8A; --teal: #2BB5A0;
+    --brown: #5B4239; --black: #17130F; --white: #FFFFFF; --soft: #FFF8F2;
+    --border: rgba(91,66,57,0.16);
+    --idea-bg: #FFE4D1; --idea-fg: #7A3A0E; --idea-ac: #FF914D;
+    --draft-bg: #FFF6C7; --draft-fg: #6B5600; --draft-ac: #E8B800;
+    --ready-bg: #FDDCE7; --ready-fg: #7A1F3D; --ready-ac: #F25C8A;
+    --posted-bg: #D3F2EC; --posted-fg: #0D5247; --posted-ac: #2BB5A0;
+    --tabbar-h: 68px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--white); color: var(--black); font-family: 'Urbanist', sans-serif; }
+  body { min-height: 100vh; }
+  button { font-family: 'Urbanist', sans-serif; cursor: pointer; }
+  .hidden { display: none !important; }
+  .serif { font-family: 'Playfair Display', serif; }
+
+  /* ---------- gate screens ---------- */
+  .gate { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  .gate .logo-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
+  .gate .logo-dots span { width: 14px; height: 14px; border-radius: 50%; }
+  .gate h1 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.9rem; margin: 0; }
+  .gate h1 em { color: var(--pink); }
+  .gate p { color: var(--brown); font-size: 0.9rem; margin: 6px 0 22px; }
+  .pin-dots { display: flex; gap: 12px; justify-content: center; margin-bottom: 22px; }
+  .pin-dots span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--brown); }
+  .pin-dots span.on:nth-child(1) { background: var(--orange); border-color: var(--orange); }
+  .pin-dots span.on:nth-child(2) { background: var(--yellow); border-color: #E8B800; }
+  .pin-dots span.on:nth-child(3) { background: var(--pink); border-color: var(--pink); }
+  .pin-dots span.on:nth-child(4) { background: var(--teal); border-color: var(--teal); }
+  .pin-pad { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; justify-content: center; }
+  .pin-pad button { height: 64px; border-radius: 18px; border: 1.5px solid var(--border); background: var(--white); font-size: 1.4rem; font-weight: 700; color: var(--black); }
+  .pin-pad button:active { background: var(--soft); }
+  .pin-err { color: #C0392B; font-size: 0.8rem; font-weight: 700; min-height: 20px; margin-top: 12px; }
+
+  /* ---------- layout ---------- */
+  .app-header { position: sticky; top: 0; z-index: 20; background: var(--white); }
+  .topbar { background: var(--white); display: flex; align-items: center; gap: 10px; padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top)); }
+  .rainbow { height: 4px; display: flex; }
+  .rainbow span { flex: 1; }
+  .brand-word { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.15rem; }
+  .brand-word em { color: var(--pink); }
+  .sync-pill { margin-left: auto; font-size: 0.66rem; font-weight: 800; padding: 5px 10px; border-radius: 20px; background: var(--posted-bg); color: var(--posted-fg); display: flex; align-items: center; gap: 4px; white-space: nowrap; border: none; }
+  .sync-pill.pending { background: var(--draft-bg); color: var(--draft-fg); }
+  .sync-pill.offline { background: var(--idea-bg); color: var(--idea-fg); }
+  .sync-pill.error { background: #FCE4E4; color: #8A1C1C; }
+  .mgr-badge { font-size: 0.6rem; font-weight: 800; background: var(--black); color: var(--white); padding: 4px 9px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  main { padding: 18px 16px calc(var(--tabbar-h) + 30px + env(safe-area-inset-bottom)); }
+  .screen-title { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.55rem; margin: 0 0 4px; }
+  .screen-sub { color: var(--brown); font-size: 0.85rem; margin: 0 0 18px; }
+  h3.section { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.05rem; margin: 26px 0 12px; display: flex; align-items: center; gap: 8px; }
+  h3.section .count { font-family: 'Urbanist', sans-serif; font-size: 0.7rem; font-weight: 800; padding: 2px 9px; border-radius: 10px; background: var(--soft); color: var(--brown); }
+
+  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; background: var(--white); border-top: 1px solid var(--border); display: flex; padding: 8px 6px calc(10px + env(safe-area-inset-bottom)); }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.68rem; font-weight: 700; color: var(--brown); background: none; border: none; padding: 4px 0; }
+  .tab i { font-size: 1.45rem; width: 44px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 16px; }
+  .tab.active { color: var(--black); }
+  .tab.active[data-screen="board"] i { background: var(--idea-bg); color: var(--idea-fg); }
+  .tab.active[data-screen="calendar"] i { background: var(--draft-bg); color: var(--draft-fg); }
+  .tab.active[data-screen="add"] i { background: var(--ready-bg); color: var(--ready-fg); }
+  .tab.active[data-screen="manager"] i { background: var(--posted-bg); color: var(--posted-fg); }
+
+  @media (min-width: 900px) {
+    .app-shell { padding-left: 220px; }
+    .tabbar { top: 0; bottom: 0; right: auto; width: 220px; flex-direction: column; border-top: none; border-right: 1px solid var(--border); padding: 90px 14px 20px; gap: 6px; }
+    .tab { flex: none; flex-direction: row; gap: 10px; font-size: 0.9rem; padding: 6px 8px; border-radius: 14px; }
+    main { padding: 24px 32px 40px; max-width: 1280px; }
+    .filter-row { max-width: 560px; }
+  }
+
+  /* ---------- stats ---------- */
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  @media (min-width: 700px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .stat { border-radius: 18px; padding: 14px 16px; border: none; text-align: left; position: relative; overflow: hidden; }
+  .stat .num { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 2rem; line-height: 1; }
+  .stat .lbl { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 6px; }
+  .stat i { position: absolute; right: 12px; top: 12px; font-size: 1.3rem; opacity: 0.8; }
+  .stat.sel { outline: 2.5px solid var(--black); outline-offset: -2.5px; }
+  .s-idea { background: var(--idea-bg); color: var(--idea-fg); }
+  .s-draft { background: var(--draft-bg); color: var(--draft-fg); }
+  .s-ready { background: var(--ready-bg); color: var(--ready-fg); }
+  .s-posted { background: var(--posted-bg); color: var(--posted-fg); }
+
+  /* ---------- coming up strip ---------- */
+  .strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+  .strip::-webkit-scrollbar { display: none; }
+  .up-card { flex: 0 0 150px; border-radius: 16px; border: 1.5px solid var(--border); padding: 10px; background: var(--white); text-align: left; }
+  .up-card .d { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+  .up-card .t { font-weight: 700; font-size: 0.85rem; margin-top: 4px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .empty-note { font-size: 0.82rem; color: var(--brown); background: var(--soft); border-radius: 14px; padding: 14px; }
+
+  /* ---------- filters ---------- */
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { border: 1.5px solid var(--border); background: var(--white); color: var(--brown); border-radius: 20px; padding: 7px 14px; font-size: 0.78rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chip.active { border-color: var(--black); color: var(--black); background: var(--soft); }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .filter-row select { flex: 1; }
+
+  /* ---------- feed grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  @media (min-width: 700px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; } }
+  @media (min-width: 1100px) { .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  .tile { aspect-ratio: 4 / 5; border-radius: 10px; position: relative; overflow: hidden; border: none; padding: 0; text-align: left; display: block; width: 100%; }
+  .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .ph { position: absolute; inset: 0; padding: 10px 9px 30px; display: flex; flex-direction: column; justify-content: center; }
+  .tile .ph .q { font-family: 'Playfair Display', serif; font-weight: 800; font-size: clamp(0.78rem, 3.2vw, 1.05rem); line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+  .tile .ph i { font-size: 1.1rem; margin-bottom: 6px; opacity: 0.7; }
+  .tile .st { position: absolute; top: 6px; left: 6px; font-size: 0.56rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 7px; border-radius: 10px; }
+  .tile .dt { position: absolute; bottom: 0; left: 0; right: 0; font-size: 0.62rem; font-weight: 800; padding: 14px 7px 6px; color: var(--white); background: linear-gradient(transparent, rgba(23,19,15,0.62)); }
+  .tile:not(.has-img) .dt { background: none; color: inherit; }
+  .tile .sync-dot { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); border: 2px solid var(--white); }
+  .tile.Idea .ph { background: var(--idea-bg); color: var(--idea-fg); }
+  .tile.Draft .ph { background: var(--draft-bg); color: var(--draft-fg); }
+  .tile.Ready .ph { background: var(--ready-bg); color: var(--ready-fg); }
+  .tile.Posted .ph { background: var(--posted-bg); color: var(--posted-fg); }
+  .st.Idea { background: var(--idea-ac); color: var(--black); }
+  .st.Draft { background: var(--yellow); color: var(--black); }
+  .st.Ready { background: var(--pink); color: var(--white); }
+  .st.Posted { background: var(--teal); color: var(--white); }
+
+  /* ---------- calendar ---------- */
+  .cal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .cal-head h3 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.2rem; margin: 0; flex: 1; }
+  .round-btn { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--white); font-size: 1.1rem; color: var(--black); display: flex; align-items: center; justify-content: center; }
+  .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .cal .dow { font-size: 0.62rem; font-weight: 800; color: var(--brown); text-align: center; text-transform: uppercase; padding-bottom: 4px; }
+  .day { aspect-ratio: 1; border-radius: 12px; border: 1.5px solid var(--border); background: var(--white); padding: 5px; position: relative; text-align: left; font-size: 0.78rem; font-weight: 700; color: var(--black); display: flex; flex-direction: column; }
+  @media (min-width: 900px) { .day { aspect-ratio: 1.35; } }
+  .day.out { opacity: 0.32; }
+  .day.today { border-color: var(--orange); background: var(--soft); }
+  .day.sel { border-color: var(--black); border-width: 2px; }
+  .day .dots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: auto; }
+  .day .dots span { width: 7px; height: 7px; border-radius: 50%; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 12px 0 0; font-size: 0.72rem; font-weight: 700; color: var(--brown); }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  /* ---------- list rows ---------- */
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 16px; border: 1.5px solid var(--border); background: var(--white); margin-bottom: 8px; width: 100%; text-align: left; }
+  .row .thumb { width: 52px; height: 64px; border-radius: 10px; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+  .row .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .row .info { flex: 1; min-width: 0; }
+  .row .info .t { font-weight: 800; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .info .m { font-size: 0.74rem; color: var(--brown); margin-top: 2px; }
+  .row .acts { display: flex; gap: 6px; flex-shrink: 0; }
+  .mini-btn { border: 1.5px solid var(--border); background: var(--white); border-radius: 10px; padding: 7px 10px; font-size: 0.72rem; font-weight: 800; color: var(--black); display: flex; align-items: center; gap: 4px; }
+  .mini-btn.ok { border-color: var(--teal); color: var(--posted-fg); }
+  .mini-btn.back { border-color: var(--orange); color: var(--idea-fg); }
+
+  /* ---------- form ---------- */
+  label.f { display: block; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--brown); margin: 16px 0 6px; }
+  label.f .req { color: var(--pink); }
+  input, select, textarea { width: 100%; padding: 12px 13px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 0.95rem; font-family: 'Urbanist', sans-serif; background: var(--white); color: var(--black); }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--orange); }
+  textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .two label.f { margin-top: 16px; }
+  .hint { font-size: 0.72rem; color: var(--brown); margin-top: 5px; }
+  .hint.warn { color: #B4441A; font-weight: 700; }
+  .status-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .status-pick button { border-radius: 12px; border: 2px solid transparent; padding: 10px 4px; font-size: 0.78rem; font-weight: 800; }
+  .status-pick button.on { border-color: var(--black); }
+  .status-pick button.locked { opacity: 0.45; }
+  .img-drop { border: 2px dashed var(--border); border-radius: 16px; padding: 18px; text-align: center; color: var(--brown); font-size: 0.85rem; font-weight: 700; background: var(--soft); display: block; cursor: pointer; }
+  .img-drop i { font-size: 1.6rem; display: block; margin-bottom: 4px; color: var(--orange); }
+  .img-preview { position: relative; width: 160px; aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; }
+  .img-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .img-preview button { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--white); font-size: 1rem; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border-radius: 14px; font-weight: 800; font-size: 0.92rem; margin-top: 18px; background: transparent; border: 2px solid var(--black); color: var(--black); }
+  .btn.pink { border-color: var(--pink); color: var(--ready-fg); }
+  .btn.teal { border-color: var(--teal); color: var(--posted-fg); }
+  .btn.ghost { border: 1.5px dashed var(--brown); color: var(--brown); font-size: 0.82rem; padding: 11px; margin-top: 10px; }
+  .btn:active { transform: scale(0.99); }
+  .form-err { color: #C0392B; font-size: 0.8rem; font-weight: 700; margin-top: 10px; }
+
+  /* ---------- detail sheet ---------- */
+  .overlay { position: fixed; inset: 0; z-index: 50; background: rgba(23,19,15,0.48); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { background: var(--white); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 24px 24px 0 0; padding: 0 0 calc(24px + env(safe-area-inset-bottom)); }
+  @media (min-width: 900px) { .overlay { align-items: center; } .sheet { border-radius: 24px; max-height: 88vh; } }
+  .sheet .grab { width: 44px; height: 5px; border-radius: 3px; background: var(--border); margin: 10px auto; }
+  .sheet .hero { margin: 0 16px; border-radius: 18px; overflow: hidden; aspect-ratio: 4 / 5; max-height: 52vh; width: auto; display: flex; align-items: center; justify-content: center; }
+  .sheet .hero img { width: 100%; height: 100%; object-fit: cover; }
+  .sheet .hero .q { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.6rem; padding: 26px; text-align: center; line-height: 1.25; }
+  .sheet .body { padding: 16px 18px 0; }
+  .sheet .close-x { position: sticky; top: 10px; float: right; margin: -24px 14px 0 0; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--white); font-size: 1.1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+  .sheet h2 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.4rem; margin: 8px 0 12px; }
+  .facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .fact { border-radius: 14px; padding: 10px 12px; }
+  .fact .k { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; display: flex; align-items: center; gap: 4px; }
+  .fact .v { font-weight: 800; font-size: 0.92rem; margin-top: 3px; }
+  .fact.goal { grid-column: 1 / -1; background: var(--ready-bg); color: var(--ready-fg); }
+  .fact.when { background: var(--draft-bg); color: var(--draft-fg); }
+  .fact.where { background: var(--posted-bg); color: var(--posted-fg); }
+  .caption-box { margin-top: 14px; background: var(--soft); border-radius: 16px; padding: 14px; font-size: 0.92rem; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+  .caption-head { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+  .caption-head .k { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brown); }
+  .sheet-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; }
+  .sheet-actions .btn { margin-top: 10px; font-size: 0.85rem; padding: 12px; }
+  .sheet-actions .btn.wide { grid-column: 1 / -1; }
+
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + 20px + env(safe-area-inset-bottom)); z-index: 60; background: var(--black); color: var(--white); padding: 11px 18px; border-radius: 14px; font-size: 0.85rem; font-weight: 700; max-width: 90vw; text-align: center; }
+  @media (min-width: 900px) { .toast { bottom: 28px; } }
+</style>
+</head>
+<body>
+
+<!-- ============ SETUP (only if no backend URL yet) ============ -->
+<div class="gate hidden" id="setupScreen">
+  <div class="logo-dots"><span style="background:var(--orange)"></span><span style="background:var(--yellow)"></span><span style="background:var(--pink)"></span><span style="background:var(--teal)"></span></div>
+  <h1>Connect the <em>planner</em></h1>
+  <p>Paste the Apps Script web app URL once. This device will remember it.</p>
+  <div style="width:100%;max-width:420px;text-align:left">
+    <input id="setupUrl" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+    <div class="form-err" id="setupErr"></div>
+    <button class="btn" id="setupSave"><i class="ti ti-plug-connected"></i> Connect</button>
+  </div>
+</div>
+
+<!-- ============ PIN ============ -->
+<div class="gate hidden" id="pinScreen">
+  <div class="logo-dots"><span style="background:var(--orange)"></span><span style="background:var(--yellow)"></span><span style="background:var(--pink)"></span><span style="background:var(--teal)"></span></div>
+  <h1 id="pinTitle">LCL <em>Social</em></h1>
+  <p id="pinSub">Enter your PIN</p>
+  <div class="pin-dots" id="pinDots"><span></span><span></span><span></span><span></span></div>
+  <div class="pin-pad" id="pinPad"></div>
+  <div class="pin-err" id="pinErr"></div>
+  <button class="btn ghost hidden" id="pinCancel" style="max-width:240px">Cancel</button>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app-shell hidden" id="app">
+  <header class="app-header">
+  <div class="topbar">
+    <span class="brand-word">LCL <em>Social</em></span>
+    <span class="mgr-badge hidden" id="mgrBadge">Manager</span>
+    <button class="sync-pill" id="syncPill"><i class="ti ti-cloud-check"></i> <span>Synced</span></button>
+  </div>
+  <div class="rainbow"><span style="background:var(--orange)"></span><span style="background:var(--yellow)"></span><span style="background:var(--pink)"></span><span style="background:var(--teal)"></span></div>
+  </header>
+
+  <main>
+    <!-- BOARD -->
+    <section id="screen-board">
+      <h2 class="screen-title">Content board</h2>
+      <p class="screen-sub" id="boardSub">Your ideas, drafts and ready to go posts.</p>
+      <div class="stats" id="stats"></div>
+      <h3 class="section"><i class="ti ti-sparkles" style="color:var(--pink)"></i> Coming up this week</h3>
+      <div class="strip" id="upcoming"></div>
+      <h3 class="section"><i class="ti ti-layout-grid" style="color:var(--orange)"></i> Feed <span class="count" id="feedCount">0</span></h3>
+      <div class="chips" id="statusChips"></div>
+      <div class="filter-row">
+        <select id="platformFilter"></select>
+        <select id="pillarFilter"></select>
+      </div>
+      <div class="grid" id="feed"></div>
+      <div class="empty-note hidden" id="feedEmpty">Nothing here yet. Tap Add to capture your first idea.</div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section id="screen-calendar" class="hidden">
+      <h2 class="screen-title">Calendar</h2>
+      <p class="screen-sub">Spot gaps in your posting rhythm.</p>
+      <div class="cal-head">
+        <button class="round-btn" id="calPrev" aria-label="Previous month"><i class="ti ti-chevron-left"></i></button>
+        <h3 id="calLabel"></h3>
+        <button class="round-btn" id="calToday" aria-label="This month"><i class="ti ti-calendar-event"></i></button>
+        <button class="round-btn" id="calNext" aria-label="Next month"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <div class="legend">
+        <span><i style="background:var(--idea-ac)"></i>Idea</span><span><i style="background:var(--draft-ac)"></i>Draft</span>
+        <span><i style="background:var(--ready-ac)"></i>Ready</span><span><i style="background:var(--posted-ac)"></i>Posted</span>
+      </div>
+      <h3 class="section" id="dayLabel"></h3>
+      <div id="dayList"></div>
+      <button class="btn ghost" id="dayAdd"><i class="ti ti-plus"></i> Add a post for this day</button>
+      <h3 class="section"><i class="ti ti-bulb" style="color:var(--orange)"></i> Not dated yet <span class="count" id="undatedCount">0</span></h3>
+      <div id="undatedList"></div>
+    </section>
+
+    <!-- ADD / EDIT -->
+    <section id="screen-add" class="hidden">
+      <h2 class="screen-title" id="formTitle">New post</h2>
+      <p class="screen-sub" id="formSub">Only title and goal are needed to save an idea.</p>
+
+      <label class="f">Status</label>
+      <div class="status-pick" id="statusPick"></div>
+      <div class="hint" id="statusHint"></div>
+
+      <label class="f" for="fTitle">Title <span class="req">*</span></label>
+      <input id="fTitle" maxlength="120" placeholder="MOQ explained in 5 slides">
+
+      <label class="f" for="fGoal">Goal <span class="req">*</span></label>
+      <select id="fGoal"></select>
+
+      <div class="two">
+        <div><label class="f" for="fPlatform">Platform</label><select id="fPlatform"></select></div>
+        <div><label class="f" for="fPillar">Pillar</label><select id="fPillar"></select></div>
+      </div>
+      <div class="two">
+        <div><label class="f" for="fDate">Planned date</label><input type="date" id="fDate"></div>
+        <div><label class="f" for="fTime">Time</label><input type="time" id="fTime"></div>
+      </div>
+
+      <label class="f" for="fCaption">Caption</label>
+      <textarea id="fCaption" placeholder="Write the caption you plan to post"></textarea>
+      <div class="hint" id="capCount">0 / 2,200</div>
+
+      <label class="f">Visual</label>
+      <label class="img-drop" id="imgDrop"><i class="ti ti-photo-plus"></i>Add an image or cover slide<input type="file" id="fImage" accept="image/*" hidden></label>
+      <div class="img-preview hidden" id="imgPreview"><img id="imgPreviewImg" alt="Post visual"><button type="button" id="imgRemove" aria-label="Remove image"><i class="ti ti-x"></i></button></div>
+
+      <label class="f" for="fNotes">Notes</label>
+      <textarea id="fNotes" style="min-height:80px" placeholder="Canva link, references, hashtags to try"></textarea>
+
+      <div class="form-err" id="formErr"></div>
+      <button class="btn pink" id="formSave"><i class="ti ti-device-floppy"></i> Save post</button>
+      <button class="btn ghost hidden" id="formCancel">Cancel editing</button>
+    </section>
+
+    <!-- MANAGER -->
+    <section id="screen-manager" class="hidden">
+      <h2 class="screen-title">Manager</h2>
+      <p class="screen-sub">Approve drafts, manage the ready shelf and the archive.</p>
+      <h3 class="section"><i class="ti ti-checklist" style="color:var(--draft-ac)"></i> Waiting for approval <span class="count" id="apprCount">0</span></h3>
+      <div id="apprList"></div>
+      <h3 class="section"><i class="ti ti-rocket" style="color:var(--pink)"></i> Ready shelf <span class="count" id="readyCount">0</span></h3>
+      <div id="readyList"></div>
+      <h3 class="section"><i class="ti ti-archive" style="color:var(--brown)"></i> Archive <span class="count" id="archCount">0</span></h3>
+      <div id="archList"></div>
+      <h3 class="section"><i class="ti ti-settings" style="color:var(--teal)"></i> Settings</h3>
+      <div class="hint" style="margin-bottom:6px">Goals, pillars and platforms are edited in the Settings tab of the Google Sheet.</div>
+      <button class="btn teal" id="mgrRefresh"><i class="ti ti-refresh"></i> Refresh from Sheet</button>
+      <button class="btn ghost" id="mgrUrl"><i class="ti ti-plug"></i> Change backend URL on this device</button>
+      <button class="btn ghost" id="mgrLock"><i class="ti ti-lock"></i> Leave manager mode</button>
+      <button class="btn ghost" id="logout"><i class="ti ti-logout"></i> Lock app</button>
+    </section>
+  </main>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab active" data-screen="board"><i class="ti ti-layout-grid"></i>Board</button>
+    <button class="tab" data-screen="calendar"><i class="ti ti-calendar"></i>Calendar</button>
+    <button class="tab" data-screen="add"><i class="ti ti-circle-plus"></i>Add</button>
+    <button class="tab" data-screen="manager"><i class="ti ti-shield-check"></i>Manager</button>
+  </nav>
+</div>
+
+<div class="overlay hidden" id="overlay"><div class="sheet" id="sheet"></div></div>
+<div class="toast hidden" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG
+// Paste the deployed Apps Script /exec URL here to wire every device at once.
+// Leave empty to have each device ask for it once (remembered per device).
+// ============================================================
+const SCRIPT_URL = "";
+const LOGIN_PIN = "2505";
+const MANAGER_PIN = "2635";
+const STATUSES = ["Idea", "Draft", "Ready", "Posted"];
+const STATUS_ICON = { Idea: "ti-bulb", Draft: "ti-pencil", Ready: "ti-rocket", Posted: "ti-circle-check" };
+const CAPTION_LIMIT = 2200;
+const LS = { posts: "lclsocial_posts", settings: "lclsocial_settings", queue: "lclsocial_queue", url: "lclsocial_url", synced: "lclsocial_synced" };
+const DEFAULT_SETTINGS = {
+  Goals: ["Educate", "Build trust", "Get enquiries", "Community", "Sell"],
+  Pillars: ["Formulation education", "Starting a brand", "Behind the lab", "Client wins"],
+  Platforms: ["Instagram", "TikTok", "LinkedIn", "Facebook"]
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let posts = (readLS(LS.posts, []) || []).map(p => Object.assign({}, p, { status: ["Idea", "Draft", "Ready", "Posted"].includes(p.status) ? p.status : "Idea" }));
+let settings = readLS(LS.settings, DEFAULT_SETTINGS);
+let queue = (readLS(LS.queue, []) || []).map(q => Object.assign(q, { inFlight: false }));
+let role = sessionStorage.getItem("lclsocial_role") || "";
+let screen = "board";
+let statusFilter = "all";
+let platformFilter = "all";
+let pillarFilter = "all";
+let calCursor = firstOfMonth(new Date());
+let selectedDay = isoDate(new Date());
+let editingId = null;
+let formStatus = "Idea";
+let formImage = { url: "", id: "", local: "" };
+let syncing = false;
+let lastError = "";
+
+function readLS(k, fallback) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+function writeLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { toast("This device's storage is full. Sync before adding more images."); return false; } }
+function backendUrl() { return SCRIPT_URL || localStorage.getItem(LS.url) || ""; }
+function isManager() { return role === "manager"; }
+
+// ============================================================
+// HELPERS
+// ============================================================
+const $ = (id) => document.getElementById(id);
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function uid(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function pad(n) { return String(n).padStart(2, "0"); }
+function isoDate(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function parseISO(s) { if (!s) return null; const p = String(s).slice(0, 10).split("-"); if (p.length < 3) return null; return new Date(+p[0], +p[1] - 1, +p[2]); }
+function niceDate(s, withDay) {
+  const d = parseISO(s); if (!d) return "";
+  return d.toLocaleDateString("en-GB", withDay === false ? { day: "numeric", month: "short" } : { weekday: "short", day: "numeric", month: "short" });
+}
+function niceTime(t) {
+  if (!t) return ""; const [h, m] = t.split(":").map(Number); if (isNaN(h)) return t;
+  return ((h % 12) || 12) + ":" + pad(m || 0) + (h < 12 ? " am" : " pm");
+}
+function normalize(list) {
+  return (list || []).map(p => Object.assign({}, p, { status: STATUSES.includes(p.status) ? p.status : "Idea", archived: !!p.archived }));
+}
+function activePosts() { return posts.filter(p => !p.archived); }
+function nextStatus(s) { const i = STATUSES.indexOf(s); return i >= 0 && i < STATUSES.length - 1 ? STATUSES[i + 1] : null; }
+function isPending(id) { return queue.some(q => q.post && q.post.id === id); }
+function imgSrc(p) { return p.localImage || p.imageUrl || ""; }
+function sortPosts(list) {
+  return list.slice().sort((a, b) => {
+    if (a.date && b.date) return (a.date + (a.time || "")).localeCompare(b.date + (b.time || ""));
+    if (a.date) return -1; if (b.date) return 1;
+    return String(b.created || "").localeCompare(String(a.created || ""));
+  });
+}
+let toastTimer;
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.remove("hidden");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), 2600);
+}
+function fillSelect(el, items, placeholder, allLabel) {
+  const cur = el.value;
+  el.innerHTML = (allLabel ? `<option value="all">${esc(allLabel)}</option>` : `<option value="">${esc(placeholder || "Choose")}</option>`) +
+    items.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("");
+  if ([...el.options].some(o => o.value === cur)) el.value = cur;
+}
+
+// ============================================================
+// NETWORK
+// ============================================================
+async function fetchWithTimeout(url, options, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, Object.assign({}, options || {}, { signal: ctrl.signal })); }
+  catch (err) {
+    if (err.name === "AbortError") throw new Error("Google didn't answer within " + Math.round(ms / 1000) + " seconds");
+    if (err instanceof TypeError) throw new Error("Couldn't reach Google. Check the internet, and that the script's access is set to Anyone");
+    throw err;
+  } finally { clearTimeout(timer); }
+}
+async function post(action, payload, ms) {
+  const res = await fetchWithTimeout(backendUrl() + "?action=" + encodeURIComponent(action), {
+    method: "POST", body: JSON.stringify(payload || {}), headers: { "Content-Type": "text/plain;charset=utf-8" }
+  }, ms || 90000);
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch (e) { throw new Error("Unexpected reply from Google, will retry"); }
+  if (data.status !== "ok") throw new Error(data.message || "Backend error");
+  return data;
+}
+async function getAll() {
+  const res = await fetchWithTimeout(backendUrl() + "?action=getAll", {}, 90000);
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch (e) { throw new Error("Unexpected reply from Google"); }
+  if (data.status !== "ok") throw new Error(data.message || "Backend error");
+  return data;
+}
+
+// ============================================================
+// QUEUE + SYNC (offline first)
+// ============================================================
+function enqueueSave(p, pendingImage) {
+  // One queued save per post: a newer edit replaces an older unsent one.
+  queue = queue.filter(q => !(q.post && q.post.id === p.id && !q.inFlight));
+  const clean = Object.assign({}, p); delete clean.localImage;
+  queue.push({ actionId: uid("A"), action: "savePost", post: clean, image: pendingImage || null, by: role });
+  writeLS(LS.queue, queue);
+}
+function upsertLocal(p) {
+  const i = posts.findIndex(x => x.id === p.id);
+  if (i >= 0) posts[i] = p; else posts.push(p);
+  writeLS(LS.posts, posts);
+}
+async function flushQueue() {
+  if (!backendUrl() || !navigator.onLine) return;
+  while (queue.length) {
+    const item = queue[0];
+    item.inFlight = true;
+    try {
+      if (item.image && item.image.data) {
+        const up = await post("uploadImage", { data: item.image.data, mimeType: "image/jpeg", name: (item.post.title || "post").slice(0, 40) + ".jpg" }, 120000);
+        item.post.imageUrl = up.imageUrl; item.post.imageId = up.imageId; item.image = null;
+        const local = posts.find(x => x.id === item.post.id);
+        if (local) { local.imageUrl = up.imageUrl; local.imageId = up.imageId; delete local.localImage; writeLS(LS.posts, posts); }
+        writeLS(LS.queue, queue);
+      }
+      await post("savePost", { post: item.post, by: item.by, actionId: item.actionId });
+      queue.shift();
+      writeLS(LS.queue, queue);
+      lastError = "";
+    } catch (err) {
+      item.inFlight = false;
+      lastError = err.message;
+      writeLS(LS.queue, queue);
+      break;
+    }
+  }
+}
+async function sync(manual) {
+  if (syncing) return;
+  if (!backendUrl()) return;
+  syncing = true; renderSync();
+  try {
+    await flushQueue();
+    if (navigator.onLine) {
+      const data = await getAll();
+      const pendingIds = new Set(queue.map(q => q.post && q.post.id));
+      const server = data.posts || [];
+      const localPending = posts.filter(p => pendingIds.has(p.id));
+      posts = normalize(server).filter(p => !pendingIds.has(p.id)).concat(localPending);
+      if (data.settings && Object.keys(data.settings).length) settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
+      writeLS(LS.posts, posts); writeLS(LS.settings, settings);
+      localStorage.setItem(LS.synced, new Date().toISOString());
+      if (!queue.length) lastError = "";
+      if (manual) toast("Up to date with the Sheet");
+    }
+  } catch (err) {
+    lastError = err.message;
+    if (manual) toast(err.message);
+  } finally {
+    syncing = false; renderAll();
+    if (queue.some(q => !q.inFlight) && navigator.onLine && !lastError) setTimeout(() => sync(), 400);
+  }
+}
+function renderSync() {
+  const pill = $("syncPill"); pill.className = "sync-pill";
+  let icon = "ti-cloud-check", text = "Synced";
+  if (syncing) { icon = "ti-refresh"; text = "Syncing"; pill.classList.add("pending"); }
+  else if (!navigator.onLine) { icon = "ti-cloud-off"; text = queue.length ? queue.length + " offline" : "Offline"; pill.classList.add("offline"); }
+  else if (lastError) { icon = "ti-alert-triangle"; text = queue.length ? queue.length + " not sent" : "Sync issue"; pill.classList.add("error"); }
+  else if (queue.length) { icon = "ti-clock"; text = queue.length + " pending"; pill.classList.add("pending"); }
+  pill.innerHTML = `<i class="ti ${icon}"></i> <span>${text}</span>`;
+}
+
+// ============================================================
+// PIN GATE
+// ============================================================
+let pinBuffer = "";
+let pinMode = "login"; // or "manager"
+let pinResolve = null;
+function showPin(mode) {
+  pinMode = mode; pinBuffer = ""; drawPinDots(); $("pinErr").textContent = "";
+  $("pinTitle").innerHTML = mode === "manager" ? "Manager <em>access</em>" : "LCL <em>Social</em>";
+  $("pinSub").textContent = mode === "manager" ? "Enter the manager PIN" : "Enter your PIN";
+  $("pinCancel").classList.toggle("hidden", mode !== "manager");
+  $("pinScreen").classList.remove("hidden");
+  $("app").classList.add("hidden");
+}
+function drawPinDots() { [...$("pinDots").children].forEach((d, i) => d.classList.toggle("on", i < pinBuffer.length)); }
+function buildPad() {
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"];
+  $("pinPad").innerHTML = keys.map(k => k === "" ? "<span></span>" :
+    `<button data-k="${k}" aria-label="${k === "del" ? "Delete" : k}">${k === "del" ? '<i class="ti ti-backspace"></i>' : k}</button>`).join("");
+  $("pinPad").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const k = b.dataset.k;
+    if (k === "del") pinBuffer = pinBuffer.slice(0, -1);
+    else if (pinBuffer.length < 4) pinBuffer += k;
+    drawPinDots(); $("pinErr").textContent = "";
+    if (pinBuffer.length === 4) setTimeout(checkPin, 120);
+  });
+}
+function checkPin() {
+  const pin = pinBuffer; pinBuffer = ""; drawPinDots();
+  if (pinMode === "login") {
+    if (pin === LOGIN_PIN || pin === MANAGER_PIN) {
+      role = pin === MANAGER_PIN ? "manager" : "team";
+      sessionStorage.setItem("lclsocial_role", role);
+      logLogin();
+      enterApp();
+    } else $("pinErr").textContent = "That PIN isn't right. Try again.";
+  } else {
+    if (pin === MANAGER_PIN) {
+      role = "manager"; sessionStorage.setItem("lclsocial_role", role);
+      $("pinScreen").classList.add("hidden"); $("app").classList.remove("hidden");
+      renderAll();
+      if (pinResolve) { pinResolve(true); pinResolve = null; }
+    } else $("pinErr").textContent = "That isn't the manager PIN.";
+  }
+}
+function askManager() {
+  if (isManager()) return Promise.resolve(true);
+  return new Promise(resolve => { pinResolve = resolve; closeSheet(); showPin("manager"); });
+}
+$("pinCancel").onclick = () => {
+  $("pinScreen").classList.add("hidden"); $("app").classList.remove("hidden");
+  if (pinResolve) { pinResolve(false); pinResolve = null; }
+  if (screen === "manager") go("board");
+};
+function logLogin() {
+  if (!backendUrl() || !navigator.onLine) return;
+  post("login", { role: role, device: navigator.userAgent.slice(0, 120) }, 30000).catch(() => {});
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function enterApp() {
+  $("pinScreen").classList.add("hidden"); $("setupScreen").classList.add("hidden"); $("app").classList.remove("hidden");
+  renderAll(); sync();
+}
+async function go(name, opts) {
+  if (name === "manager" && !isManager()) { const ok = await askManager(); if (!ok) return; }
+  if (name === "add" && !(opts && opts.keepForm)) resetForm(opts && opts.date);
+  screen = name;
+  ["board", "calendar", "add", "manager"].forEach(s => $("screen-" + s).classList.toggle("hidden", s !== name));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.screen === name));
+  window.scrollTo(0, 0);
+  renderAll();
+}
+$("tabbar").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) go(t.dataset.screen); });
+
+// ============================================================
+// RENDER: BOARD
+// ============================================================
+function tileHTML(p) {
+  const src = imgSrc(p);
+  const body = `<div class="ph"><i class="ti ${STATUS_ICON[p.status] || "ti-bulb"}"></i><div class="q">${esc(p.title)}</div></div>` +
+    (src ? `<img src="${esc(src)}" alt="${esc(p.title)}" loading="lazy" onerror="this.remove();this.parentNode&&this.parentNode.classList.remove('has-img')">` : "");
+  return `<button class="tile ${esc(p.status)} ${src ? "has-img" : ""}" data-open="${esc(p.id)}">${body}
+    <span class="st ${esc(p.status)}">${esc(p.status)}</span>
+    ${isPending(p.id) ? '<span class="sync-dot" title="Waiting to sync"></span>' : ""}
+    <div class="dt">${p.date ? esc(niceDate(p.date, false)) : "No date"}</div></button>`;
+}
+function renderBoard() {
+  const list = activePosts();
+  const counts = {}; STATUSES.forEach(s => counts[s] = list.filter(p => p.status === s).length);
+  const monthKey = isoDate(new Date()).slice(0, 7);
+  const postedMonth = list.filter(p => p.status === "Posted" && (p.date || "").slice(0, 7) === monthKey).length;
+  $("stats").innerHTML = STATUSES.map(s => `
+    <button class="stat s-${s.toLowerCase()} ${statusFilter === s ? "sel" : ""}" data-stat="${s}">
+      <i class="ti ${STATUS_ICON[s]}"></i>
+      <div class="num">${s === "Posted" ? postedMonth : counts[s]}</div>
+      <div class="lbl">${s === "Idea" ? "Ideas" : s === "Draft" ? "Drafts" : s === "Ready" ? "Ready to go" : "Posted this month"}</div>
+    </button>`).join("");
+
+  const today = isoDate(new Date());
+  const in7 = new Date(); in7.setDate(in7.getDate() + 7);
+  const up = sortPosts(list.filter(p => p.date && p.date >= today && p.date <= isoDate(in7) && p.status !== "Posted"));
+  $("upcoming").innerHTML = up.length ? up.map(p => `
+    <button class="up-card" data-open="${esc(p.id)}" style="border-color:var(--${p.status.toLowerCase()}-ac)">
+      <div class="d" style="color:var(--${p.status.toLowerCase()}-fg)">${esc(niceDate(p.date))}${p.time ? " · " + esc(niceTime(p.time)) : ""}</div>
+      <div class="t">${esc(p.title)}</div>
+      <div class="hint" style="margin-top:6px">${esc(p.status)}${p.platform ? " · " + esc(p.platform) : ""}</div>
+    </button>`).join("") : `<div class="empty-note" style="flex:1">Nothing planned for the next 7 days. A good time to date some ideas.</div>`;
+
+  $("statusChips").innerHTML = ["all"].concat(STATUSES).map(s => `
+    <button class="chip ${statusFilter === s ? "active" : ""}" data-chip="${s}">
+      ${s === "all" ? "" : `<span class="dot" style="background:var(--${s.toLowerCase()}-ac)"></span>`}${s === "all" ? "All" : s}
+    </button>`).join("");
+  fillSelect($("platformFilter"), settings.Platforms || [], null, "All platforms"); $("platformFilter").value = platformFilter;
+  fillSelect($("pillarFilter"), settings.Pillars || [], null, "All pillars"); $("pillarFilter").value = pillarFilter;
+
+  const shown = sortPosts(list.filter(p =>
+    (statusFilter === "all" || p.status === statusFilter) &&
+    (platformFilter === "all" || p.platform === platformFilter) &&
+    (pillarFilter === "all" || p.pillar === pillarFilter)));
+  $("feedCount").textContent = shown.length;
+  $("feed").innerHTML = shown.map(tileHTML).join("");
+  $("feedEmpty").classList.toggle("hidden", shown.length > 0);
+  $("boardSub").textContent = list.length ? `${counts.Ready} ready to go, ${counts.Draft} in drafts, ${counts.Idea} ideas waiting.` : "Your ideas, drafts and ready to go posts.";
+}
+$("stats").addEventListener("click", e => { const b = e.target.closest("[data-stat]"); if (!b) return; statusFilter = statusFilter === b.dataset.stat ? "all" : b.dataset.stat; renderBoard(); });
+$("statusChips").addEventListener("click", e => { const b = e.target.closest("[data-chip]"); if (!b) return; statusFilter = b.dataset.chip; renderBoard(); });
+$("platformFilter").onchange = e => { platformFilter = e.target.value; renderBoard(); };
+$("pillarFilter").onchange = e => { pillarFilter = e.target.value; renderBoard(); };
+
+// ============================================================
+// RENDER: CALENDAR
+// ============================================================
+function rowHTML(p, actions) {
+  const src = imgSrc(p);
+  const s = p.status.toLowerCase();
+  return `<div class="row" data-open="${esc(p.id)}" role="button" tabindex="0">
+    <div class="thumb" style="background:var(--${s}-bg);color:var(--${s}-fg)">${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : `<i class="ti ${STATUS_ICON[p.status]}"></i>`}</div>
+    <div class="info"><div class="t">${esc(p.title)}</div>
+      <div class="m"><span class="st ${esc(p.status)}" style="position:static;font-size:0.56rem;font-weight:800;padding:2px 7px;border-radius:8px;text-transform:uppercase">${esc(p.status)}</span>
+      ${p.date ? " " + esc(niceDate(p.date)) : ""}${p.time ? " · " + esc(niceTime(p.time)) : ""}${p.platform ? " · " + esc(p.platform) : ""}</div>
+      ${p.goal ? `<div class="m"><i class="ti ti-target"></i> ${esc(p.goal)}</div>` : ""}</div>
+    ${actions ? `<div class="acts">${actions}</div>` : ""}</div>`;
+}
+function renderCalendar() {
+  const list = activePosts();
+  const y = calCursor.getFullYear(), m = calCursor.getMonth();
+  $("calLabel").textContent = calCursor.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const start = new Date(y, m, 1); const offset = (start.getDay() + 6) % 7; // Monday first
+  start.setDate(start.getDate() - offset);
+  const byDay = {}; list.forEach(p => { if (p.date) (byDay[p.date] = byDay[p.date] || []).push(p); });
+  const today = isoDate(new Date());
+  let html = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => `<div class="dow">${d}</div>`).join("");
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const key = isoDate(d); const items = byDay[key] || [];
+    if (i >= 35 && d.getMonth() !== m) break;
+    html += `<button class="day ${d.getMonth() !== m ? "out" : ""} ${key === today ? "today" : ""} ${key === selectedDay ? "sel" : ""}" data-day="${key}">
+      ${d.getDate()}<div class="dots">${items.slice(0, 6).map(p => `<span style="background:var(--${p.status.toLowerCase()}-ac)"></span>`).join("")}</div></button>`;
+  }
+  $("cal").innerHTML = html;
+  const dayItems = sortPosts(byDay[selectedDay] || []);
+  $("dayLabel").innerHTML = `<i class="ti ti-calendar-event" style="color:var(--pink)"></i> ${esc(niceDate(selectedDay))} <span class="count">${dayItems.length}</span>`;
+  $("dayList").innerHTML = dayItems.length ? dayItems.map(p => rowHTML(p)).join("") : `<div class="empty-note">No posts planned for this day.</div>`;
+  const undated = sortPosts(list.filter(p => !p.date && p.status !== "Posted"));
+  $("undatedCount").textContent = undated.length;
+  $("undatedList").innerHTML = undated.length ? undated.map(p => rowHTML(p)).join("") : `<div class="empty-note">Every idea has a date. Nice.</div>`;
+}
+$("cal").addEventListener("click", e => { const b = e.target.closest("[data-day]"); if (!b) return; selectedDay = b.dataset.day; const d = parseISO(selectedDay); if (d.getMonth() !== calCursor.getMonth()) calCursor = firstOfMonth(d); renderCalendar(); });
+$("calPrev").onclick = () => { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1); renderCalendar(); };
+$("calNext").onclick = () => { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + 1, 1); renderCalendar(); };
+$("calToday").onclick = () => { calCursor = firstOfMonth(new Date()); selectedDay = isoDate(new Date()); renderCalendar(); };
+$("dayAdd").onclick = () => go("add", { date: selectedDay });
+
+// ============================================================
+// RENDER: MANAGER
+// ============================================================
+function renderManager() {
+  if (!isManager()) return;
+  const list = activePosts();
+  const drafts = sortPosts(list.filter(p => p.status === "Draft"));
+  $("apprCount").textContent = drafts.length;
+  $("apprList").innerHTML = drafts.length ? drafts.map(p => rowHTML(p,
+    `<button class="mini-btn back" data-act="toIdea" data-id="${esc(p.id)}" aria-label="Send back to ideas"><i class="ti ti-arrow-back-up"></i></button>
+     <button class="mini-btn ok" data-act="approve" data-id="${esc(p.id)}"><i class="ti ti-check"></i> Approve</button>`)).join("")
+    : `<div class="empty-note">No drafts waiting. All caught up.</div>`;
+  const ready = sortPosts(list.filter(p => p.status === "Ready"));
+  $("readyCount").textContent = ready.length;
+  $("readyList").innerHTML = ready.length ? ready.map(p => rowHTML(p,
+    `<button class="mini-btn ok" data-act="posted" data-id="${esc(p.id)}"><i class="ti ti-circle-check"></i> Posted</button>`)).join("")
+    : `<div class="empty-note">Nothing on the ready shelf yet.</div>`;
+  const arch = sortPosts(posts.filter(p => p.archived));
+  $("archCount").textContent = arch.length;
+  $("archList").innerHTML = arch.length ? arch.map(p => rowHTML(p,
+    `<button class="mini-btn" data-act="restore" data-id="${esc(p.id)}"><i class="ti ti-restore"></i> Restore</button>`)).join("")
+    : `<div class="empty-note">The archive is empty.</div>`;
+}
+$("screen-manager").addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  e.stopPropagation();
+  const p = posts.find(x => x.id === b.dataset.id); if (!p) return;
+  const act = b.dataset.act;
+  if (act === "approve") changeStatus(p, "Ready");
+  if (act === "toIdea") changeStatus(p, "Idea");
+  if (act === "posted") changeStatus(p, "Posted");
+  if (act === "restore") { savePostLocal(Object.assign({}, p, { archived: false })); toast("Restored"); }
+});
+$("mgrRefresh").onclick = () => sync(true);
+$("mgrUrl").onclick = () => { $("setupUrl").value = localStorage.getItem(LS.url) || ""; $("app").classList.add("hidden"); $("setupScreen").classList.remove("hidden"); };
+$("mgrLock").onclick = () => { role = "team"; sessionStorage.setItem("lclsocial_role", role); go("board"); toast("Left manager mode"); };
+$("logout").onclick = () => { role = ""; sessionStorage.removeItem("lclsocial_role"); showPin("login"); };
+
+// ============================================================
+// SAVE / STATUS CHANGES
+// ============================================================
+function savePostLocal(p, pendingImage) {
+  p.updated = new Date().toISOString();
+  upsertLocal(p);
+  enqueueSave(p, pendingImage);
+  renderAll();
+  sync();
+}
+async function changeStatus(p, to) {
+  if ((to === "Ready" || (p.status === "Ready" && to !== "Posted")) && !isManager()) {
+    const ok = await askManager(); if (!ok) return;
+  }
+  savePostLocal(Object.assign({}, p, { status: to }));
+  closeSheet();
+  toast(to === "Ready" ? "Approved and moved to Ready" : "Moved to " + to);
+}
+
+// ============================================================
+// DETAIL SHEET
+// ============================================================
+function openPost(id) {
+  const p = posts.find(x => x.id === id); if (!p) return;
+  const s = p.status.toLowerCase();
+  const src = imgSrc(p);
+  const nxt = nextStatus(p.status);
+  const nextLabel = nxt === "Ready" ? "Approve to Ready" : nxt === "Posted" ? "Mark as posted" : nxt ? "Move to " + nxt : "";
+  $("sheet").innerHTML = `
+    <div class="grab"></div>
+    <button class="close-x" data-close aria-label="Close"><i class="ti ti-x"></i></button>
+    <div class="hero" style="background:var(--${s}-bg);color:var(--${s}-fg)">
+      ${src ? `<img src="${esc(src)}" alt="${esc(p.title)}">` : `<div class="q">${esc(p.title)}</div>`}
+    </div>
+    <div class="body">
+      <span class="st ${esc(p.status)}" style="position:static;display:inline-block;font-size:0.66rem;font-weight:800;padding:4px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:0.04em">${esc(p.status)}</span>
+      ${isPending(p.id) ? '<span class="hint" style="margin-left:8px">Waiting to sync</span>' : ""}
+      <h2>${esc(p.title)}</h2>
+      <div class="facts">
+        <div class="fact goal"><div class="k"><i class="ti ti-target"></i> Goal</div><div class="v">${esc(p.goal || "Not set")}</div></div>
+        <div class="fact when"><div class="k"><i class="ti ti-calendar"></i> Planned</div><div class="v">${p.date ? esc(niceDate(p.date)) : "No date yet"}${p.time ? "<br>" + esc(niceTime(p.time)) : ""}</div></div>
+        <div class="fact where"><div class="k"><i class="ti ti-brand-instagram"></i> Platform</div><div class="v">${esc(p.platform || "Not set")}${p.pillar ? `<div style="font-weight:600;font-size:0.76rem;margin-top:2px">${esc(p.pillar)}</div>` : ""}</div></div>
+      </div>
+      <div class="caption-head"><span class="k">Caption</span>${p.caption ? `<button class="mini-btn" data-copy><i class="ti ti-copy"></i> Copy</button>` : ""}</div>
+      <div class="caption-box">${p.caption ? esc(p.caption) : '<span style="color:var(--brown)">No caption yet.</span>'}</div>
+      ${p.notes ? `<div class="caption-head"><span class="k">Notes</span></div><div class="caption-box" style="background:var(--white);border:1.5px solid var(--border)">${esc(p.notes)}</div>` : ""}
+      <div class="sheet-actions">
+        ${nxt ? `<button class="btn ${nxt === "Ready" ? "pink" : "teal"} wide" data-next><i class="ti ${STATUS_ICON[nxt]}"></i> ${nextLabel}</button>` : ""}
+        <button class="btn" data-edit><i class="ti ti-edit"></i> Edit</button>
+        <button class="btn" data-dup><i class="ti ti-copy-plus"></i> Duplicate</button>
+        ${p.archived ? `<button class="btn ghost wide" data-restore><i class="ti ti-restore"></i> Restore</button>` : `<button class="btn ghost wide" data-archive><i class="ti ti-archive"></i> Archive</button>`}
+      </div>
+    </div>`;
+  $("overlay").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  $("sheet").onclick = async e => {
+    if (e.target.closest("[data-close]")) return closeSheet();
+    if (e.target.closest("[data-copy]")) {
+      try { await navigator.clipboard.writeText(p.caption); toast("Caption copied"); } catch (err) { toast("Couldn't copy on this device"); }
+    }
+    if (e.target.closest("[data-next]")) changeStatus(p, nxt);
+    if (e.target.closest("[data-edit]")) { closeSheet(); startEdit(p); }
+    if (e.target.closest("[data-dup]")) {
+      const copy = Object.assign({}, p, { id: uid("P"), title: p.title + " (copy)", status: p.status === "Posted" || p.status === "Ready" ? "Draft" : p.status, created: new Date().toISOString(), archived: false });
+      savePostLocal(copy); closeSheet(); toast("Duplicated");
+    }
+    if (e.target.closest("[data-archive]")) { savePostLocal(Object.assign({}, p, { archived: true })); closeSheet(); toast("Archived. Restore it from Manager."); }
+    if (e.target.closest("[data-restore]")) { savePostLocal(Object.assign({}, p, { archived: false })); closeSheet(); toast("Restored"); }
+  };
+}
+function closeSheet() { $("overlay").classList.add("hidden"); document.body.style.overflow = ""; }
+$("overlay").addEventListener("click", e => { if (e.target === $("overlay")) closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+document.addEventListener("click", e => {
+  if (e.target.closest("#sheet") || e.target.closest("[data-act]")) return;
+  const o = e.target.closest("[data-open]"); if (o) openPost(o.dataset.open);
+});
+
+// ============================================================
+// FORM
+// ============================================================
+function renderStatusPick() {
+  $("statusPick").innerHTML = STATUSES.map(s => {
+    const locked = (s === "Ready" || s === "Posted") && !isManager();
+    return `<button type="button" class="s-${s.toLowerCase()} ${formStatus === s ? "on" : ""} ${locked ? "locked" : ""}" data-s="${s}">${locked ? '<i class="ti ti-lock"></i> ' : ""}${s}</button>`;
+  }).join("");
+  $("statusHint").textContent = isManager() ? "" : "Ready and Posted need the manager PIN.";
+}
+$("statusPick").addEventListener("click", async e => {
+  const b = e.target.closest("[data-s]"); if (!b) return;
+  const s = b.dataset.s;
+  if ((s === "Ready" || s === "Posted") && !isManager()) {
+    const ok = await askManager(); if (!ok) return;
+    go("add", { keepForm: true });
+  }
+  formStatus = s; renderStatusPick();
+});
+function fillFormSelects() {
+  fillSelect($("fGoal"), settings.Goals || [], "Choose a goal");
+  fillSelect($("fPlatform"), settings.Platforms || [], "Choose");
+  fillSelect($("fPillar"), settings.Pillars || [], "Choose");
+}
+function resetForm(date) {
+  editingId = null; formStatus = "Idea"; formImage = { url: "", id: "", local: "" };
+  fillFormSelects();
+  ["fTitle", "fGoal", "fPlatform", "fPillar", "fDate", "fTime", "fCaption", "fNotes"].forEach(id => $(id).value = "");
+  if ((settings.Platforms || []).includes("Instagram")) $("fPlatform").value = "Instagram";
+  if (date) $("fDate").value = date;
+  $("formTitle").textContent = "New post"; $("formSub").textContent = "Only title and goal are needed to save an idea.";
+  $("formCancel").classList.add("hidden"); $("formErr").textContent = "";
+  drawImage(); updateCapCount(); renderStatusPick();
+}
+function startEdit(p) {
+  screen = "add";
+  ["board", "calendar", "add", "manager"].forEach(s => $("screen-" + s).classList.toggle("hidden", s !== "add"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.screen === "add"));
+  editingId = p.id; formStatus = p.status;
+  fillFormSelects();
+  const ensure = (el, v) => { if (v && ![...el.options].some(o => o.value === v)) el.insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`); el.value = v || ""; };
+  $("fTitle").value = p.title; ensure($("fGoal"), p.goal); ensure($("fPlatform"), p.platform); ensure($("fPillar"), p.pillar);
+  $("fDate").value = p.date || ""; $("fTime").value = p.time || ""; $("fCaption").value = p.caption || ""; $("fNotes").value = p.notes || "";
+  formImage = { url: p.imageUrl || "", id: p.imageId || "", local: p.localImage || "" };
+  $("formTitle").textContent = "Edit post"; $("formSub").textContent = "Changes sync to the Sheet automatically.";
+  $("formCancel").classList.remove("hidden"); $("formErr").textContent = "";
+  drawImage(); updateCapCount(); renderStatusPick();
+  window.scrollTo(0, 0);
+}
+$("formCancel").onclick = () => go("board");
+function updateCapCount() {
+  const n = $("fCaption").value.length;
+  $("capCount").textContent = n.toLocaleString() + " / " + CAPTION_LIMIT.toLocaleString();
+  $("capCount").className = "hint" + (n > CAPTION_LIMIT ? " warn" : "");
+}
+$("fCaption").addEventListener("input", updateCapCount);
+function drawImage() {
+  const src = formImage.local || formImage.url;
+  $("imgPreview").classList.toggle("hidden", !src);
+  $("imgDrop").classList.toggle("hidden", !!src);
+  if (src) $("imgPreviewImg").src = src;
+}
+$("imgRemove").onclick = () => { formImage = { url: "", id: "", local: "" }; $("fImage").value = ""; drawImage(); };
+$("fImage").addEventListener("change", e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1080; const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      formImage = { url: "", id: "", local: c.toDataURL("image/jpeg", 0.82) };
+      drawImage();
+    };
+    img.onerror = () => toast("That file couldn't be read as an image");
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+$("fTitle").addEventListener("input", () => $("formErr").textContent = "");
+$("fGoal").addEventListener("change", () => $("formErr").textContent = "");
+$("formSave").onclick = () => {
+  const title = $("fTitle").value.trim(); const goal = $("fGoal").value;
+  if (!title) { $("formErr").textContent = "Give the post a title first."; $("fTitle").focus(); return; }
+  if (!goal) { $("formErr").textContent = "Pick the goal this post is aiming for."; $("fGoal").focus(); return; }
+  const prev = editingId ? posts.find(x => x.id === editingId) : null;
+  const p = Object.assign({}, prev || {}, {
+    id: editingId || uid("P"), brand: "LCL", title: title, status: formStatus, goal: goal,
+    platform: $("fPlatform").value, pillar: $("fPillar").value, date: $("fDate").value, time: $("fTime").value,
+    caption: $("fCaption").value, notes: $("fNotes").value.trim(), archived: prev ? !!prev.archived : false,
+    created: prev ? prev.created : new Date().toISOString(),
+    imageUrl: formImage.local ? "" : formImage.url, imageId: formImage.local ? "" : formImage.id
+  });
+  let pendingImage = null;
+  if (formImage.local && formImage.local.startsWith("data:")) {
+    p.localImage = formImage.local;
+    pendingImage = { data: formImage.local.split(",")[1] };
+  } else delete p.localImage;
+  savePostLocal(p, pendingImage);
+  toast(editingId ? "Post updated" : "Saved as " + formStatus);
+  const wasEdit = !!editingId;
+  go("board").then(() => { if (wasEdit) openPost(p.id); });
+};
+
+// ============================================================
+// SETUP SCREEN
+// ============================================================
+$("setupSave").onclick = async () => {
+  const url = $("setupUrl").value.trim();
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)) { $("setupErr").textContent = "Paste the full web app URL ending in /exec."; return; }
+  $("setupErr").textContent = "Checking the connection…";
+  try {
+    const res = await fetchWithTimeout(url + "?action=ping", {}, 30000);
+    const data = JSON.parse(await res.text());
+    if (data.status !== "ok") throw new Error(data.message || "No reply");
+  } catch (err) { $("setupErr").textContent = "Couldn't connect: " + err.message; return; }
+  localStorage.setItem(LS.url, url);
+  $("setupErr").textContent = "";
+  $("setupScreen").classList.add("hidden");
+  if (role) enterApp(); else showPin("login");
+};
+$("setupUrl").addEventListener("input", () => $("setupErr").textContent = "");
+
+// ============================================================
+// BOOT
+// ============================================================
+function renderAll() {
+  $("mgrBadge").classList.toggle("hidden", !isManager());
+  renderSync();
+  if (screen === "board") renderBoard();
+  if (screen === "calendar") renderCalendar();
+  if (screen === "manager") renderManager();
+  if (screen === "add") renderStatusPick();
+}
+$("syncPill").onclick = () => sync(true);
+window.addEventListener("online", () => sync());
+window.addEventListener("offline", renderSync);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && role) sync(); });
+setInterval(() => { if (!document.hidden && role) sync(); }, 90000);
+
+buildPad();
+if (!backendUrl()) $("setupScreen").classList.remove("hidden");
+else if (role) enterApp();
+else showPin("login");
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).catch(() => {}));
+}
+</script>
+</body>
+</html>
