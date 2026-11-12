@@ -325,6 +325,9 @@
       <label class="img-drop" id="imgDrop"><i class="ti ti-photo-plus"></i>Add an image or cover slide<input type="file" id="fImage" accept="image/*" hidden></label>
       <div class="img-preview hidden" id="imgPreview"><img id="imgPreviewImg" alt="Post visual"><button type="button" id="imgRemove" aria-label="Remove image"><i class="ti ti-x"></i></button></div>
 
+      <label class="f" for="fObjective">Objective</label>
+      <textarea id="fObjective" style="min-height:70px" placeholder="What this post does for LCL, and what to watch"></textarea>
+
       <label class="f" for="fNotes">Notes</label>
       <textarea id="fNotes" style="min-height:80px" placeholder="Canva link, references, hashtags to try"></textarea>
 
@@ -816,6 +819,7 @@ function openPost(id) {
       </div>
       <div class="caption-head"><span class="k">Caption</span>${p.caption ? `<button class="mini-btn" data-copy><i class="ti ti-copy"></i> Copy</button>` : ""}</div>
       <div class="caption-box">${p.caption ? esc(p.caption) : '<span style="color:var(--brown)">No caption yet.</span>'}</div>
+      ${p.objective ? `<div class="caption-head"><span class="k"><i class="ti ti-target-arrow"></i> Objective</span></div><div class="caption-box" style="background:#FFF8D6;border:1.5px solid #FFDE59">${esc(p.objective)}</div>` : ""}
       ${p.notes ? `<div class="caption-head"><span class="k">Notes</span></div><div class="caption-box" style="background:var(--white);border:1.5px solid var(--border)">${esc(p.notes)}</div>` : ""}
       <div class="sheet-actions">
         ${nxt ? `<button class="btn ${nxt === "Ready" ? "pink" : "teal"} wide" data-next><i class="ti ${STATUS_ICON[nxt]}"></i> ${nextLabel}</button>` : ""}
@@ -876,7 +880,7 @@ function fillFormSelects() {
 function resetForm(date) {
   editingId = null; formStatus = "Idea"; formImage = { url: "", id: "", local: "" };
   fillFormSelects();
-  ["fTitle", "fGoal", "fPlatform", "fPillar", "fDate", "fTime", "fCaption", "fNotes"].forEach(id => $(id).value = "");
+  ["fTitle", "fGoal", "fPlatform", "fPillar", "fDate", "fTime", "fCaption", "fObjective", "fNotes"].forEach(id => $(id).value = "");
   if ((settings.Platforms || []).includes("Instagram")) $("fPlatform").value = "Instagram";
   if (date) $("fDate").value = date;
   $("formTitle").textContent = "New post"; $("formSub").textContent = "Only title and goal are needed to save an idea.";
@@ -891,7 +895,7 @@ function startEdit(p) {
   fillFormSelects();
   const ensure = (el, v) => { if (v && ![...el.options].some(o => o.value === v)) el.insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`); el.value = v || ""; };
   $("fTitle").value = p.title; ensure($("fGoal"), p.goal); ensure($("fPlatform"), p.platform); ensure($("fPillar"), p.pillar);
-  $("fDate").value = p.date || ""; $("fTime").value = p.time || ""; $("fCaption").value = p.caption || ""; $("fNotes").value = p.notes || "";
+  $("fDate").value = p.date || ""; $("fTime").value = p.time || ""; $("fCaption").value = p.caption || ""; $("fNotes").value = p.notes || ""; $("fObjective").value = p.objective || "";
   formImage = { url: p.imageUrl || "", id: p.imageId || "", local: p.localImage || "" };
   $("formTitle").textContent = "Edit post"; $("formSub").textContent = "Changes sync to the Sheet automatically.";
   $("formCancel").classList.remove("hidden"); $("formErr").textContent = "";
@@ -939,7 +943,7 @@ $("formSave").onclick = () => {
   const p = Object.assign({}, prev || {}, {
     id: editingId || uid("P"), brand: "LCL", title: title, status: formStatus, goal: goal,
     platform: $("fPlatform").value, pillar: $("fPillar").value, date: $("fDate").value, time: $("fTime").value,
-    caption: $("fCaption").value, notes: $("fNotes").value.trim(), archived: prev ? !!prev.archived : false,
+    caption: $("fCaption").value, notes: $("fNotes").value.trim(), objective: $("fObjective").value.trim(), archived: prev ? !!prev.archived : false,
     created: prev ? prev.created : new Date().toISOString(),
     imageUrl: formImage.local ? "" : formImage.url, imageId: formImage.local ? "" : formImage.id
   });

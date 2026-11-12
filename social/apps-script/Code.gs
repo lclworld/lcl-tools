@@ -19,7 +19,7 @@ const POST_COLS = [
   'ID', 'Brand', 'Title', 'Status', 'Platform', 'Planned Date', 'Planned Time',
   'Caption', 'Goal', 'Pillar', 'Image URL', 'Image ID', 'Notes', 'Archived',
   'Created', 'Last Edited', 'Edited By',
-  'Reach', 'Saves', 'Shares', 'Enquiries'
+  'Reach', 'Saves', 'Shares', 'Enquiries', 'Objective'
 ];
 
 const DEFAULT_SETTINGS = {
@@ -43,6 +43,7 @@ function setup() {
     posts.getRange('F:G').setNumberFormat('@');
     // Analytics columns hidden until phase two.
     posts.hideColumns(POST_COLS.indexOf('Reach') + 1, 4);
+    // Objective (column V) stays visible after the hidden analytics columns.
   }
 
   let settings = ss.getSheetByName(SHEETS.SETTINGS) || ss.insertSheet(SHEETS.SETTINGS);
@@ -109,7 +110,7 @@ function postToObj_(row) {
     archived: o['Archived'] === true || String(o['Archived']).toUpperCase() === 'TRUE',
     created: o['Created'] instanceof Date ? o['Created'].toISOString() : str_(o['Created']),
     updated: o['Last Edited'] instanceof Date ? o['Last Edited'].toISOString() : str_(o['Last Edited']),
-    editedBy: str_(o['Edited By'])
+    editedBy: str_(o['Edited By']), objective: str_(o['Objective'])
   };
 }
 function findRow_(sh, id) {
@@ -161,7 +162,8 @@ function savePost_(p) {
     post.date || '', post.time || '', post.caption || '', post.goal || '', post.pillar || '',
     post.imageUrl || '', post.imageId || '', post.notes || '', post.archived ? true : false,
     existing ? existing[POST_COLS.indexOf('Created')] : now, now, p.by || '',
-    existing ? existing[17] : '', existing ? existing[18] : '', existing ? existing[19] : '', existing ? existing[20] : ''
+    existing ? existing[17] : '', existing ? existing[18] : '', existing ? existing[19] : '', existing ? existing[20] : '',
+    post.objective !== undefined ? post.objective : (existing ? existing[21] : '')
   ];
   if (row > 0) sh.getRange(row, 1, 1, values.length).setValues([values]);
   else sh.appendRow(values);
