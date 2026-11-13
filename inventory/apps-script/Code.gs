@@ -684,12 +684,12 @@ function logActivity_(action, p, result) {
   const at = p.at ? new Date(p.at) : new Date();
   const who = p.by || p.loggedBy || '';
   const rows = [];
-  const add = (act, item, code, qty, detail) => rows.push([at, who, act, item || '', code || '', qty === undefined ? '' : qty, detail || '']);
+  const add = (act, item, code, qty, detail, by) => rows.push([at, who || by || '', act, item || '', code || '', qty === undefined ? '' : qty, detail || '']);
   if (action === 'logUsage') {
-    JSON.parse(p.entries).forEach(e => add('Used', e.name, e.code, Number(e.qty), e.purpose + (e.productCode ? ' — ' + e.productCode : '')));
+    JSON.parse(p.entries).forEach(e => add('Used', e.name, e.code, Number(e.qty), e.purpose + (e.productCode ? ' — ' + e.productCode : ''), e.loggedBy));
   } else if (action === 'logRestock') {
     JSON.parse(p.entries).forEach(e => add('Restocked', e.name, e.code, Number(e.qty),
-      String(e.qc).toLowerCase() === 'rejected' ? 'Rejected at QC, not added' : (e.unverified ? 'Unverified (estimate)' : '') + (e.paid !== undefined && e.paid !== '' ? (e.unverified ? ' · ' : '') + 'Paid GHS ' + e.paid + (e.delivery ? ' + ' + e.delivery + ' delivery' : '') : '')));
+      String(e.qc).toLowerCase() === 'rejected' ? 'Rejected at QC, not added' : (e.unverified ? 'Unverified (estimate)' : '') + (e.paid !== undefined && e.paid !== '' ? (e.unverified ? ' · ' : '') + 'Paid GHS ' + e.paid + (e.delivery ? ' + ' + e.delivery + ' delivery' : '') : ''), e.loggedBy));
   } else if (action === 'verifyRestock') {
     add('Verified', result.name, result.code, Number(p.actual) + (Number(p.usedBefore) || 0), 'Estimate was ' + result.estimate + (Number(p.usedBefore) ? ' · ' + p.usedBefore + ' already used' : ''));
   } else if (action === 'createIngredient') {
@@ -724,19 +724,43 @@ function getActivity_() {
     if (t >= since) out.push({ at: iso(r[0]), by: String(r[1] || ''), action: String(r[2]), item: String(r[3] || ''), code: String(r[4] || ''), qty: r[5], detail: String(r[6] || '') });
   });
   const firstDay = first === Infinity ? '9999' : new Date(first).toISOString().slice(0, 10);
-  const older = (sheetName, actionName, detailCol) => {
+  // Anything the Activity tab already has (same item and amount, within 5 minutes) isn't added again.
+  const already = (code, qty, t) => out.some(a => a.code === String(code) && Number(a.qty) === Number(qty) && Math.abs(Date.parse(a.at) - t) < 300000);
+  const older = (sheetName, actionName, detailCol, statusCol) => {
     sheet_(sheetName).getDataRange().getValues().slice(1).forEach(r => {
       if (!r[1] || !r[3]) return;
       const t = new Date(r[3]).getTime();
-      // Only days before the Activity tab started (restock dates have no time, so whole days are compared).
-      if (isNaN(t) || t < since || new Date(t).toISOString().slice(0, 10) >= firstDay) return;
+      const dateOnly = r[3] instanceof Date ? (r[3].getUTCHours() === 0 && r[3].getUTCMinutes() === 0 && r[3].getUTCSeconds() === 0) : !/T\d/.test(String(r[3]));
+      // Entries from before the Activity tab started. A timed entry counts up
+      // to the minute the tab started; a date-only one (most restocks) only
+      // for days before that day.
+      if (isNaN(t) || t < since || (dateOnly ? new Date(t).toISOString().slice(0, 10) >= firstDay : t >= first)) return;
+      if (!dateOnly && already(r[1], r[2], t)) return;
       const detail = String(r[detailCol] || '');
-      if (/^Stock Count Adjustment|^Previously unverified stock estimate|^VERIFIED \(estimate/.test(detail)) return;
-      out.push({ at: iso(r[3]), by: String(r[5] || ''), action: actionName, item: String(r[0]), code: String(r[1]), qty: r[2], detail: actionName === 'Used' ? detail : '', dateOnly: r[3] instanceof Date ? (r[3].getUTCHours() === 0 && r[3].getUTCMinutes() === 0) : !/T\d/.test(String(r[3])) });
+      if (/^Stock Count Adjustment|^Previously unverified stock estimate/.test(detail)) return;
+      const status = statusCol !== null ? String(r[statusCol] || '') : '';
+      const verified = /^VERIFIED \(estimate was ([\d.]+)/.exec(status);
+      out.push({ at: iso(r[3]), by: String(r[5] || ''), action: verified ? 'Verified' : actionName, item: String(r[0]), code: String(r[1]), qty: r[2],
+        detail: actionName === 'Used' ? detail : verified ? 'Estimate was ' + verified[1] : status === 'UNVERIFIED' ? 'Unverified (estimate)' : '', dateOnly: dateOnly });
     });
   };
-  older(SHEET_NAMES.USE_LOG, 'Used', 4);
-  older(SHEET_NAMES.RESTOCK_LOG, 'Restocked', 4);
+  older(SHEET_NAMES.USE_LOG, 'Used', 4, null);
+  const vcols = verificationCols_(sheet_(SHEET_NAMES.RESTOCK_LOG), false);
+  older(SHEET_NAMES.RESTOCK_LOG, 'Restocked', 4, vcols ? vcols.status - 1 : null);
+  // A blank name (sent by a phone on an older version of the app) is taken
+  // from the matching Use Log or Restock Log row, logged within 5 minutes.
+  const blanks = out.filter(r => !r.by && (r.action === 'Used' || r.action === 'Restocked'));
+  if (blanks.length) {
+    const byCode = {};
+    [SHEET_NAMES.USE_LOG, SHEET_NAMES.RESTOCK_LOG].forEach(n => sheet_(n).getDataRange().getValues().slice(1).forEach(r => {
+      if (r[1] && r[5]) (byCode[r[1]] = byCode[r[1]] || []).push([new Date(r[3]).getTime(), String(r[5])]);
+    }));
+    blanks.forEach(r => {
+      const t = Date.parse(r.at);
+      const m = (byCode[r.code] || []).find(x => Math.abs(x[0] - t) < 300000);
+      if (m) r.by = m[1];
+    });
+  }
   out.sort((a, b) => b.at < a.at ? -1 : b.at > a.at ? 1 : 0);
   return { status: 'ok', days: ACTIVITY_DAYS, activity: out };
 }
