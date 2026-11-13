@@ -159,7 +159,7 @@
   .report-card h2 { font-size: 0.9rem; margin: 18px 0 6px; color: var(--brown); }
   .report-card table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
   .report-card th, .report-card td { padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
-  #actWho { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 0; }
+  #actWho { margin-bottom: 8px; }
   #actType { flex-wrap: wrap; margin-bottom: 0; }
   .act-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .act-row:last-child { border-bottom: 0; }
@@ -627,7 +627,7 @@
     <div class="hint" style="margin-top:-8px; margin-bottom:12px;">Everything logged in the last 7 days, newest first. For anything older, ask a manager.</div>
     <div class="card">
       <input class="search" id="actSearch" placeholder="Search an item, e.g. Shea Butter">
-      <div class="filter-row" id="actWho"></div>
+      <select id="actWho"></select>
       <div class="filter-row" id="actType" style="margin-top:6px;"></div>
     </div>
     <div class="sync-status" id="actStatus"></div>
@@ -4598,8 +4598,8 @@ async function fetchActivity() {
 function openActivity() {
   const who = document.getElementById("actWho");
   if (!who.children.length) {
-    who.innerHTML = ['<button data-who="all" class="active">Everyone</button>'].concat(STAFF.map(n => '<button data-who="' + n + '">' + n + '</button>')).join("");
-    who.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; actWho = b.dataset.who; who.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); renderActivity(); });
+    who.innerHTML = '<option value="all">Everyone</option>' + STAFF.map(n => '<option value="' + n + '">' + n + '</option>').join("");
+    who.addEventListener("change", () => { actWho = who.value; renderActivity(); });
     const type = document.getElementById("actType");
     type.innerHTML = ACTIVITY_TYPES.map(([v, l]) => '<button data-type="' + v + '"' + (v === "all" ? ' class="active"' : '') + '>' + l + '</button>').join("");
     type.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; actType = b.dataset.type; type.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); renderActivity(); });
