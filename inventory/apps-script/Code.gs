@@ -103,6 +103,7 @@ function doGet(e) {
     if (action === 'getProductionData') return jsonOut_(getProductionData_());
     if (action === 'getLogs') return jsonOut_(getLogs_());
     if (action === 'getProjects') return jsonOut_(getProjects_());
+    if (action === 'getActivity') return jsonOut_(getActivity_());
     // These carry only a "code" field, small enough to also ride as a
     // URL parameter — so if Apps Script's own redirect handling ever turns
     // the POST into a GET, the action still succeeds instead of piling up
@@ -164,6 +165,9 @@ function doPost(e) {
     }
     if (actionId && action !== 'login' && result && result.status === 'ok') {
       markProcessed_(actionId);
+    }
+    if (result && result.status === 'ok' && !result.alreadyVerified) {
+      try { logActivity_(action, payload, result); } catch (err) { /* the action itself already succeeded */ }
     }
     return jsonOut_(result);
   } catch (err) {
@@ -361,7 +365,7 @@ function verifyRestock_(p) {
   sh.appendRow(verified);
   sh.getRange(r + 1, cols.status).setValue('VERIFIED ' + Utilities.formatDate(now, 'Etc/GMT', 'dd/MM/yyyy') + ' by ' + (p.loggedBy || '') +
     ' (' + (actual + usedBefore) + ' g)');
-  return { status: 'ok' };
+  return { status: 'ok', name: name, code: code, estimate: estimate };
 }
 
 // ---------- createIngredient: the "propagate everywhere" requirement ----------
@@ -668,4 +672,71 @@ function setItemCost_(p) {
     return { status: 'ok' };
   }
   return { status: 'ok', notFound: true };
+}
+
+
+// ---------- Activity log (last 7 days, shown to everyone) ----------
+// One row per thing someone did, with the time it was done on the phone (it
+// may reach the Sheet later if the phone was offline) and who did it.
+const ACTIVITY_HEADERS = ['TIME', 'WHO', 'ACTION', 'ITEM', 'REF CODE', 'QUANTITY', 'DETAIL'];
+const ACTIVITY_DAYS = 7;
+function logActivity_(action, p, result) {
+  const at = p.at ? new Date(p.at) : new Date();
+  const who = p.by || p.loggedBy || '';
+  const rows = [];
+  const add = (act, item, code, qty, detail) => rows.push([at, who, act, item || '', code || '', qty === undefined ? '' : qty, detail || '']);
+  if (action === 'logUsage') {
+    JSON.parse(p.entries).forEach(e => add('Used', e.name, e.code, Number(e.qty), e.purpose + (e.productCode ? ' — ' + e.productCode : '')));
+  } else if (action === 'logRestock') {
+    JSON.parse(p.entries).forEach(e => add('Restocked', e.name, e.code, Number(e.qty),
+      String(e.qc).toLowerCase() === 'rejected' ? 'Rejected at QC, not added' : (e.unverified ? 'Unverified (estimate)' : '') + (e.paid !== undefined && e.paid !== '' ? (e.unverified ? ' · ' : '') + 'Paid GHS ' + e.paid + (e.delivery ? ' + ' + e.delivery + ' delivery' : '') : '')));
+  } else if (action === 'verifyRestock') {
+    add('Verified', result.name, result.code, Number(p.actual) + (Number(p.usedBefore) || 0), 'Estimate was ' + result.estimate + (Number(p.usedBefore) ? ' · ' + p.usedBefore + ' already used' : ''));
+  } else if (action === 'createIngredient') {
+    add('Added new item', p.name, result.code || p.code, p.firstRestockQty ? Number(p.firstRestockQty) : '', (p.type || 'Ingredient') + (p.firstRestockUnverified ? ' · first restock unverified' : ''));
+  } else if (action === 'pushToProduction') {
+    add('Pushed to production', p.name, p.productCode, Number(p.batchSize), p.brief && p.brief.batchType ? p.brief.batchType + ' batch' : '');
+  } else if (action === 'completeProductionBatch') {
+    add('Completed batch', p.name || '', p.productCode || '', '', p.alreadyLogged ? 'Marked already logged' : '');
+  } else if (action === 'excludeFromLowStock') {
+    add('Moved to normal', p.name, p.code, '', 'Taken off Low Stock');
+  } else if (action === 'markDiscontinued') {
+    add('Marked discontinued', p.name, p.code, '', '');
+  } else if (action === 'clearDiscontinued' && p.undo) {
+    add('Undid discontinued', p.name, p.code, '', '');
+  }
+  if (!rows.length) return;
+  const sh = getOrCreateSheet_('Activity', ACTIVITY_HEADERS);
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, ACTIVITY_HEADERS.length).setValues(rows);
+}
+
+// The last 7 days. Before the Activity tab existed, usage and restocks are
+// read from the Use Log and Restock Log instead (who and exact time may be missing there).
+function getActivity_() {
+  const since = Date.now() - ACTIVITY_DAYS * 86400000;
+  const iso = v => v instanceof Date ? v.toISOString() : String(v || '');
+  const out = [];
+  const act = getOrCreateSheet_('Activity', ACTIVITY_HEADERS).getDataRange().getValues().slice(1).filter(r => r[0] !== '');
+  let first = Infinity;
+  act.forEach(r => {
+    const t = new Date(r[0]).getTime();
+    if (!isNaN(t) && t < first) first = t;
+    if (t >= since) out.push({ at: iso(r[0]), by: String(r[1] || ''), action: String(r[2]), item: String(r[3] || ''), code: String(r[4] || ''), qty: r[5], detail: String(r[6] || '') });
+  });
+  const firstDay = first === Infinity ? '9999' : new Date(first).toISOString().slice(0, 10);
+  const older = (sheetName, actionName, detailCol) => {
+    sheet_(sheetName).getDataRange().getValues().slice(1).forEach(r => {
+      if (!r[1] || !r[3]) return;
+      const t = new Date(r[3]).getTime();
+      // Only days before the Activity tab started (restock dates have no time, so whole days are compared).
+      if (isNaN(t) || t < since || new Date(t).toISOString().slice(0, 10) >= firstDay) return;
+      const detail = String(r[detailCol] || '');
+      if (/^Stock Count Adjustment|^Previously unverified stock estimate|^VERIFIED \(estimate/.test(detail)) return;
+      out.push({ at: iso(r[3]), by: String(r[5] || ''), action: actionName, item: String(r[0]), code: String(r[1]), qty: r[2], detail: actionName === 'Used' ? detail : '', dateOnly: r[3] instanceof Date ? (r[3].getUTCHours() === 0 && r[3].getUTCMinutes() === 0) : !/T\d/.test(String(r[3])) });
+    });
+  };
+  older(SHEET_NAMES.USE_LOG, 'Used', 4);
+  older(SHEET_NAMES.RESTOCK_LOG, 'Restocked', 4);
+  out.sort((a, b) => b.at < a.at ? -1 : b.at > a.at ? 1 : 0);
+  return { status: 'ok', days: ACTIVITY_DAYS, activity: out };
 }

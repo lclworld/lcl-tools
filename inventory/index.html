@@ -159,6 +159,12 @@
   .report-card h2 { font-size: 0.9rem; margin: 18px 0 6px; color: var(--brown); }
   .report-card table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
   .report-card th, .report-card td { padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  #actWho { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 0; }
+  #actType { flex-wrap: wrap; margin-bottom: 0; }
+  .act-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .act-row:last-child { border-bottom: 0; }
+  .act-time { flex: none; width: 44px; font-size: 0.78rem; font-weight: 700; color: var(--brown); padding-top: 1px; }
+  .act-what { font-size: 0.86rem; line-height: 1.35; }
   .spend-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
   .spend-line { padding: 10px 0 12px; border-bottom: 1px solid var(--border); }
   .spend-part { border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; }
@@ -433,6 +439,10 @@
         <span>Count Day</span>
         <span class="quick-badge" id="quickCountBadge" style="display:none;"></span>
       </div>
+      <div class="quick-tile" data-screen="activity">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12a9 9 0 1 0 3-6.7" stroke-linecap="round"/><path d="M3 4v4h4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7.5V12l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Activity Log</span>
+      </div>
     </div>
 
     <h3 class="section-title">Low Stock</h3>
@@ -609,6 +619,19 @@
     <button class="btn primary" id="openCountAuditFromHome">Count Day Audit</button>
     <div class="hint" style="margin-bottom:10px;">Formula, INCI, production sheet, and the full five-tier pricing engine now live together in one place, Development Studio. Turn on only what a given product needs.</div>
     <button class="btn dark" id="managerLogout">← Back to Employee View</button>
+  </div>
+
+  <!-- ACTIVITY LOG — everyone, last 7 days -->
+  <div class="screen" id="activity">
+    <h2 class="title">Activity Log</h2>
+    <div class="hint" style="margin-top:-8px; margin-bottom:12px;">Everything logged in the last 7 days, newest first. For anything older, ask a manager.</div>
+    <div class="card">
+      <input class="search" id="actSearch" placeholder="Search an item, e.g. Shea Butter">
+      <div class="filter-row" id="actWho"></div>
+      <div class="filter-row" id="actType" style="margin-top:6px;"></div>
+    </div>
+    <div class="sync-status" id="actStatus"></div>
+    <div id="actList"></div>
   </div>
 
   <!-- PROJECT SPEND TRACKER — manager only -->
@@ -981,6 +1004,8 @@ function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); upda
 
 function enqueue(type, payload) {
   const q = loadQueue();
+  // Who did it and when, for the Activity Log (the action may only reach the Sheet later).
+  payload = Object.assign({ at: new Date().toISOString(), by: currentWorker }, payload);
   q.push({ id: Date.now() + "-" + Math.random().toString(36).slice(2), type: type, payload: payload });
   saveQueue(q);
   trySync();
@@ -1349,7 +1374,7 @@ document.getElementById("managerLogout").addEventListener("click", () => {
 let appUnlocked = false;
 function goToScreen(name, label) {
   if (!appUnlocked && name !== "pin") { return; } // block everything until PIN is entered
-  if ((name === "managerHome" || name === "planning" || name === "reports" || name === "countAudit") && !isManager) { name = "managerGate"; label = "Manager Access"; }
+  if ((name === "managerHome" || name === "planning" || name === "reports" || name === "countAudit" || name === "spend") && !isManager) { name = "managerGate"; label = "Manager Access"; }
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.screen === name || (name === "managerHome" && t.dataset.screen === "managerGate")));
   document.querySelectorAll(".nav-item").forEach(t => t.classList.toggle("active", t.dataset.screen === name || (name === "managerHome" && t.dataset.screen === "managerGate")));
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -1357,6 +1382,7 @@ function goToScreen(name, label) {
   const lbl = document.getElementById("screenLabel");
   if (lbl) lbl.textContent = label;
   if (name === "countDay" || name === "countAudit") { renderCount(); syncCount(); }
+  if (name === "activity") openActivity();
 }
 document.querySelectorAll(".tab, .nav-item").forEach(el => {
   el.addEventListener("click", () => {
@@ -1462,9 +1488,10 @@ function buildDashboard() {
             ing.discontinued = true;
             saveCache(cache2);
             saveDiscontinued(loadDiscontinued().concat([code]));
-            enqueue("markDiscontinued", { code: code });
+            enqueue("markDiscontinued", { code: code, name: ing.name });
           }
-          enqueue("excludeFromLowStock", { code: code });
+          if (btn.dataset.act !== "discontinued") enqueue("excludeFromLowStock", { code: code, name: ing.name });
+          else enqueue("excludeFromLowStock", { code: code });
           buildDashboard();
         }
       });
@@ -1484,7 +1511,7 @@ function buildDashboard() {
       const cache2 = loadCache();
       const ing = cache2.ingredients.find(i => i.code === code);
       if (ing) { ing.lowStockExcluded = false; ing.discontinued = false; saveCache(cache2); }
-      enqueue("clearDiscontinued", { code: code });
+      enqueue("clearDiscontinued", { code: code, name: ing ? ing.name : code, undo: true });
       enqueue("clearLowStockExclusion", { code: code });
       buildDashboard();
     }));
@@ -1550,7 +1577,7 @@ function renderUnverified() {
       if (ing) { ing.qty = ing.qty - u.qty + actual + used; touchLastUpdated(ing); }
       cache.unverified = (cache.unverified || []).filter(x => x.id !== u.id);
       saveCache(cache);
-      enqueue("verifyRestock", { restockId: u.id, actual: actual, usedBefore: used, loggedBy: currentWorker });
+      enqueue("verifyRestock", { restockId: u.id, actual: actual, usedBefore: used, loggedBy: currentWorker, name: u.name, code: u.code, estimate: u.qty });
       buildDashboard();
     });
     list.appendChild(row);
@@ -3033,7 +3060,7 @@ document.addEventListener("click", (e) => {
   saveBatches(batches);
   saveCache(cache);
   enqueue("logUsage", { entries: JSON.stringify(usageEntries) });
-  enqueue("completeProductionBatch", { batchId: batch.id, rows: batch.rows });
+  enqueue("completeProductionBatch", { batchId: batch.id, rows: batch.rows, name: batch.name, productCode: batch.productCode || "" });
   msgEl.textContent = "Batch completed — logged to Use Log.";
   buildDashboard();
   renderProductionList();
@@ -3051,7 +3078,7 @@ document.addEventListener("click", (e) => {
   if (!batch) return;
   batch.status = "completed";
   saveBatches(batches);
-  enqueue("completeProductionBatch", { batchId: batch.id, rows: batch.rows });
+  enqueue("completeProductionBatch", { batchId: batch.id, rows: batch.rows, name: batch.name, productCode: batch.productCode || "", alreadyLogged: true });
   renderProductionList();
   updateQuickBadges();
 });
@@ -4519,6 +4546,99 @@ function buildSpendReport(type, o) {
 document.getElementById("openSpendFromHome").addEventListener("click", openSpendTracker);
 document.getElementById("closeSpend").addEventListener("click", () => { spendOpenId = null; goToScreen("managerHome", "Manager"); });
 document.querySelectorAll("#spendTabs button").forEach(b => b.addEventListener("click", () => { spendView = b.dataset.view; spendOpenId = null; renderSpend(); }));
+
+// ===================================================================
+// ACTIVITY LOG — everyone. What was logged in the last 7 days, who did it
+// and when, so nobody has to remember whether something was already logged.
+// Comes from the backend's Activity tab, plus anything on this phone that
+// hasn't been sent yet. A copy is kept so it still opens offline.
+// ===================================================================
+const ACTIVITY_KEY = "lcl_inv_activity_v1";
+const ACTIVITY_TYPES = [["all", "All"], ["Usage", "Usage"], ["Restock", "Restock"], ["Production", "Production"], ["Other", "Other"]];
+let actWho = "all", actType = "all", actLoading = false;
+function activityGroup(action) {
+  if (action === "Used") return "Usage";
+  if (action === "Restocked" || action === "Verified") return "Restock";
+  if (action === "Pushed to production" || action === "Completed batch") return "Production";
+  return "Other";
+}
+// The same rows, for actions still waiting on this phone.
+function pendingActivity() {
+  const rows = [];
+  loadQueue().forEach(q => {
+    const p = q.payload || {};
+    const base = { at: p.at || "", by: p.by || p.loggedBy || "", pending: true };
+    const add = (action, item, code, qty, detail) => rows.push(Object.assign({ action, item: item || "", code: code || "", qty: qty === undefined ? "" : qty, detail: detail || "" }, base));
+    try {
+      if (q.type === "logUsage") JSON.parse(p.entries).forEach(e => add("Used", e.name, e.code, num(e.qty), e.purpose + (e.productCode ? " — " + e.productCode : "")));
+      else if (q.type === "logRestock") JSON.parse(p.entries).forEach(e => add("Restocked", e.name, e.code, num(e.qty), e.qc === "Rejected" ? "Rejected at QC, not added" : (e.unverified ? "Unverified (estimate)" : "")));
+      else if (q.type === "verifyRestock") add("Verified", p.name, p.code, num(p.actual) + num(p.usedBefore), "Estimate was " + p.estimate);
+      else if (q.type === "createIngredient") add("Added new item", p.name, p.code, p.firstRestockQty ? num(p.firstRestockQty) : "", p.type || "Ingredient");
+      else if (q.type === "pushToProduction") add("Pushed to production", p.name, p.productCode, num(p.batchSize), p.brief && p.brief.batchType ? p.brief.batchType + " batch" : "");
+      else if (q.type === "completeProductionBatch") add("Completed batch", p.name, p.productCode, "", p.alreadyLogged ? "Marked already logged" : "");
+      else if (q.type === "excludeFromLowStock" && p.name) add("Moved to normal", p.name, p.code, "", "Taken off Low Stock");
+      else if (q.type === "markDiscontinued") add("Marked discontinued", p.name, p.code, "", "");
+      else if (q.type === "clearDiscontinued" && p.undo) add("Undid discontinued", p.name, p.code, "", "");
+    } catch (e) { /* a malformed queued item just isn't listed */ }
+  });
+  return rows;
+}
+function loadActivity() { try { return JSON.parse(localStorage.getItem(ACTIVITY_KEY)) || { activity: [], fetchedAt: null }; } catch (e) { return { activity: [], fetchedAt: null }; } }
+async function fetchActivity() {
+  if (!isConfigured() || actLoading) return;
+  actLoading = true;
+  try {
+    const res = await fetchWithTimeout(SCRIPT_URL + "?action=getActivity", {}, 90000);
+    const data = await res.json();
+    if (data.status === "ok") localStorage.setItem(ACTIVITY_KEY, JSON.stringify({ activity: data.activity, fetchedAt: new Date().toISOString() }));
+    else if (/Unknown GET action/.test(data.message || "")) document.getElementById("actStatus").textContent = "The Activity Log needs the latest Apps Script (Code.gs) deployed.";
+  } catch (e) { /* offline: the saved copy is shown */ }
+  actLoading = false;
+}
+function openActivity() {
+  const who = document.getElementById("actWho");
+  if (!who.children.length) {
+    who.innerHTML = ['<button data-who="all" class="active">Everyone</button>'].concat(STAFF.map(n => '<button data-who="' + n + '">' + n + '</button>')).join("");
+    who.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; actWho = b.dataset.who; who.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); renderActivity(); });
+    const type = document.getElementById("actType");
+    type.innerHTML = ACTIVITY_TYPES.map(([v, l]) => '<button data-type="' + v + '"' + (v === "all" ? ' class="active"' : '') + '>' + l + '</button>').join("");
+    type.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; actType = b.dataset.type; type.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); renderActivity(); });
+    document.getElementById("actSearch").addEventListener("input", renderActivity);
+  }
+  renderActivity();
+  fetchActivity().then(renderActivity);
+}
+function renderActivity() {
+  const saved = loadActivity();
+  const since = Date.now() - 7 * 86400000;
+  const pending = pendingActivity();
+  const rows = pending.concat(saved.activity).filter(r => Date.parse(r.at) >= since);
+  const q = document.getElementById("actSearch").value.trim().toLowerCase();
+  const shown = rows.filter(r => (actWho === "all" || r.by === actWho) && (actType === "all" || activityGroup(r.action) === actType) &&
+    (!q || (r.item + " " + r.code + " " + r.detail).toLowerCase().includes(q)))
+    .sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+  const status = document.getElementById("actStatus");
+  if (!/needs the latest/.test(status.textContent)) {
+    status.textContent = actLoading ? "Updating…" : saved.fetchedAt ? "Updated " + timeAgo(saved.fetchedAt) + (pending.length ? " · " + pending.length + " on this phone not sent yet" : "") : (isConfigured() ? "Couldn't load the log yet. Check the internet." : "");
+  }
+  const list = document.getElementById("actList");
+  if (!shown.length) { list.innerHTML = '<div class="empty-state">' + (q ? "Nothing matching “" + escapeHtml(q) + "” in the last 7 days." : "Nothing logged in the last 7 days.") + '</div>'; return; }
+  const dayKey = r => { const d = new Date(r.at); return isNaN(d) ? "" : d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  const today = todayIso();
+  const yesterday = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); })();
+  const groups = [];
+  shown.forEach(r => { const k = dayKey(r); let g = groups.find(x => x.k === k); if (!g) groups.push(g = { k, rows: [] }); g.rows.push(r); });
+  list.innerHTML = groups.map(g =>
+    '<h3 class="section-title">' + (g.k === today ? "Today" : g.k === yesterday ? "Yesterday" : fmtDay(g.k)) + ' <span class="hint" style="margin:0; font-family:Urbanist,sans-serif; font-weight:600;">' + g.rows.length + '</span></h3><div class="card">' +
+    g.rows.map(r => {
+      const item = stockItem(r.code);
+      const qty = r.qty === "" || r.qty === null || r.qty === undefined ? "" : fmtQty(r.qty) + (item ? qtyUnit(item) : (r.action === "Pushed to production" ? "g" : "")) + " ";
+      const time = r.dateOnly ? "—" : new Date(r.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+      return '<div class="act-row"><div class="act-time">' + time + '</div><div class="act-body">' +
+        '<div class="act-what"><b>' + escapeHtml(r.by || "Someone") + '</b> ' + escapeHtml(r.action.charAt(0).toLowerCase() + r.action.slice(1)) + ' ' + escapeHtml(qty) + '<b>' + escapeHtml(r.item) + '</b></div>' +
+        '<div class="ing-meta">' + [r.code, r.detail].filter(Boolean).map(escapeHtml).join(" · ") + (r.pending ? ' <span class="pill flag">Not sent yet</span>' : '') + '</div></div></div>';
+    }).join("") + '</div>').join("");
+}
 
 // ---------- Availability Cross-Check (employee + manager) ----------
 function addCcRow() {
