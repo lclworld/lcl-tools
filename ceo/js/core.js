@@ -4,7 +4,7 @@
   "use strict";
   const CEO = (window.CEO = { sections: {} });
   const HUB = (window.CEO_CONFIG && window.CEO_CONFIG.HUB_URL) || "";
-  const VERSION = "ceo-1.0.0";
+  const VERSION = "ceo-1.1.0";
 
   // Option 1: Soft. Used only on header bands, icons, the active tab and chips.
   const ACCENTS = {
@@ -62,6 +62,7 @@
     label: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
     calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8"/><path d="M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
     ship: '<path d="M3 17l2 3h14l2-3"/><path d="M5 17V9h14v8"/><path d="M12 9V4"/><path d="M9 4h6"/>',
+    quote: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h7"/><path d="M9 17h5"/>',
     book: '<path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 20a4 4 0 0 1 0-8h10"/>'
   };
   CEO.icon = (name, cls) => `<svg class="ic ${cls || ""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;

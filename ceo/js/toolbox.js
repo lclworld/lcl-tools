@@ -6,16 +6,16 @@
     { name: "Label Compliance Checker", icon: "label", url: "https://labos.lueurcosmeticslab.com/labelcompliance.html", note: "Check a label against the rules" },
     { name: "Import Cost Calculator", icon: "calc", url: "../importcostcalculator.html", note: "Landed cost of an import" },
     { name: "Shipping Station", icon: "ship", url: "../shipstation.html", note: "Shipping quotes and labels" },
-    { name: "Packaging Catalog Generator", icon: "book", url: "../cataloggenerator.html", note: "A packaging catalog for a client" }
+    { name: "Packaging Catalog Generator", icon: "book", url: "../packagingcatalog.html", note: "A packaging catalog for a client" }
   ];
   CEO.TOOLS = TOOLS;
 
   // Opens one tool full screen, with a back button and a way out to a new tab.
-  function launch(i) {
-    const t = TOOLS[i];
+  function launch(i, page) {
+    const t = page || TOOLS[i];
     const el = document.createElement("div");
     el.className = "tool-frame";
-    CEO.setAccent("toolbox", el);
+    CEO.setAccent(t.accent || "toolbox", el);
     el.innerHTML = `<header class="band"><button class="icon-btn" data-back aria-label="Back">${CEO.icon("back")}</button><h1>${esc(t.name)}</h1>
       <a class="icon-btn" href="${esc(t.url)}" target="_blank" rel="noopener" aria-label="Open in a new tab">${CEO.icon("external")}</a></header>
       <iframe src="${esc(t.url)}" title="${esc(t.name)}"></iframe>`;
@@ -33,5 +33,8 @@
     });
   }
 
-  CEO.sections.toolbox = { open, launch };
+  // Opens another page full screen the same way (the Quote Generator).
+  const openPage = (name, url, accent) => launch(null, { name, url, accent });
+
+  CEO.sections.toolbox = { open, launch, openPage };
 })();

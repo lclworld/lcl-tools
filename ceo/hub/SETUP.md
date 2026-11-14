@@ -40,6 +40,11 @@ Deploy > New deployment > type **Web app**. Execute as **Me**, Who has access
 After any later change to `Code.gs`: Deploy > Manage deployments > edit (pencil)
 > Version: **New version** > Deploy. That keeps the same URL.
 
+## Quote Generator
+Quotes, the price book and the Quote Generator's settings are saved in the
+*Quote Docs* tab of the Hub Sheet (created on its own the first time).
+Don't edit that tab by hand: each row is one saved document.
+
 ## If a phone is lost
 Open the *LCL CEO Hub* Sheet, delete that phone's row in the Devices tab, and
 change the PIN. The phone has to sign in with Google again.

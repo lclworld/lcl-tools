@@ -7,8 +7,10 @@
   // Tiles for sections that open from Home. Each appears only once it is
   // built and has something to show (calm rule: empty sections hide).
   const TILES = [
+    { key: "quotes", label: "Quotes", icon: "quote", accent: "clients", ready: () => true,
+      open: () => CEO.loadSection("toolbox").then((t) => t.openPage("Quote Generator", "quotes.html", "clients")) },
     { key: "toolbox", label: "Toolbox", icon: "tool", ready: () => true }
-    // Phase 3: Bookings. Phase 4: Clients, Socials. Phase 5: Money, Compliance. Phase 6: Strategy Room.
+    // Phase 3: Bookings. Phase 4: Clients (Quotes moves inside it), Socials. Phase 5: Money, Compliance. Phase 6: Strategy Room.
   ];
 
   const openDetail = (kind, id) => CEO.loadSection("work").then((w) => w.open(kind, id));
@@ -99,7 +101,7 @@
           ${todays.length ? `<div class="rows">${todays.slice(0, 5).map(todayRow).join("")}</div>` : `<p class="empty">Loading…</p>`}
           ${todays.length > 5 ? `<div class="card-foot"><button class="link" data-todayall>See all ${todays.length}</button></div>` : ""}
         </section>
-        ${tiles.length ? `<section class="span"><div class="tiles">${tiles.map((t) => `<button class="tile" data-tile="${t.key}" style="--tile-accent:${CEO.ACCENTS[t.key]}">${CEO.icon(t.icon)}<strong>${t.label}</strong></button>`).join("")}</div></section>` : ""}
+        ${tiles.length ? `<section class="span"><div class="tiles">${tiles.map((t) => `<button class="tile" data-tile="${t.key}" style="--tile-accent:${CEO.ACCENTS[t.accent || t.key]}">${CEO.icon(t.icon)}<strong>${t.label}</strong></button>`).join("")}</div></section>` : ""}
         <div class="span" style="text-align:center"><button class="link" data-signout>Sign out of this device</button></div>
       </div>`;
 
@@ -110,7 +112,10 @@
     const todayBtn = app.querySelector("[data-todayall]");
     if (todayBtn) todayBtn.onclick = () => CEO.screen("home", "Today", "", `<div class="content"><section class="card"><div data-list></div></section></div>`,
       (el) => { CEO.pagedRows(el.querySelector("[data-list]"), todays, todayRow); bindRows(el); });
-    app.querySelectorAll("[data-tile]").forEach((t) => t.onclick = () => CEO.loadSection(t.dataset.tile).then((s) => s.open()));
+    app.querySelectorAll("[data-tile]").forEach((t) => t.onclick = () => {
+      const tile = TILES.find((x) => x.key === t.dataset.tile);
+      return tile.open ? tile.open() : CEO.loadSection(tile.key).then((sec) => sec.open());
+    });
     app.querySelector("[data-signout]").onclick = () => { if (confirm("Sign out of the CEO App on this device?")) CEO.signOut(); };
 
     const q = app.querySelector("[data-q]"), results = app.querySelector("[data-results]");
