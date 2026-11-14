@@ -4,7 +4,7 @@
   "use strict";
   const CEO = (window.CEO = { sections: {} });
   const HUB = (window.CEO_CONFIG && window.CEO_CONFIG.HUB_URL) || "";
-  const VERSION = "ceo-1.1.0";
+  const VERSION = "ceo-1.2.0";
 
   // Option 1: Soft. Used only on header bands, icons, the active tab and chips.
   const ACCENTS = {
@@ -62,6 +62,10 @@
     label: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
     calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8"/><path d="M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/>',
     ship: '<path d="M3 17l2 3h14l2-3"/><path d="M5 17V9h14v8"/><path d="M12 9V4"/><path d="M9 4h6"/>',
+    video: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
+    reply: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v5"/>',
+    move: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
     quote: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h7"/><path d="M9 17h5"/>',
     book: '<path d="M4 4h10a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 20a4 4 0 0 1 0-8h10"/>'
   };
@@ -168,7 +172,7 @@
   let currentTab = "home";
   CEO.go = async (tab) => {
     closeAllLayers();
-    document.querySelectorAll(".toast").forEach((t) => t.remove());
+    if (tab !== currentTab) document.querySelectorAll(".toast").forEach((t) => t.remove());
     currentTab = tab;
     store.set("ceo_tab", tab);
     document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));

@@ -1,9 +1,9 @@
 // LCL CEO App service worker: keeps the app shell available offline.
 // Raise CACHE_NAME with each release (and VERSION in js/core.js).
-const CACHE_NAME = "lcl-ceo-1.1.0";
+const CACHE_NAME = "lcl-ceo-1.2.0";
 const SHELL = [
   "./", "index.html", "app.css", "config.js", "manifest.json",
-  "js/core.js", "js/data.js", "js/home.js", "js/work.js", "js/toolbox.js", "js/inbox.js", "js/orders.js", "js/quotes-store.js", "quotes.html",
+  "js/core.js", "js/data.js", "js/home.js", "js/work.js", "js/toolbox.js", "js/inbox.js", "js/orders.js", "js/bookings.js", "js/quotes-store.js", "quotes.html",
   "assets/logo.png", "assets/icon-192.png", "assets/icon-512.png"
 ];
 

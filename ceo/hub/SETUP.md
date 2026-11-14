@@ -45,6 +45,35 @@ Quotes, the price book and the Quote Generator's settings are saved in the
 *Quote Docs* tab of the Hub Sheet (created on its own the first time).
 Don't edit that tab by hand: each row is one saved document.
 
+## Phase 2 and 3: Inbox, Orders and Bookings
+The Hub is now four files. In the Apps Script project, keep `Code.gs` and add
+three more script files (Files, +, Script) with these exact names, pasting each
+from `ceo/hub/`: `Inbox`, `Orders`, `Bookings`.
+
+1. **Calendar API (for Google Meet links):** Services (+ next to Services),
+   pick **Google Calendar API**, Add.
+2. **Script Properties to add:**
+
+| Property | What it is |
+| --- | --- |
+| ANTHROPIC_API_KEY | From console.anthropic.com. Sorts and summarises email. |
+| ANTHROPIC_MODEL | Optional. Leave it out to use claude-opus-5-5. |
+| ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN, ZOHO_ORG_ID | From api-console.zoho.com, Self Client (scope `ZohoInvoice.invoices.READ,ZohoInvoice.contacts.READ`) |
+| ZOHO_DOMAIN | Optional. `zoho.com` unless your Zoho account is on another region (zoho.eu, zoho.in…) |
+| INSTABRAND_SUBJECT | The InstaBrand order email subject, once Larnis confirms it. Empty until then. |
+| PERSONAL_EMAIL | Your personal email, invited to every discovery call |
+| MEETING_INVOICE_FILE_ID | Upload the generic meeting invoice PDF to Drive, open it, and copy the ID from its link (between /d/ and /view) |
+| TEAM_EMAILS | Optional. Staff emails, comma separated, so their mail sorts into Team |
+| SUPPLIER_DOMAINS | Optional. Supplier domains, comma separated (for example fsgh.com), so their mail sorts into Suppliers |
+
+3. **Run `installTriggers` once** and approve the Gmail, Calendar and Drive
+   permissions. It sorts new mail every 10 minutes, sends call reminders every
+   5 minutes, pulls paid orders every 30 minutes and emails you on Sunday
+   mornings if the week's call times are not set.
+4. **Redeploy:** Deploy > Manage deployments > edit > New version > Deploy.
+
+The booking page for clients is **lclworld.github.io/lcl-tools/ceo/book/**.
+
 ## If a phone is lost
 Open the *LCL CEO Hub* Sheet, delete that phone's row in the Devices tab, and
 change the PIN. The phone has to sign in with Google again.

@@ -14,3 +14,8 @@ None. Every Phase 1 change uses actions those apps already have:
 
 Changes from the CEO App are signed `Efua` with tier `Manager` in Operations
 Centre's Activity Log, the same as changes made there.
+
+## Phase 2 and 3
+None. Inbox, Orders and Bookings live entirely in the CEO Hub and its own
+Sheet (tabs Email Rules, Email Index, Orders, Availability, Bookings). No
+Inventory, Operations Centre or Social Planner action was added or changed.

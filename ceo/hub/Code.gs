@@ -37,6 +37,10 @@ function doGet(e) {
     return json_({ status: 'ok', clientId: prop_('OAUTH_CLIENT_ID') || '' });
   }
   if (action === 'ping') return json_({ status: 'ok', message: 'CEO Hub is running' });
+  // Public: the booking page's free slots.
+  if (action === 'slots') {
+    try { return json_(publicSlots_()); } catch (err) { return json_({ status: 'error', message: 'Booking is not available right now.' }); }
+  }
   return json_({ status: 'error', message: 'Unknown action' });
 }
 
@@ -47,6 +51,7 @@ function doPost(e) {
     switch (body.action) {
       case 'signIn': return json_(signIn_(body));
       case 'unlock': return json_(unlock_(body));
+      case 'book': return json_(publicBook_(body));   // public booking page
     }
     var device = requireSession_(body.token);
     if (device.error) return json_(device.error);
@@ -57,6 +62,19 @@ function doPost(e) {
       case 'docsGet': return json_(docsGet_());
       case 'docSet': return json_(docSet_(body));
       case 'docUpdate': return json_(docUpdate_(body));
+      // Phase 2: Inbox
+      case 'inboxList': return json_(inboxList_());
+      case 'inboxThread': return json_(inboxThread_(body));
+      case 'inboxReply': return json_(inboxReply_(body));
+      case 'inboxMove': return json_(inboxMove_(body));
+      // Phase 2: Orders
+      case 'ordersList': return json_(ordersList_(body));
+      case 'orderDetail': return json_(orderDetail_(body));
+      case 'orderPreview': return json_(orderPreview_(body));
+      case 'orderSetStatus': return json_(orderSetStatus_(body));
+      // Phase 3: Bookings
+      case 'bookingsGet': return json_(Object.assign({ status: 'ok' }, bookingsSummary_()));
+      case 'setAvailability': return json_(setAvailability_(body));
       default: return json_({ status: 'error', message: 'Unknown action: ' + body.action });
     }
   } catch (err) {
@@ -179,6 +197,10 @@ function bundle_() {
   }));
 
   var out = { status: 'ok', today: today_(), serverTime: new Date().toISOString(), errors: [] };
+  // The Hub's own data for Home: inbox counts, orders, bookings.
+  try { out.inbox = inboxSummary_(); } catch (err) { out.errors.push('inbox: ' + err.message); }
+  try { out.orders = ordersSummary_(); } catch (err) { out.errors.push('orders: ' + err.message); }
+  try { out.bookings = bookingsSummary_(); } catch (err) { out.errors.push('bookings: ' + err.message); }
   responses.forEach(function (res, i) {
     var name = calls[i][1];
     var data;
@@ -327,7 +349,12 @@ var HUB_TABS = {
   'Devices': ['TOKEN HASH', 'DEVICE', 'CREATED', 'EXPIRES', 'LAST SEEN', 'PIN DAY', 'FAILED TRIES', 'LOCKED UNTIL'],
   'Login Log': ['DATE', 'ACCOUNT', 'DEVICE', 'EVENT'],
   'Processed Actions': ['ACTION ID', 'DATE'],
-  'Quote Docs': ['PATH', 'UPDATED', 'JSON']
+  'Quote Docs': ['PATH', 'UPDATED', 'JSON'],
+  'Email Rules': ['MATCH (EMAIL OR @DOMAIN)', 'CATEGORY', 'ADDED', 'NOTE'],
+  'Email Index': ['THREAD ID', 'MESSAGES', 'CATEGORY', 'SUMMARY', 'SOURCE', 'FROM', 'EMAIL', 'SUBJECT', 'DATE', 'UNREAD', 'UPDATED'],
+  'Orders': ['KEY', 'SOURCE', 'NUMBER', 'CLIENT', 'EMAIL', 'AMOUNT', 'CURRENCY', 'PAID', 'PRODUCTS', 'STATUS', 'STATUS DATE', 'LAST UPDATE', 'HISTORY', 'REF'],
+  'Availability': ['DATE', 'START', 'END'],
+  'Bookings': ['ID', 'SLOT START', 'NAME', 'COMPANY', 'EMAIL', 'SERVICE', 'NOTE', 'EVENT ID', 'MEET', 'STATUS', 'CREATED', 'REMINDERS']
 };
 
 function hubSheet_(name) {
@@ -371,6 +398,28 @@ function setupHub() {
   Logger.log('Hub Sheet: https://docs.google.com/spreadsheets/d/' + props.getProperty('HUB_SHEET_ID'));
   Logger.log('Properties set: ' + Object.keys(props.getProperties()).join(', '));
 }
+
+/**
+ * Run once from the editor after adding Phase 2 and 3 (Run > installTriggers).
+ * Sorts new mail every 10 minutes, sends call reminders every 5 minutes,
+ * pulls paid orders every 30 minutes, and emails the Sunday availability
+ * reminder at 8am on Sundays. Running it again replaces them, never doubles.
+ */
+function installTriggers() {
+  var handlers = ['triggerInbox', 'triggerReminders', 'triggerOrders', 'triggerSunday'];
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (handlers.indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('triggerInbox').timeBased().everyMinutes(10).create();
+  ScriptApp.newTrigger('triggerReminders').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('triggerOrders').timeBased().everyMinutes(30).create();
+  ScriptApp.newTrigger('triggerSunday').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(8).inTimezone(TZ).create();
+  Logger.log('Timed jobs installed.');
+}
+function triggerInbox() { syncInbox_(20); }
+function triggerReminders() { sendReminders_(); }
+function triggerOrders() { refreshOrders_(); }
+function triggerSunday() { sundayReminder_(); }
 
 /**
  * To set or change the manager PIN: put the new PIN in Script Properties as

@@ -48,6 +48,13 @@
     return x.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   };
   CEO.fmtDate = fmtDate;
+  CEO.fmtTime = (iso) => new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
+  CEO.fmtWhen = (iso) => fmtDate(iso) + ", " + CEO.fmtTime(iso);
+  CEO.ago = (iso) => {
+    const d = new Date(iso), today = CEO.today();
+    if (iso && String(d.toISOString()).slice(0, 10) === today) return CEO.fmtTime(iso);
+    return fmtDate(iso);
+  };
   const day = (d) => String(d || "").slice(0, 10);
 
   // Everything waiting on the manager, most urgent first.
@@ -73,6 +80,17 @@
       kind: "task", id: t.taskId, title: t.title, meta: (day(t.dueDate) < today ? "Overdue since " : "Due ") + fmtDate(t.dueDate),
       action: "Done", rank: day(t.dueDate) < today ? 1 : 3
     }));
+    // Orders: paid with no status yet, or no update for 5 working days.
+    (b.orders || []).forEach((o) => {
+      if (!o.status) items.push({ kind: "order", id: o.key, title: "New paid order: " + (o.client || o.number),
+        meta: "#" + o.number + " · " + o.source + " · send Order confirmed", action: "Confirm", rank: 1 });
+      else if (o.quietDays >= 5) items.push({ kind: "order", id: o.key, title: "No update for " + o.quietDays + " working days: " + (o.client || o.number),
+        meta: "#" + o.number + " · " + o.status, action: "Update", rank: 2 });
+    });
+    // Inbox: new inquiries and label submissions waiting to be read.
+    const unread = (b.inbox && b.inbox.unread) || {};
+    if (unread["New Inquiries"]) items.push({ kind: "inbox", id: "New Inquiries", title: unread["New Inquiries"] + " new inquir" + (unread["New Inquiries"] > 1 ? "ies" : "y"), meta: "Inbox", action: "Open", rank: 2 });
+    if (unread["Label Submissions"]) items.push({ kind: "inbox", id: "Label Submissions", title: unread["Label Submissions"] + " label submission" + (unread["Label Submissions"] > 1 ? "s" : "") + " to review", meta: "Inbox", action: "Open", rank: 2 });
     const low = CEO.lowStock(b);
     if (low.length) items.push({ kind: "lowstock", id: "lowstock", title: low.length + " item" + (low.length > 1 ? "s" : "") + " low on stock",
       meta: low.slice(0, 3).map((i) => i.name).join(", ") + (low.length > 3 ? "…" : ""), action: "Open", rank: 4 });
@@ -90,6 +108,9 @@
       out.push({ kind: "delivery", id: d.deliveryId, icon: "truck", title: (d.direction || "Delivery") + ": " + (d.clientOrSupplier || ""), meta: [d.expectedTime, d.status].filter(Boolean).join(" · ") }));
     (b.calendar || []).filter((e) => day(e.date) === today && e.status !== "Cancelled").forEach((e) =>
       out.push({ kind: "event", id: e.eventId, icon: "calendar", title: e.title, meta: [e.startTime && e.startTime + (e.endTime ? "–" + e.endTime : ""), e.eventType, e.owner].filter(Boolean).join(" · ") }));
+    ((b.bookings && b.bookings.bookings) || []).filter((k) => day(k.call) === today && new Date(k.call) > new Date(Date.now() - 20 * 60000)).forEach((k) =>
+      out.push({ kind: "booking", id: k.id, icon: "video", title: "Call: " + k.name + (k.company ? " (" + k.company + ")" : ""),
+        meta: CEO.fmtTime(k.call) + " · " + k.service }));
     (b.tasks || []).filter((t) => t.assignedTo === ME && day(t.dueDate) === today && !CEO.isDone("task", t.status)).forEach((t) =>
       out.push({ kind: "task", id: t.taskId, icon: "list", title: t.title, meta: "Your task · " + (t.status || "") }));
     return out;

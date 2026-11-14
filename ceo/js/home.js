@@ -9,11 +9,18 @@
   const TILES = [
     { key: "quotes", label: "Quotes", icon: "quote", accent: "clients", ready: () => true,
       open: () => CEO.loadSection("toolbox").then((t) => t.openPage("Quote Generator", "quotes.html", "clients")) },
+    { key: "bookings", label: "Bookings", icon: "video", ready: (b) => !!(b && b.bookings),
+      open: () => CEO.loadSection("bookings").then((k) => k.open()) },
     { key: "toolbox", label: "Toolbox", icon: "tool", ready: () => true }
     // Phase 3: Bookings. Phase 4: Clients (Quotes moves inside it), Socials. Phase 5: Money, Compliance. Phase 6: Strategy Room.
   ];
 
-  const openDetail = (kind, id) => CEO.loadSection("work").then((w) => w.open(kind, id));
+  const openDetail = (kind, id) => {
+    if (kind === "order") return CEO.loadSection("orders").then((o) => o.openOrder(id));
+    if (kind === "inbox") return CEO.go("inbox").then(() => CEO.loadSection("inbox")).then((i) => i.openCategory(id));
+    if (kind === "booking") return CEO.loadSection("bookings").then((k) => k.openBooking(id));
+    return CEO.loadSection("work").then((w) => w.open(kind, id));
+  };
   CEO.openDetail = openDetail;
 
   function needRow(n) {
@@ -34,6 +41,8 @@
       CEO.loadSection("work").then((w) => w.setStatus("purchase", id, "Approved"));
     } else if (kind === "task") {
       CEO.loadSection("work").then((w) => w.setStatus("task", id, "Completed"));
+    } else if (kind === "order") {
+      CEO.loadSection("orders").then((o) => o.openOrder(id, true));
     } else if (kind === "lowstock") {
       CEO.loadSection("work").then((w) => w.openStock());
     } else openDetail(kind, id);
@@ -79,6 +88,17 @@
     return out;
   }
 
+  // From Saturday to Monday, until the coming week's call times are set.
+  function sundayCard(b) {
+    const k = b && b.bookings;
+    const wd = new Date().getUTCDay();
+    if (!k || k.weekSet || [6, 0, 1].indexOf(wd) < 0) return "";
+    return `<section class="card" style="--accent:${CEO.ACCENTS.bookings}">
+      <div class="card-head">${CEO.icon("calendar", "accent")}<h2>Set this week's availability</h2></div>
+      <p class="note">Clients can book discovery calls only in the times you set for ${CEO.fmtDate(k.week[0])} to ${CEO.fmtDate(k.week[6])}.</p>
+      <div class="card-foot"><button class="btn" data-avail>Set times</button></div></section>`;
+  }
+
   function render(app) {
     const b = CEO.data();
     const needs = CEO.needsYou(b);
@@ -96,6 +116,7 @@
           ${!b ? `<p class="empty">Loading for the first time…</p>` : needs.length ? `<div class="rows">${needs.slice(0, 5).map(needRow).join("")}</div>` : `<p class="empty">Nothing needs you right now.</p>`}
           ${needs.length > 5 ? `<div class="card-foot"><button class="link" data-seeall>See all ${needs.length}</button></div>` : ""}
         </section>
+        ${sundayCard(b)}
         <section class="card" data-today ${b && !todays.length ? "hidden" : ""}>
           <div class="card-head">${CEO.icon("clock", "accent")}<h2>Today</h2></div>
           ${todays.length ? `<div class="rows">${todays.slice(0, 5).map(todayRow).join("")}</div>` : `<p class="empty">Loading…</p>`}
@@ -116,6 +137,8 @@
       const tile = TILES.find((x) => x.key === t.dataset.tile);
       return tile.open ? tile.open() : CEO.loadSection(tile.key).then((sec) => sec.open());
     });
+    const av = app.querySelector("[data-avail]");
+    if (av) av.onclick = () => CEO.loadSection("bookings").then((k) => k.openAvailability());
     app.querySelector("[data-signout]").onclick = () => { if (confirm("Sign out of the CEO App on this device?")) CEO.signOut(); };
 
     const q = app.querySelector("[data-q]"), results = app.querySelector("[data-results]");
