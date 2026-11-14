@@ -54,6 +54,9 @@ function doPost(e) {
       case 'bundle': return json_(bundle_());
       case 'write': return json_(write_(body));
       case 'signOut': return json_(signOut_(device));
+      case 'docsGet': return json_(docsGet_());
+      case 'docSet': return json_(docSet_(body));
+      case 'docUpdate': return json_(docUpdate_(body));
       default: return json_({ status: 'error', message: 'Unknown action: ' + body.action });
     }
   } catch (err) {
@@ -253,12 +256,78 @@ function markDone_(id) {
   hubSheet_('Processed Actions').appendRow([id, new Date()]);
 }
 
+// ---------------------------------------------------------------- Quote Generator storage
+// The Quote Generator (ceo/quotes.html) keeps its quotes, price book and
+// settings here: one row per document, JSON split across columns because a
+// Sheet cell holds at most 50,000 characters.
+
+var DOC_PATH = /^(quotes\/q\d{1,7}|book\/main|settings\/main)$/;
+var CHUNK = 45000;
+
+function docsGet_() {
+  var sh = hubSheet_('Quote Docs');
+  var last = sh.getLastRow();
+  var docs = [];
+  if (last >= 2) {
+    var values = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+    values.forEach(function (r) {
+      if (!r[0]) return;
+      try { docs.push({ path: String(r[0]), data: JSON.parse(r.slice(2).join('')) }); } catch (err) {}
+    });
+  }
+  return { status: 'ok', docs: docs };
+}
+
+function docSet_(body) {
+  if (!DOC_PATH.test(String(body.path || ''))) return { status: 'error', message: 'Not allowed: ' + body.path };
+  saveDoc_(body.path, body.data || {});
+  return { status: 'ok' };
+}
+
+function docUpdate_(body) {
+  if (!DOC_PATH.test(String(body.path || ''))) return { status: 'error', message: 'Not allowed: ' + body.path };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var row = findDocRow_(body.path);
+    var current = row ? JSON.parse(row.values.slice(2).join('')) : {};
+    var patch = body.patch || {};
+    Object.keys(patch).forEach(function (k) { current[k] = patch[k]; });
+    saveDoc_(body.path, current, row);
+  } finally { lock.releaseLock(); }
+  return { status: 'ok' };
+}
+
+function findDocRow_(path) {
+  var sh = hubSheet_('Quote Docs');
+  var hit = sh.getRange('A:A').createTextFinder(path).matchEntireCell(true).findNext();
+  if (!hit) return null;
+  var r = hit.getRow();
+  return { rowNumber: r, values: sh.getRange(r, 1, 1, sh.getLastColumn()).getValues()[0] };
+}
+
+function saveDoc_(path, data, knownRow) {
+  var sh = hubSheet_('Quote Docs');
+  var json = JSON.stringify(data);
+  var chunks = [];
+  // The leading apostrophe keeps each piece as plain text (never a formula or a number).
+  for (var i = 0; i < json.length; i += CHUNK) chunks.push("'" + json.slice(i, i + CHUNK));
+  if (!chunks.length) chunks.push("'{}");
+  var row = knownRow || findDocRow_(path);
+  var width = Math.max(sh.getLastColumn(), 2 + chunks.length);
+  var line = [path, new Date()].concat(chunks);
+  while (line.length < width) line.push('');
+  if (row) sh.getRange(row.rowNumber, 1, 1, width).setValues([line]);
+  else sh.getRange(sh.getLastRow() + 1, 1, 1, width).setValues([line]);
+}
+
 // ---------------------------------------------------------------- Hub Sheet
 
 var HUB_TABS = {
   'Devices': ['TOKEN HASH', 'DEVICE', 'CREATED', 'EXPIRES', 'LAST SEEN', 'PIN DAY', 'FAILED TRIES', 'LOCKED UNTIL'],
   'Login Log': ['DATE', 'ACCOUNT', 'DEVICE', 'EVENT'],
-  'Processed Actions': ['ACTION ID', 'DATE']
+  'Processed Actions': ['ACTION ID', 'DATE'],
+  'Quote Docs': ['PATH', 'UPDATED', 'JSON']
 };
 
 function hubSheet_(name) {
