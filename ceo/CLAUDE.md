@@ -10,7 +10,7 @@ Architecture
 - Front end: ceo/ (index.html, manifest.json, service-worker.js, one JS file per section, loaded only when opened).
 - Offline first, same pattern as lcl-tools/inventory: local cache plus a write queue that syncs on reconnect.
 - CEO Hub: a new Apps Script web app (code in ceo/hub/). It holds every private key in Script Properties, sends client emails from lueurcosmeticslab@gmail.com, reads Gmail, talks to Zoho Invoice and Google Calendar, and serves the booking page data.
-- Reading: the Hub reads each app's Google Sheet directly.
+- Reading: the Hub reads each app through that app's own read actions, all fetched in parallel in one Hub call, so no app's rules (for example Inventory's stock maths) are copied. Sheet IDs sit in Script Properties for any later direct read where no read action exists.
 - Writing: every change goes through the owning app's own backend action, so its rules still run. Never write straight into another app's Sheet.
 - Existing backends: never change or remove an existing action. Only add new, clearly named manager actions, and list every addition in ceo/docs/BACKEND_CHANGES.md.
 - The Hub keeps its own Sheet for order statuses, bookings, availability, salary records and email rules.
