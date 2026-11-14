@@ -265,3 +265,43 @@ function ordersSummary_() {
       quietDays: workingDaysSince_(o.lastUpdate || o.paid), statusDate: o.statusDate };
   });
 }
+
+// ---------------------------------------------------------------- one-time Zoho connection
+
+/**
+ * Run once from the editor (Run > zohoConnect) after putting ZOHO_CLIENT_ID,
+ * ZOHO_CLIENT_SECRET and ZOHO_GRANT_CODE in Script Properties. It swaps the
+ * short-lived grant code for a lasting refresh token, saves it as
+ * ZOHO_REFRESH_TOKEN, removes the grant code, and fills in ZOHO_ORG_ID.
+ * The grant code expires a few minutes after Zoho shows it, so run this
+ * straight away.
+ */
+function zohoConnect() {
+  var props = PropertiesService.getScriptProperties();
+  var code = prop_('ZOHO_GRANT_CODE');
+  if (!prop_('ZOHO_CLIENT_ID') || !prop_('ZOHO_CLIENT_SECRET')) throw new Error('Add ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET first.');
+  if (code) {
+    var res = UrlFetchApp.fetch('https://accounts.' + zohoDomain_() + '/oauth/v2/token', {
+      method: 'post', muteHttpExceptions: true,
+      payload: { code: code, client_id: prop_('ZOHO_CLIENT_ID'), client_secret: prop_('ZOHO_CLIENT_SECRET'), grant_type: 'authorization_code' }
+    });
+    var data = JSON.parse(res.getContentText());
+    if (!data.refresh_token) throw new Error('Zoho said: ' + (data.error || res.getContentText()) + '. The code may have expired: generate a new one and run this again within a few minutes.');
+    props.setProperty('ZOHO_REFRESH_TOKEN', data.refresh_token);
+    props.deleteProperty('ZOHO_GRANT_CODE');
+    CacheService.getScriptCache().remove('zoho_token');
+    Logger.log('Zoho connected. Refresh token saved.');
+  }
+  if (!prop_('ZOHO_REFRESH_TOKEN')) throw new Error('Add ZOHO_GRANT_CODE first (see SETUP.md).');
+  var url = 'https://www.zohoapis.' + zohoDomain_().replace(/^zoho\./, '') + '/invoice/v3/organizations';
+  var orgs = JSON.parse(UrlFetchApp.fetch(url, { headers: { Authorization: 'Zoho-oauthtoken ' + zohoToken_() }, muteHttpExceptions: true }).getContentText());
+  (orgs.organizations || []).forEach(function (o) { Logger.log('Organization: ' + o.name + ' · ID ' + o.organization_id); });
+  if (!prop_('ZOHO_ORG_ID') && orgs.organizations && orgs.organizations.length === 1) {
+    props.setProperty('ZOHO_ORG_ID', orgs.organizations[0].organization_id);
+    Logger.log('ZOHO_ORG_ID saved.');
+  } else if (!prop_('ZOHO_ORG_ID')) {
+    Logger.log('More than one organization: add the right ID above as ZOHO_ORG_ID.');
+  }
+  var test = refreshOrders_();
+  Logger.log(test.errors.length ? 'Problem reading invoices: ' + test.errors.join('; ') : 'Paid invoices pulled in. Open Orders in the CEO App.');
+}

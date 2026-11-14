@@ -58,7 +58,7 @@ from `ceo/hub/`: `Inbox`, `Orders`, `Bookings`.
 | --- | --- |
 | ANTHROPIC_API_KEY | From console.anthropic.com. Sorts and summarises email. |
 | ANTHROPIC_MODEL | Optional. Leave it out to use claude-opus-5-5. |
-| ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN, ZOHO_ORG_ID | From api-console.zoho.com, Self Client (scope `ZohoInvoice.invoices.READ,ZohoInvoice.contacts.READ`) |
+| ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_GRANT_CODE | From api-console.zoho.com, Self Client (see *Connecting Zoho* below). zohoConnect turns the grant code into ZOHO_REFRESH_TOKEN and fills in ZOHO_ORG_ID. |
 | ZOHO_DOMAIN | Optional. `zoho.com` unless your Zoho account is on another region (zoho.eu, zoho.in…) |
 | INSTABRAND_SUBJECT | The InstaBrand order email subject, once Larnis confirms it. Empty until then. |
 | PERSONAL_EMAIL | Your personal email, invited to every discovery call |
@@ -73,6 +73,21 @@ from `ceo/hub/`: `Inbox`, `Orders`, `Bookings`.
 4. **Redeploy:** Deploy > Manage deployments > edit > New version > Deploy.
 
 The booking page for clients is **lclworld.github.io/lcl-tools/ceo/book/**.
+
+## Connecting Zoho Invoice (read only)
+1. Go to **api-console.zoho.com** signed in to the Zoho account that has your
+   invoices. Click **Add Client**, choose **Self Client**, then **Create**.
+2. On the **Client Secret** tab, copy the Client ID and Client Secret into
+   Script Properties as ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET.
+3. On the **Generate Code** tab, paste this as the scope:
+   `ZohoInvoice.invoices.READ,ZohoInvoice.contacts.READ,ZohoInvoice.settings.READ`
+   Time duration: 10 minutes. Description: CEO App. Click **Create** and copy the code.
+4. Straight away, add it to Script Properties as ZOHO_GRANT_CODE, then run
+   **zohoConnect**. The log lists your organization and says the paid invoices
+   were pulled in.
+
+If your Zoho address is not invoice.zoho.com (for example invoice.zoho.eu),
+add ZOHO_DOMAIN with that ending (zoho.eu) before running zohoConnect.
 
 ## If a phone is lost
 Open the *LCL CEO Hub* Sheet, delete that phone's row in the Devices tab, and
