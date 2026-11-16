@@ -56,8 +56,6 @@ from `ceo/hub/`: `Inbox`, `Orders`, `Bookings`.
 
 | Property | What it is |
 | --- | --- |
-| ANTHROPIC_API_KEY | From console.anthropic.com. Sorts and summarises email. |
-| ANTHROPIC_MODEL | Optional. Leave it out to use claude-opus-5-5. |
 | ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_GRANT_CODE | From api-console.zoho.com, Self Client (see *Connecting Zoho* below). zohoConnect turns the grant code into ZOHO_REFRESH_TOKEN and fills in ZOHO_ORG_ID. |
 | ZOHO_DOMAIN | Optional. `zoho.com` unless your Zoho account is on another region (zoho.eu, zoho.in…) |
 | INSTABRAND_SUBJECT | The InstaBrand order email subject, once Larnis confirms it. Empty until then. |

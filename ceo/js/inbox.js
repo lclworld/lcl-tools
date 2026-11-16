@@ -111,7 +111,6 @@
       const labelUnread = unreadIn("Label Submissions");
       app.innerHTML = CEO.band("Inbox", data && data.at ? "lueurcosmeticslab@gmail.com" : "") + `
         <div class="content cols">
-          ${data && data.aiReady === false ? `<section class="card span"><p class="note">Sorting by rules only: add your Anthropic key to the Hub so the rest of your mail gets sorted and summarised.</p></section>` : ""}
           <section class="card">
             <div class="card-head">${CEO.icon("inbox", "accent")}<h2>Unread</h2></div>
             ${!data ? `<p class="empty">Loading your inbox…</p>` : unreadCats.length

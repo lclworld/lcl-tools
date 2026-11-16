@@ -15,6 +15,10 @@ Architecture
 - Existing backends: never change or remove an existing action. Only add new, clearly named manager actions, and list every addition in ceo/docs/BACKEND_CHANGES.md.
 - The Hub keeps its own Sheet for order statuses, bookings, availability, salary records and email rules.
 
+Cost
+- Free tools only. Never add anything the owner has to pay for (no paid APIs such as the Claude API). If a feature seems to need one, find a free way or ask first.
+- Free services in use: Google Apps Script, Gmail, Calendar and Meet, Drive, Sheets, GitHub Pages, Zoho Invoice (read only), Google Fonts, cdnjs.
+
 Security
 - Google sign in limited to the owner's Google account, remembered per device.
 - Manager PIN once per day after that.

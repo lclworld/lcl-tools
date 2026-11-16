@@ -6,6 +6,7 @@ Tick each one on your phone after the Hub is updated.
 - [ ] Inbox opens and shows Unread by category.
 - [ ] A new inquiry lands in New Inquiries with a one line summary.
 - [ ] A supplier email lands in Suppliers, a staff email in Team.
+- [ ] Anything sorted wrongly: move it once, and the next email from that sender lands in the right place.
 - [ ] Gmail shows the same labels under LCL/.
 - [ ] Moving an email to another category sticks, and the next email from that sender lands there too.
 - [ ] A label submission has a Check this label button that opens the Label Compliance Checker.

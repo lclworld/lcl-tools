@@ -78,7 +78,7 @@ Gmail sorted into categories, each with a one line summary of every email.
 | Regulatory | FDA and registration mail |
 | Other | Everything else |
 
-- **How sorting works:** rules first (known clients, supplier domains, staff), then AI sorts the rest. When you move an email to a different category, that sender is added to the rules.
+- **How sorting works (free, no paid AI):** rules first (known clients, supplier domains, staff), then Gmail's own Promotions/Social tabs, then keywords in the subject and email. When you move an email to a different category, that sender is added to the rules, so sorting improves as you correct it.
 - **Labels in Gmail too:** the same categories show up as Gmail labels.
 - **Reply:** reply in the app, or open the email in Gmail.
 

@@ -416,7 +416,7 @@ function installTriggers() {
   ScriptApp.newTrigger('triggerSunday').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(8).inTimezone(TZ).create();
   Logger.log('Timed jobs installed.');
 }
-function triggerInbox() { syncInbox_(20); }
+function triggerInbox() { syncInbox_(); }
 function triggerReminders() { sendReminders_(); }
 function triggerOrders() { refreshOrders_(); }
 function triggerSunday() { sundayReminder_(); }
