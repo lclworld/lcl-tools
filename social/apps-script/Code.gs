@@ -11,8 +11,23 @@ const SHEETS = {
   POSTS: 'Posts',
   SETTINGS: 'Settings',
   ACTIVITY: 'Activity Log',
-  LOGIN: 'Login Log'
+  LOGIN: 'Login Log',
+  AUDIO: 'Audio',
+  DUMP: 'Dump'
 };
+
+// Saved audios: royalty free music for reels.
+// Kind is "In-app" (Meta Sound Collection, added inside Instagram) or "Edited in" (a file baked into the video).
+const AUDIO_COLS = [
+  'ID', 'Title', 'Artist', 'Kind', 'Source', 'Link', 'License', 'Credit Needed', 'Mood', 'Tempo',
+  'Length', 'Best For', 'File ID', 'Used In', 'Notes', 'Added', 'Archived'
+];
+
+// Dump: raw shoot footage and photos, one row per file, reviewed by Claude in chat.
+const DUMP_COLS = [
+  'ID', 'Shoot Date', 'Shoot', 'Product', 'File Name', 'Type', 'Length', 'Thumb ID', 'File ID',
+  'What Is Happening', 'Keep', 'Cut', 'Best For', 'Verdict', 'Status', 'Idea Post ID', 'Notes', 'Added'
+];
 
 // Column order of the Posts tab. Analytics columns are reserved for phase two.
 const POST_COLS = [
@@ -70,6 +85,9 @@ function setup() {
     login.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#FFDE59');
   }
 
+  ensureTab_(SHEETS.AUDIO, AUDIO_COLS);
+  ensureTab_(SHEETS.DUMP, DUMP_COLS);
+
   const sheet1 = ss.getSheetByName('Sheet1');
   if (sheet1 && sheet1.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(sheet1);
 
@@ -85,6 +103,39 @@ function sheet_(name) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
   if (!sh) throw new Error('Missing tab "' + name + '". Run setup() once in the script editor.');
   return sh;
+}
+function ensureTab_(name, cols) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(cols);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, cols.length).setFontWeight('bold').setBackground('#FFDE59');
+    sh.getRange(1, 1, sh.getMaxRows(), cols.length).setNumberFormat('@');
+  }
+  return sh;
+}
+function readTab_(name, cols) {
+  const sh = ensureTab_(name, cols);
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  return sh.getRange(2, 1, last - 1, head.length).getValues().filter(r => r[0]).map(r => {
+    const o = {}; head.forEach((h, i) => { if (h) o[h] = str_(r[i]); }); return o;
+  });
+}
+// Writes only the fields given; keeps everything else in the row as it is.
+function saveRow_(name, cols, rec) {
+  if (!rec || !rec.ID) throw new Error('Record has no ID');
+  const sh = ensureTab_(name, cols);
+  const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const row = findRow_(sh, rec.ID);
+  const existing = row > 0 ? sh.getRange(row, 1, 1, head.length).getValues()[0] : head.map(() => '');
+  const values = head.map((h, i) => rec[h] !== undefined ? rec[h] : existing[i]);
+  if (row > 0) sh.getRange(row, 1, 1, values.length).setValues([values]);
+  else sh.appendRow(values);
+  return row > 0 ? 'update' : 'create';
 }
 function imageFolder_() {
   const props = PropertiesService.getScriptProperties();
@@ -144,7 +195,9 @@ function getAll_() {
     if (!k) return;
     settings[k] = data.slice(1).map(r => String(r[ci] || '').trim()).filter(Boolean);
   });
-  return { status: 'ok', posts: posts, settings: settings, serverTime: new Date().toISOString() };
+  const audio = readTab_(SHEETS.AUDIO, AUDIO_COLS);
+  const dump = readTab_(SHEETS.DUMP, DUMP_COLS);
+  return { status: 'ok', posts: posts, settings: settings, audio: audio, dump: dump, serverTime: new Date().toISOString() };
 }
 
 // ---------- writes ----------
@@ -186,6 +239,19 @@ function uploadImage_(p) {
   return { status: 'ok', imageId: id, imageUrl: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1080' };
 }
 
+function saveAudio_(p) {
+  const rec = p.record || {};
+  const kind = saveRow_(SHEETS.AUDIO, AUDIO_COLS, rec);
+  logActivity_(kind, { id: rec.ID, title: 'Audio: ' + (rec.Title || '') }, p.detail || (kind === 'create' ? 'Audio saved' : 'Audio edited'), p.by, p.actionId);
+  return { status: 'ok', id: rec.ID };
+}
+function saveDump_(p) {
+  const rec = p.record || {};
+  const kind = saveRow_(SHEETS.DUMP, DUMP_COLS, rec);
+  logActivity_(kind, { id: rec.ID, title: 'Dump: ' + (rec['File Name'] || '') }, p.detail || (rec.Status ? 'Status ' + rec.Status : 'Dump edited'), p.by, p.actionId);
+  return { status: 'ok', id: rec.ID };
+}
+
 function logLogin_(p) {
   sheet_(SHEETS.LOGIN).appendRow([new Date(), p.role || '', p.device || '']);
   return { status: 'ok' };
@@ -211,13 +277,15 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(20000);
-    if (payload.actionId && action === 'savePost' && alreadyProcessed_(payload.actionId)) {
+    if (payload.actionId && /^(savePost|saveAudio|saveDump)$/.test(action) && alreadyProcessed_(payload.actionId)) {
       return jsonOut_({ status: 'ok', duplicate: true });
     }
     let result;
     switch (action) {
       case 'savePost': result = savePost_(payload); break;
       case 'uploadImage': result = uploadImage_(payload); break;
+      case 'saveAudio': result = saveAudio_(payload); break;
+      case 'saveDump': result = saveDump_(payload); break;
       case 'login': result = logLogin_(payload); break;
       default: result = { status: 'error', message: 'Unknown POST action: ' + action };
     }
