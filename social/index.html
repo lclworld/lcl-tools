@@ -73,6 +73,9 @@
   .tab.active[data-screen="calendar"] i { background: var(--draft-bg); color: var(--draft-fg); }
   .tab.active[data-screen="add"] i { background: var(--ready-bg); color: var(--ready-fg); }
   .tab.active[data-screen="manager"] i { background: var(--posted-bg); color: var(--posted-fg); }
+  .tab.active[data-screen="dump"] i { background: var(--idea-bg); color: var(--idea-fg); }
+  .tab.active[data-screen="audio"] i { background: var(--ready-bg); color: var(--ready-fg); }
+  @media (max-width: 420px) { .tab { font-size: 0.6rem; } .tab i { width: 36px; font-size: 1.3rem; } }
 
   @media (min-width: 900px) {
     .app-shell { padding-left: 220px; }
@@ -186,6 +189,7 @@
   .btn.teal { border-color: var(--teal); color: var(--posted-fg); }
   .btn.ghost { border: 1.5px dashed var(--brown); color: var(--brown); font-size: 0.82rem; padding: 11px; margin-top: 10px; }
   .btn:active { transform: scale(0.99); }
+  a.btn { text-decoration: none; }
   .form-err { color: #C0392B; font-size: 0.8rem; font-weight: 700; margin-top: 10px; }
 
   /* ---------- detail sheet ---------- */
@@ -212,6 +216,37 @@
   .sheet-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; }
   .sheet-actions .btn { margin-top: 10px; font-size: 0.85rem; padding: 12px; }
   .sheet-actions .btn.wide { grid-column: 1 / -1; }
+
+  /* ---------- dump ---------- */
+  .dgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  @media (min-width: 700px) { .dgrid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; } }
+  @media (min-width: 1100px) { .dgrid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+  .dtile { aspect-ratio: 9 / 16; border-radius: 12px; position: relative; overflow: hidden; border: none; padding: 0; background: var(--soft); display: block; width: 100%; text-align: left; }
+  .dtile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .dtile .nm { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 7px 6px; font-size: 0.64rem; font-weight: 800; color: var(--white); background: linear-gradient(transparent, rgba(23,19,15,0.7)); display: flex; justify-content: space-between; gap: 4px; }
+  .dtile .vb { position: absolute; top: 6px; left: 6px; font-size: 0.56rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 7px; border-radius: 10px; }
+  .dtile.done img { filter: grayscale(0.85) opacity(0.6); }
+  .dtile .used { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--teal); color: var(--white); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+  .vb.Hero { background: var(--yellow); color: var(--black); }
+  .vb.Use { background: var(--teal); color: var(--white); }
+  .vb.Backup { background: var(--white); color: var(--brown); }
+  .vb.Discard { background: var(--black); color: var(--white); }
+  .shoot-head { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 10px; }
+  .shoot-head h3 { font-family: 'Playfair Display', serif; font-weight: 800; font-size: 1.05rem; margin: 0; }
+  .shoot-head .m { font-size: 0.74rem; color: var(--brown); font-weight: 700; }
+  .note-box { margin-top: 10px; border-radius: 16px; padding: 12px 14px; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+  .note-box .k { display: flex; align-items: center; gap: 5px; font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .nb-what { background: var(--soft); }
+  .nb-keep { background: var(--posted-bg); color: var(--posted-fg); }
+  .nb-cut { background: var(--idea-bg); color: var(--idea-fg); }
+  .nb-best { background: #FFF8D6; border: 1.5px solid var(--yellow); }
+  .sheet .hero.tall { aspect-ratio: 9 / 16; max-height: 46vh; margin: 0 auto; width: fit-content; min-width: 40%; }
+  /* ---------- audio ---------- */
+  .arow .thumb { background: var(--ready-bg); color: var(--ready-fg); }
+  .arow .thumb.inapp { background: var(--posted-bg); color: var(--posted-fg); }
+  .tagline { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+  .tagline span { font-size: 0.62rem; font-weight: 800; padding: 2px 8px; border-radius: 8px; background: var(--soft); color: var(--brown); }
+  .audio-frame { width: 100%; height: 90px; border: none; border-radius: 14px; margin-top: 12px; background: var(--soft); }
 
   .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + 20px + env(safe-area-inset-bottom)); z-index: 60; background: var(--black); color: var(--white); padding: 11px 18px; border-radius: 14px; font-size: 0.85rem; font-weight: 700; max-width: 90vw; text-align: center; }
   @media (min-width: 900px) { .toast { bottom: 28px; } }
@@ -336,6 +371,27 @@
       <button class="btn ghost hidden" id="formCancel">Cancel editing</button>
     </section>
 
+    <!-- DUMP -->
+    <section id="screen-dump" class="hidden">
+      <h2 class="screen-title">Dump</h2>
+      <p class="screen-sub" id="dumpSub">Every clip and photo from a shoot day. Tap one to see what to keep, what to cut and what it's best for.</p>
+      <div class="chips" id="dumpChips"></div>
+      <div class="filter-row"><select id="dumpProduct"></select><select id="dumpVerdict"></select></div>
+      <div id="dumpList"></div>
+      <div class="empty-note hidden" id="dumpEmpty">Nothing in the dump yet. Send your clips to Claude in chat and they'll appear here, reviewed.</div>
+    </section>
+
+    <!-- AUDIO -->
+    <section id="screen-audio" class="hidden">
+      <h2 class="screen-title">Saved audios</h2>
+      <p class="screen-sub">Royalty free music that is safe for a business account. <b>In-app</b> tracks are added inside Instagram; <b>Edited in</b> tracks are baked into the video so scheduled reels have sound.</p>
+      <div class="chips" id="audioKind"></div>
+      <div class="chips" id="audioMood"></div>
+      <div id="audioList"></div>
+      <div class="empty-note hidden" id="audioEmpty">No audios saved yet.</div>
+      <button class="btn pink" id="audioAdd"><i class="ti ti-music-plus"></i> Save an audio</button>
+    </section>
+
     <!-- MANAGER -->
     <section id="screen-manager" class="hidden">
       <h2 class="screen-title">Manager</h2>
@@ -359,6 +415,8 @@
     <button class="tab active" data-screen="board"><i class="ti ti-layout-grid"></i>Board</button>
     <button class="tab" data-screen="calendar"><i class="ti ti-calendar"></i>Calendar</button>
     <button class="tab" data-screen="add"><i class="ti ti-circle-plus"></i>Add</button>
+    <button class="tab" data-screen="dump"><i class="ti ti-movie"></i>Dump</button>
+    <button class="tab" data-screen="audio"><i class="ti ti-music"></i>Audio</button>
     <button class="tab" data-screen="manager"><i class="ti ti-shield-check"></i>Manager</button>
   </nav>
 </div>
@@ -378,7 +436,7 @@ const MANAGER_PIN = "2635";
 const STATUSES = ["Idea", "Draft", "Ready", "Posted"];
 const STATUS_ICON = { Idea: "ti-bulb", Draft: "ti-pencil", Ready: "ti-rocket", Posted: "ti-circle-check" };
 const CAPTION_LIMIT = 2200;
-const LS = { posts: "lclsocial_posts", settings: "lclsocial_settings", queue: "lclsocial_queue", url: "lclsocial_url", synced: "lclsocial_synced" };
+const LS = { audio: "lclsocial_audio", dump: "lclsocial_dump", posts: "lclsocial_posts", settings: "lclsocial_settings", queue: "lclsocial_queue", url: "lclsocial_url", synced: "lclsocial_synced" };
 const DEFAULT_SETTINGS = {
   Goals: ["Educate", "Build trust", "Get enquiries", "Community", "Sell"],
   Pillars: ["Formulation education", "Starting a brand", "Behind the lab", "Client wins"],
@@ -390,6 +448,12 @@ const DEFAULT_SETTINGS = {
 // ============================================================
 let posts = (readLS(LS.posts, []) || []).map(p => Object.assign({}, p, { status: ["Idea", "Draft", "Ready", "Posted"].includes(p.status) ? p.status : "Idea" }));
 let settings = readLS(LS.settings, DEFAULT_SETTINGS);
+let audio = readLS(LS.audio, []) || [];
+let dump = readLS(LS.dump, []) || [];
+let dumpStatus = "all", dumpProduct = "all", dumpVerdict = "all", audioKind = "all", audioMood = "all";
+const SCREENS = ["board", "calendar", "add", "dump", "audio", "manager"];
+const DUMP_STATUSES = ["New", "Reviewed", "Used", "Discarded"];
+const VERDICTS = ["Hero", "Use", "Backup", "Discard"];
 let queue = (readLS(LS.queue, []) || []).map(q => Object.assign(q, { inFlight: false }));
 let role = sessionStorage.getItem("lclsocial_role") || "";
 let screen = "board";
@@ -432,7 +496,8 @@ function normalize(list) {
 }
 function activePosts() { return posts.filter(p => !p.archived); }
 function nextStatus(s) { const i = STATUSES.indexOf(s); return i >= 0 && i < STATUSES.length - 1 ? STATUSES[i + 1] : null; }
-function isPending(id) { return queue.some(q => q.post && q.post.id === id); }
+function isPending(id) { return queue.some(q => (q.post && q.post.id === id) || (q.record && q.record.ID === id)); }
+function driveThumb(id, w) { return id ? "https://drive.google.com/thumbnail?id=" + encodeURIComponent(id) + "&sz=w" + (w || 600) : ""; }
 function imgSrc(p) { return p.localImage || p.imageUrl || ""; }
 function sortPosts(list) {
   return list.slice().sort((a, b) => {
@@ -493,6 +558,21 @@ function enqueueSave(p, pendingImage) {
   queue.push({ actionId: uid("A"), action: "savePost", post: clean, image: pendingImage || null, by: role });
   writeLS(LS.queue, queue);
 }
+function enqueueRecord(action, rec, detail) {
+  queue = queue.filter(q => !(q.action === action && q.record && q.record.ID === rec.ID && !q.inFlight));
+  queue.push({ actionId: uid("A"), action: action, record: rec, detail: detail || "", by: role });
+  writeLS(LS.queue, queue);
+}
+function saveRecordLocal(kind, rec, detail) {
+  const list = kind === "audio" ? audio : dump;
+  const i = list.findIndex(x => x.ID === rec.ID);
+  const merged = Object.assign({}, i >= 0 ? list[i] : {}, rec);
+  if (i >= 0) list[i] = merged; else list.push(merged);
+  writeLS(kind === "audio" ? LS.audio : LS.dump, list);
+  enqueueRecord(kind === "audio" ? "saveAudio" : "saveDump", rec, detail);
+  renderAll(); sync();
+  return merged;
+}
 function upsertLocal(p) {
   const i = posts.findIndex(x => x.id === p.id);
   if (i >= 0) posts[i] = p; else posts.push(p);
@@ -500,8 +580,9 @@ function upsertLocal(p) {
 }
 async function flushQueue() {
   if (!backendUrl() || !navigator.onLine) return;
-  while (queue.length) {
-    const item = queue[0];
+  let i = 0;
+  while (i < queue.length) {
+    const item = queue[i];
     item.inFlight = true;
     try {
       if (item.image && item.image.data) {
@@ -511,14 +592,17 @@ async function flushQueue() {
         if (local) { local.imageUrl = up.imageUrl; local.imageId = up.imageId; delete local.localImage; writeLS(LS.posts, posts); }
         writeLS(LS.queue, queue);
       }
-      await post("savePost", { post: item.post, by: item.by, actionId: item.actionId });
-      queue.shift();
+      if (item.record) await post(item.action, { record: item.record, detail: item.detail, by: item.by, actionId: item.actionId });
+      else await post("savePost", { post: item.post, by: item.by, actionId: item.actionId });
+      queue.splice(i, 1);
       writeLS(LS.queue, queue);
       lastError = "";
     } catch (err) {
       item.inFlight = false;
-      lastError = err.message;
       writeLS(LS.queue, queue);
+      // An older Apps Script doesn't know Dump and Audio yet: keep those changes waiting, but let posts through.
+      if (item.record && /Unknown POST action/.test(err.message)) { lastError = "Dump and Audio changes wait until the new Apps Script is deployed"; i++; continue; }
+      lastError = err.message;
       break;
     }
   }
@@ -531,10 +615,13 @@ async function sync(manual) {
     await flushQueue();
     if (navigator.onLine) {
       const data = await getAll();
-      const pendingIds = new Set(queue.map(q => q.post && q.post.id));
+      const pendingIds = new Set(queue.filter(q => q.post).map(q => q.post.id));
       const server = data.posts || [];
       const localPending = posts.filter(p => pendingIds.has(p.id));
       posts = normalize(server).filter(p => !pendingIds.has(p.id)).concat(localPending);
+      const pendRec = new Set(queue.filter(q => q.record).map(q => q.record.ID));
+      if (Array.isArray(data.audio)) { audio = data.audio.filter(a => !pendRec.has(a.ID)).concat(audio.filter(a => pendRec.has(a.ID))); writeLS(LS.audio, audio); }
+      if (Array.isArray(data.dump)) { dump = data.dump.filter(d => !pendRec.has(d.ID)).concat(dump.filter(d => pendRec.has(d.ID))); writeLS(LS.dump, dump); }
       if (data.settings && Object.keys(data.settings).length) settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
       writeLS(LS.posts, posts); writeLS(LS.settings, settings);
       localStorage.setItem(LS.synced, new Date().toISOString());
@@ -630,7 +717,7 @@ async function go(name, opts) {
   if (name === "manager" && !isManager()) { const ok = await askManager(); if (!ok) return; }
   if (name === "add" && !(opts && opts.keepForm)) resetForm(opts && opts.date);
   screen = name;
-  ["board", "calendar", "add", "manager"].forEach(s => $("screen-" + s).classList.toggle("hidden", s !== name));
+  SCREENS.forEach(s => $("screen-" + s).classList.toggle("hidden", s !== name));
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.screen === name));
   window.scrollTo(0, 0);
   renderAll();
@@ -850,8 +937,195 @@ $("overlay").addEventListener("click", e => { if (e.target === $("overlay")) clo
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
 document.addEventListener("click", e => {
   if (e.target.closest("#sheet") || e.target.closest("[data-act]")) return;
+  const dd = e.target.closest("[data-dump]"); if (dd) return openDump(dd.dataset.dump);
+  const aa = e.target.closest("[data-audio]"); if (aa) return openAudio(aa.dataset.audio);
   const o = e.target.closest("[data-open]"); if (o) openPost(o.dataset.open);
 });
+
+
+// ============================================================
+// DUMP
+// ============================================================
+function dumpVisible(d) {
+  return (dumpStatus === "all" ? d.Status !== "Discarded" : (d.Status || "New") === dumpStatus) &&
+    (dumpProduct === "all" || d.Product === dumpProduct) &&
+    (dumpVerdict === "all" || d.Verdict === dumpVerdict);
+}
+function renderDump() {
+  const counts = {}; DUMP_STATUSES.forEach(s => counts[s] = dump.filter(d => (d.Status || "New") === s).length);
+  $("dumpChips").innerHTML = [["all", "All"]].concat(DUMP_STATUSES.map(s => [s, s + " " + counts[s]])).map(([k, l]) =>
+    `<button class="chip ${dumpStatus === k ? "active" : ""}" data-dchip="${k}">${esc(l)}</button>`).join("");
+  const products = [...new Set(dump.map(d => d.Product).filter(Boolean))].sort();
+  fillSelect($("dumpProduct"), products, null, "All products"); $("dumpProduct").value = dumpProduct;
+  fillSelect($("dumpVerdict"), VERDICTS, null, "Any verdict"); $("dumpVerdict").value = dumpVerdict;
+  const shown = dump.filter(dumpVisible);
+  const groups = {};
+  shown.forEach(d => { const k = (d["Shoot Date"] || "") + "|" + (d.Shoot || "Shoot"); (groups[k] = groups[k] || []).push(d); });
+  const keys = Object.keys(groups).sort().reverse();
+  const order = { Hero: 0, Use: 1, Backup: 2, Discard: 3 };
+  $("dumpList").innerHTML = keys.map(k => {
+    const [date, name] = k.split("|");
+    const items = groups[k].sort((a, b) => (order[a.Verdict] ?? 9) - (order[b.Verdict] ?? 9) || String(a["File Name"]).localeCompare(String(b["File Name"])));
+    return `<div class="shoot-head"><h3>${esc(name)}</h3><span class="m">${date ? esc(niceDate(date)) + " · " : ""}${items.length} files</span></div>
+      <div class="dgrid">${items.map(d => {
+        const done = d.Status === "Used" || d.Status === "Discarded";
+        return `<button class="dtile ${done ? "done" : ""}" data-dump="${esc(d.ID)}">
+          ${d["Thumb ID"] ? `<img src="${esc(driveThumb(d["Thumb ID"], 400))}" alt="${esc(d["File Name"])}" loading="lazy" onerror="this.remove()">` : ""}
+          ${d.Verdict ? `<span class="vb ${esc(d.Verdict)}">${d.Verdict === "Hero" ? "★ " : ""}${esc(d.Verdict)}</span>` : ""}
+          ${d.Status === "Used" ? '<span class="used"><i class="ti ti-check"></i></span>' : ""}
+          <div class="nm"><span>${esc(String(d["File Name"] || "").replace(/^IMG_/, ""))}</span><span>${esc(d.Length || "")}</span></div></button>`;
+      }).join("")}</div>`;
+  }).join("");
+  $("dumpEmpty").classList.toggle("hidden", shown.length > 0);
+  if (!shown.length && dump.length) $("dumpEmpty").textContent = "Nothing matches these filters.";
+  const fresh = dump.filter(d => d.Verdict === "Hero" && d.Status !== "Used").length;
+  $("dumpSub").textContent = dump.length ? `${dump.length} files across ${new Set(dump.map(d => d["Shoot Date"] + d.Shoot)).size} shoots. ${fresh} hero clips not used yet.` : "Every clip and photo from a shoot day. Tap one to see what to keep, what to cut and what it's best for.";
+}
+$("dumpChips").addEventListener("click", e => { const b = e.target.closest("[data-dchip]"); if (!b) return; dumpStatus = b.dataset.dchip; renderDump(); });
+$("dumpProduct").onchange = e => { dumpProduct = e.target.value; renderDump(); };
+$("dumpVerdict").onchange = e => { dumpVerdict = e.target.value; renderDump(); };
+
+function openDump(id) {
+  const d = dump.find(x => x.ID === id); if (!d) return;
+  const box = (cls, icon, label, text) => text ? `<div class="note-box ${cls}"><div class="k"><i class="ti ${icon}"></i> ${label}</div>${esc(text)}</div>` : "";
+  const st = d.Status || "New";
+  const linked = d["Idea Post ID"] ? posts.find(p => p.id === d["Idea Post ID"]) : null;
+  $("sheet").innerHTML = `
+    <div class="grab"></div>
+    <button class="close-x" data-close aria-label="Close"><i class="ti ti-x"></i></button>
+    <div class="hero tall" style="background:var(--soft)">${d["Thumb ID"] ? `<img src="${esc(driveThumb(d["Thumb ID"], 900))}" alt="">` : `<div class="q">${esc(d["File Name"])}</div>`}</div>
+    <div class="body">
+      ${d.Verdict ? `<span class="vb ${esc(d.Verdict)}" style="position:static;display:inline-block;font-size:0.66rem;font-weight:800;padding:4px 10px;border-radius:10px;text-transform:uppercase">${d.Verdict === "Hero" ? "★ " : ""}${esc(d.Verdict)}</span>` : ""}
+      <span class="hint" style="margin-left:6px">${esc(st)}${isPending(d.ID) ? " · waiting to sync" : ""}</span>
+      <h2>${esc(d["File Name"])}</h2>
+      <div class="facts">
+        <div class="fact when"><div class="k"><i class="ti ti-clock"></i> Length</div><div class="v">${esc(d.Length || "?")}</div></div>
+        <div class="fact where"><div class="k"><i class="ti ti-flask"></i> Product</div><div class="v">${esc(d.Product || "Not set")}</div></div>
+        <div class="fact goal"><div class="k"><i class="ti ti-camera"></i> Shoot</div><div class="v">${esc(d.Shoot || "")}${d["Shoot Date"] ? " · " + esc(niceDate(d["Shoot Date"])) : ""}</div></div>
+      </div>
+      ${box("nb-what", "ti-eye", "What's happening", d["What Is Happening"])}
+      ${box("nb-keep", "ti-scissors", "Keep", d.Keep)}
+      ${box("nb-cut", "ti-trash", "Cut", d.Cut)}
+      ${box("nb-best", "ti-sparkles", "Best for", d["Best For"])}
+      ${box("nb-what", "ti-notes", "Notes", d.Notes)}
+      ${linked ? `<div class="note-box nb-keep" data-open="${esc(linked.id)}" role="button"><div class="k"><i class="ti ti-link"></i> Used in</div>${esc(linked.title)} (${esc(linked.status)})</div>` : ""}
+      <div class="sheet-actions">
+        ${st !== "Used" && st !== "Discarded" ? `<button class="btn pink wide" data-idea><i class="ti ti-bulb"></i> Make it an idea</button>` : ""}
+        ${st === "New" ? `<button class="btn" data-dst="Reviewed"><i class="ti ti-eye-check"></i> Reviewed</button>` : ""}
+        ${st !== "Used" ? `<button class="btn teal" data-dst="Used"><i class="ti ti-circle-check"></i> Mark used</button>` : `<button class="btn" data-dst="Reviewed"><i class="ti ti-arrow-back-up"></i> Not used</button>`}
+        ${d["File ID"] ? `<a class="btn" href="https://drive.google.com/file/d/${encodeURIComponent(d["File ID"])}/view" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open file</a>` : ""}
+        ${st === "Discarded" ? `<button class="btn ghost wide" data-dst="Reviewed"><i class="ti ti-restore"></i> Restore</button>` : `<button class="btn ghost wide" data-dst="Discarded"><i class="ti ti-trash"></i> Discard</button>`}
+      </div>
+    </div>`;
+  $("overlay").classList.remove("hidden"); document.body.style.overflow = "hidden";
+  $("sheet").onclick = e => {
+    if (e.target.closest("[data-close]")) return closeSheet();
+    const o = e.target.closest("[data-open]"); if (o) { openPost(o.dataset.open); return; }
+    const s = e.target.closest("[data-dst]");
+    if (s) { saveRecordLocal("dump", { ID: d.ID, Status: s.dataset.dst }, (d.Status || "New") + " → " + s.dataset.dst); closeSheet(); toast("Marked " + s.dataset.dst.toLowerCase()); }
+    if (e.target.closest("[data-idea]")) {
+      const p = { id: uid("P"), brand: "LCL", status: "Idea", platform: "Instagram", goal: "Build trust", pillar: "Behind the lab",
+        title: (d.Product ? d.Product + ": " : "") + (String(d["Best For"] || "clip").split(/[.,;]/)[0]).slice(0, 80),
+        caption: "", date: "", time: "", archived: false, created: new Date().toISOString(),
+        notes: "From the Dump: " + d["File Name"] + " (" + (d.Shoot || "") + ")\nKeep: " + (d.Keep || "") + "\nWhat's happening: " + (d["What Is Happening"] || ""),
+        imageUrl: d["Thumb ID"] ? driveThumb(d["Thumb ID"], 1080) : "", imageId: d["Thumb ID"] || "" };
+      savePostLocal(p);
+      saveRecordLocal("dump", { ID: d.ID, Status: "Used", "Idea Post ID": p.id }, "Turned into idea " + p.id);
+      closeSheet(); toast("Saved as an idea. Edit it from the board.");
+    }
+  };
+}
+
+// ============================================================
+// AUDIO
+// ============================================================
+function renderAudio() {
+  const live = audio.filter(a => String(a.Archived).toUpperCase() !== "TRUE");
+  $("audioKind").innerHTML = ["all", "In-app", "Edited in"].map(k =>
+    `<button class="chip ${audioKind === k ? "active" : ""}" data-akind="${k}">${k === "all" ? "All" : k}</button>`).join("");
+  const moods = [...new Set(live.map(a => a.Mood).filter(m => m && m !== "Any"))].sort();
+  $("audioMood").innerHTML = moods.length ? ["all"].concat(moods).map(m =>
+    `<button class="chip ${audioMood === m ? "active" : ""}" data-amood="${esc(m)}">${m === "all" ? "Any mood" : esc(m)}</button>`).join("") : "";
+  const shown = live.filter(a => (audioKind === "all" || a.Kind === audioKind) && (audioMood === "all" || a.Mood === audioMood))
+    .sort((a, b) => String(a.Mood).localeCompare(String(b.Mood)) || String(a.Title).localeCompare(String(b.Title)));
+  $("audioList").innerHTML = shown.map(a => `
+    <div class="row arow" data-audio="${esc(a.ID)}" role="button" tabindex="0">
+      <div class="thumb ${a.Kind === "In-app" ? "inapp" : ""}"><i class="ti ${a.Kind === "In-app" ? "ti-brand-instagram" : "ti-music"}"></i></div>
+      <div class="info"><div class="t">${esc(a.Title)}</div>
+        <div class="m">${esc(a.Artist || "")}${a.Source ? " · " + esc(a.Source) : ""}${a.Length ? " · " + esc(a.Length) : ""}</div>
+        <div class="tagline">${[a.Mood, a.Tempo, a.Kind].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join("")}${a["File ID"] ? '<span style="background:var(--posted-bg);color:var(--posted-fg)">File ready</span>' : ""}</div></div>
+    </div>`).join("");
+  $("audioEmpty").classList.toggle("hidden", shown.length > 0);
+}
+$("audioKind").addEventListener("click", e => { const b = e.target.closest("[data-akind]"); if (!b) return; audioKind = b.dataset.akind; renderAudio(); });
+$("audioMood").addEventListener("click", e => { const b = e.target.closest("[data-amood]"); if (!b) return; audioMood = b.dataset.amood; renderAudio(); });
+$("audioAdd").onclick = () => audioForm();
+
+function openAudio(id) {
+  const a = audio.find(x => x.ID === id); if (!a) return;
+  const used = String(a["Used In"] || "").split(/[,\s]+/).filter(Boolean).map(pid => posts.find(p => p.id === pid)).filter(Boolean);
+  $("sheet").innerHTML = `
+    <div class="grab"></div>
+    <button class="close-x" data-close aria-label="Close"><i class="ti ti-x"></i></button>
+    <div class="body" style="padding-top:26px">
+      <span class="tagline">${[a.Kind, a.Mood, a.Tempo].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join("")}</span>
+      <h2>${esc(a.Title)}</h2>
+      <div class="hint" style="margin-top:-6px">${esc(a.Artist || "")}${a.Source ? " · " + esc(a.Source) : ""}${a.Length ? " · " + esc(a.Length) : ""}</div>
+      ${a["File ID"] ? `<iframe class="audio-frame" src="https://drive.google.com/file/d/${encodeURIComponent(a["File ID"])}/preview" allow="autoplay"></iframe>` : ""}
+      ${a["Best For"] ? `<div class="note-box nb-best"><div class="k"><i class="ti ti-sparkles"></i> Best for</div>${esc(a["Best For"])}</div>` : ""}
+      <div class="note-box nb-keep"><div class="k"><i class="ti ti-license"></i> License</div>${esc(a.License || "Check the source page")}${a["Credit Needed"] ? "\nCredit needed: " + esc(a["Credit Needed"]) : ""}</div>
+      ${a.Notes ? `<div class="note-box nb-what"><div class="k"><i class="ti ti-notes"></i> Notes</div>${esc(a.Notes)}</div>` : ""}
+      ${used.length ? `<div class="note-box nb-what"><div class="k"><i class="ti ti-link"></i> Used in</div>${used.map(p => esc(p.title)).join("\n")}</div>` : ""}
+      <div class="sheet-actions">
+        ${a.Link ? `<a class="btn pink wide" href="${esc(a.Link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> ${a.Kind === "In-app" ? "Open" : "Find and download"}</a>` : ""}
+        <button class="btn" data-copyt><i class="ti ti-copy"></i> Copy name</button>
+        <button class="btn" data-aedit><i class="ti ti-edit"></i> Edit</button>
+        <button class="btn ghost wide" data-aarch><i class="ti ti-archive"></i> Remove from library</button>
+      </div>
+    </div>`;
+  $("overlay").classList.remove("hidden"); document.body.style.overflow = "hidden";
+  $("sheet").onclick = async e => {
+    if (e.target.closest("[data-close]")) return closeSheet();
+    if (e.target.closest("[data-copyt]")) { try { await navigator.clipboard.writeText(a.Title + (a.Artist ? " " + a.Artist : "")); toast("Copied. Search it in the music library."); } catch (err) { toast("Couldn't copy on this device"); } }
+    if (e.target.closest("[data-aedit]")) audioForm(a);
+    if (e.target.closest("[data-aarch]")) { saveRecordLocal("audio", { ID: a.ID, Archived: "TRUE" }, "Removed from library"); closeSheet(); toast("Removed"); }
+  };
+}
+function audioForm(a) {
+  a = a || {};
+  const f = (k, label, ph) => `<label class="f">${label}</label><input data-k="${k}" value="${esc(a[k] || "")}" placeholder="${esc(ph || "")}">`;
+  const sel = (k, label, opts) => `<label class="f">${label}</label><select data-k="${k}">${opts.map(o => `<option ${a[k] === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  $("sheet").innerHTML = `
+    <div class="grab"></div>
+    <button class="close-x" data-close aria-label="Close"><i class="ti ti-x"></i></button>
+    <div class="body" style="padding-top:26px">
+      <h2>${a.ID ? "Edit audio" : "Save an audio"}</h2>
+      ${f("Title", 'Title <span class="req">*</span>', "Serene View")}
+      ${f("Artist", "Artist", "Arulo")}
+      <div class="two"><div>${sel("Kind", "Kind", ["Edited in", "In-app"])}</div><div>${sel("Mood", "Mood", ["Calm", "Upbeat", "Luxe", "Playful"])}</div></div>
+      <div class="two"><div>${sel("Tempo", "Tempo", ["Slow", "Medium", "Fast"])}</div><div>${f("Length", "Length", "1:54")}</div></div>
+      ${f("Source", "Source", "Mixkit, Pixabay Music, Meta Sound Collection")}
+      ${f("Link", "Link", "https://")}
+      ${f("Best For", "Best for", "pour shots, under talking, slideshows")}
+      ${f("License", "License", "Free License, commercial use, no credit")}
+      ${f("Credit Needed", "Credit needed", "No")}
+      ${f("File ID", "Drive file ID (edited in tracks)", "")}
+      <label class="f">Notes</label><textarea data-k="Notes" style="min-height:70px">${esc(a.Notes || "")}</textarea>
+      <div class="form-err" id="aErr"></div>
+      <button class="btn pink" data-asave><i class="ti ti-device-floppy"></i> Save audio</button>
+    </div>`;
+  $("overlay").classList.remove("hidden"); document.body.style.overflow = "hidden";
+  $("sheet").onclick = e => {
+    if (e.target.closest("[data-close]")) return closeSheet();
+    if (!e.target.closest("[data-asave]")) return;
+    const rec = { ID: a.ID || uid("AU") };
+    $("sheet").querySelectorAll("[data-k]").forEach(el => rec[el.dataset.k] = el.value.trim());
+    if (!rec.Title) { $("aErr").textContent = "Give the audio a title."; return; }
+    if (!a.ID) { rec.Added = new Date().toISOString(); rec.Archived = "FALSE"; }
+    saveRecordLocal("audio", rec, a.ID ? "Audio edited" : "Audio saved");
+    closeSheet(); toast("Audio saved");
+  };
+}
 
 // ============================================================
 // FORM
@@ -889,7 +1163,7 @@ function resetForm(date) {
 }
 function startEdit(p) {
   screen = "add";
-  ["board", "calendar", "add", "manager"].forEach(s => $("screen-" + s).classList.toggle("hidden", s !== "add"));
+  SCREENS.forEach(s => $("screen-" + s).classList.toggle("hidden", s !== "add"));
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.screen === "add"));
   editingId = p.id; formStatus = p.status;
   fillFormSelects();
@@ -986,6 +1260,8 @@ function renderAll() {
   if (screen === "board") renderBoard();
   if (screen === "calendar") renderCalendar();
   if (screen === "manager") renderManager();
+  if (screen === "dump") renderDump();
+  if (screen === "audio") renderAudio();
   if (screen === "add") renderStatusPick();
 }
 $("syncPill").onclick = () => sync(true);
