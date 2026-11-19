@@ -303,7 +303,7 @@
         <select id="pillarFilter"></select>
       </div>
       <div class="grid" id="feed"></div>
-      <div class="empty-note hidden" id="feedEmpty">Nothing here yet. Tap Add to capture your first idea.</div>
+      <div class="empty-note hidden" id="feedEmpty">Nothing here yet. New posts come in from chat.</div>
     </section>
 
     <!-- CALENDAR -->
@@ -323,7 +323,6 @@
       </div>
       <h3 class="section" id="dayLabel"></h3>
       <div id="dayList"></div>
-      <button class="btn ghost" id="dayAdd"><i class="ti ti-plus"></i> Add a post for this day</button>
       <h3 class="section"><i class="ti ti-bulb" style="color:var(--orange)"></i> Not dated yet <span class="count" id="undatedCount">0</span></h3>
       <div id="undatedList"></div>
     </section>
@@ -414,7 +413,6 @@
   <nav class="tabbar" id="tabbar">
     <button class="tab active" data-screen="board"><i class="ti ti-layout-grid"></i>Board</button>
     <button class="tab" data-screen="calendar"><i class="ti ti-calendar"></i>Calendar</button>
-    <button class="tab" data-screen="add"><i class="ti ti-circle-plus"></i>Add</button>
     <button class="tab" data-screen="dump"><i class="ti ti-movie"></i>Dump</button>
     <button class="tab" data-screen="audio"><i class="ti ti-music"></i>Audio</button>
     <button class="tab" data-screen="manager"><i class="ti ti-shield-check"></i>Manager</button>
@@ -821,7 +819,7 @@ $("cal").addEventListener("click", e => { const b = e.target.closest("[data-day]
 $("calPrev").onclick = () => { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1); renderCalendar(); };
 $("calNext").onclick = () => { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + 1, 1); renderCalendar(); };
 $("calToday").onclick = () => { calCursor = firstOfMonth(new Date()); selectedDay = isoDate(new Date()); renderCalendar(); };
-$("dayAdd").onclick = () => go("add", { date: selectedDay });
+
 
 // ============================================================
 // RENDER: MANAGER
