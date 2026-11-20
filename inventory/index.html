@@ -675,7 +675,7 @@
       <label>Import a Formula (PDF, picture or text)</label>
       <input type="file" id="planPdfInput" accept="application/pdf,image/*">
       <button type="button" class="btn ghost" id="planImportPaste">Or paste the formula as text</button>
-      <div class="hint">Pulls out each ingredient, its phase and its %. You check the list before anything goes into the formula; the name, batch size and the rest are yours to add.</div>
+      <div class="hint">Pulls out each ingredient and its %, and fills in the phase the app already has for that ingredient. You check the list before anything goes into the formula; the name, batch size and the rest are yours to add.</div>
       <div id="planPdfReview" style="display:none; margin-top:10px;">
         <div class="hint" id="planImportStatus" style="font-weight:700;"></div>
         <div class="hint" id="planImportSummary"></div>
@@ -2635,13 +2635,12 @@ function loadFormulaRecord(plan) {
   document.getElementById("planRows").innerHTML = "";
   const cache = loadCache();
   plan.rows.forEach(r => {
-    // Pull the ingredient's CURRENT min/max usage rate and cost — a saved
-    // formula shouldn't keep showing the range from whenever it was saved if
-    // the real usage rate has since been corrected on the sheet. The phase is
-    // the formula's own (it can come from an imported sheet), so it stays.
+    // Pull the ingredient's CURRENT min/max usage rate, cost, and phase —
+    // a saved formula shouldn't keep showing the range from whenever it was
+    // saved if the real usage rate has since been corrected on the sheet.
     const current = cache.ingredients.find(i => i.code === r.code);
     const freshRow = current
-      ? Object.assign({}, r, { minRate: current.minRate, maxRate: current.maxRate, costPerKg: current.costPerKg, shipping: current.shipping, moq: current.moq, phase: r.phase || current.phase })
+      ? Object.assign({}, r, { minRate: current.minRate, maxRate: current.maxRate, costPerKg: current.costPerKg, shipping: current.shipping, moq: current.moq, phase: current.phase || r.phase })
       : r;
     addPlanRow(freshRow);
   });
@@ -3100,7 +3099,8 @@ document.addEventListener("click", (e) => {
 
 // ---------- Formula import (Development Studio) ----------
 // Reads a formula from a PDF, a picture (phone photo or screenshot) or pasted
-// text, and pulls out only ingredient, phase and %. Pictures and scanned PDF
+// text, and pulls out only ingredient and % (the phase is the ingredient's
+// own, from Master Items). Pictures and scanned PDF
 // pages are read with Tesseract (text recognition on the phone itself). The
 // rows always land in a check list to correct before they go into the formula.
 // pdf.js and Tesseract are only loaded the first time they're needed.
@@ -3245,6 +3245,8 @@ function parseFormulaText(text, catalog) {
     let line = raw.replace(/[|_]+/g, " ").replace(/\s+/g, " ").trim();
     if (!line) return;
     const low = line.toLowerCase();
+    // Phase headings ("Phase A", "Water phase"…) and a phase column are recognised only so
+    // they aren't read as ingredients; the phase used is the one the app has for each ingredient.
     // "Phase A", "PHASE B – Oil phase", "Phase 2", "Water phase", "Cool down phase"
     const ph = low.match(/^phase\s*([a-h]|\d)\b/) || low.match(/^([a-h])\s*[-:.)]?\s*(?:phase)\b/);
     const namedPhase = /^(water|oil|aqueous|cool[\s-]*down|emulsion|heated|heat|final|additives?)\s+phase\b/.test(low) || /^phase\s*(?:[-:]|$)/.test(low);
@@ -3319,20 +3321,18 @@ function renderImportRows() {
   document.getElementById("planImportSummary").textContent = importRows.length
     ? "Found " + importRows.length + " row" + (importRows.length === 1 ? "" : "s") + " · " + found + " matched to your ingredients" + (found < importRows.length ? " · pick the rest below" : "") + "."
     : "No ingredient rows with a percentage were found. Check the text below, edit it if needed, then tap Read again.";
-  const phaseOpts = v => '<option value="">—</option>' + PHASE_LETTERS.split("").map(l => '<option' + (l === v ? " selected" : "") + '>' + l + '</option>').join("");
   wrap.innerHTML = importRows.length ? '<table class="formula-table import-table"><thead><tr><th></th><th>Ingredient</th><th>Phase</th><th>%</th></tr></thead><tbody>' +
     importRows.map((r, i) => '<tr data-i="' + i + '" class="' + (r.ing ? "" : "unmatched") + '"><td><input type="checkbox" class="imp-use"' + (r.use ? " checked" : "") + '></td>' +
       '<td><div class="autocomplete"><input class="imp-ing" value="' + escapeHtml(r.ing ? r.ing.name : "") + '" placeholder="Pick for: ' + escapeHtml(r.text) + '"></div>' +
       '<div class="imp-src">' + escapeHtml(r.text) + '</div></td>' +
-      '<td><select class="imp-phase">' + phaseOpts(r.phase) + '</select></td>' +
+      '<td class="imp-phase">' + (r.ing && r.ing.phase ? r.ing.phase : "—") + '</td>' +
       '<td><input class="imp-pct" inputmode="decimal" value="' + (r.percent === "" ? "" : r.percent) + '"></td></tr>').join("") + '</tbody></table>' : "";
   wrap.querySelectorAll("tr[data-i]").forEach(tr => {
     const r = importRows[+tr.dataset.i];
     tr.querySelector(".imp-use").addEventListener("change", e => { r.use = e.target.checked; importTotal(); });
-    tr.querySelector(".imp-phase").addEventListener("change", e => { r.phase = e.target.value; });
     tr.querySelector(".imp-pct").addEventListener("input", e => { r.percent = e.target.value; importTotal(); });
     const inp = tr.querySelector(".imp-ing");
-    attachAutocomplete(inp, ing => { r.ing = ing; tr.classList.remove("unmatched"); importTotal(); });
+    attachAutocomplete(inp, ing => { r.ing = ing; tr.classList.remove("unmatched"); tr.querySelector(".imp-phase").textContent = ing.phase || "—"; importTotal(); });
     inp.addEventListener("input", () => { if (!inp.value.trim()) { r.ing = null; tr.classList.add("unmatched"); } });
   });
   document.getElementById("planImportApplyWrap").style.display = importRows.length ? "block" : "none";
@@ -3378,7 +3378,7 @@ document.getElementById("applyPdfMatches").addEventListener("click", () => {
   if (!use.length) { document.getElementById("planImportStatus").textContent = "Tick at least one row with an ingredient and a %."; return; }
   if (document.getElementById("planImportReplace").checked) document.getElementById("planRows").innerHTML = "";
   use.forEach(r => addPlanRow({
-    code: r.ing.code, name: r.ing.name, phase: r.phase || r.ing.phase || "", percent: parseFloat(r.percent),
+    code: r.ing.code, name: r.ing.name, phase: r.ing.phase || "", percent: parseFloat(r.percent),
     costPerKg: r.ing.costPerKg, shipping: r.ing.shipping, moq: r.ing.moq, minRate: r.ing.minRate, maxRate: r.ing.maxRate
   }));
   recalcStudio();
