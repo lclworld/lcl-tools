@@ -161,6 +161,11 @@
   .report-card th, .report-card td { padding: 5px 6px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
   #actWho { margin-bottom: 8px; }
   #actType { flex-wrap: wrap; margin-bottom: 0; }
+  .import-table td { vertical-align: top; }
+  .import-table .imp-src { font-size: 0.66rem; color: var(--brown); margin-top: 2px; }
+  .import-table tr.unmatched .imp-ing { border-color: #c0392b; background: #fdf0ee; }
+  .import-table select { padding: 5px 4px; font-size: 0.78rem; }
+  .import-table .imp-pct { width: 64px; }
   .act-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .act-row:last-child { border-bottom: 0; }
   .act-time { flex: none; width: 44px; font-size: 0.78rem; font-weight: 700; color: var(--brown); padding-top: 1px; }
@@ -667,14 +672,23 @@
     <h2 class="title" style="margin-top:14px;">Development Studio</h2>
 
     <div class="card">
-      <label>Import a PDF Formula Sheet</label>
-      <input type="file" id="planPdfInput" accept="application/pdf">
-      <div class="hint">Reads text out of the PDF and tries to match ingredient names and percentages. Works best on clean typed tables — always lands here for you to review, nothing is applied automatically.</div>
+      <label>Import a Formula (PDF, picture or text)</label>
+      <input type="file" id="planPdfInput" accept="application/pdf,image/*">
+      <button type="button" class="btn ghost" id="planImportPaste">Or paste the formula as text</button>
+      <div class="hint">Pulls out each ingredient, its phase and its %. You check the list before anything goes into the formula; the name, batch size and the rest are yours to add.</div>
       <div id="planPdfReview" style="display:none; margin-top:10px;">
-        <label>Review Extracted Text</label>
-        <textarea id="planPdfText" rows="6" style="width:100%; font-family:monospace; font-size:0.78rem; padding:10px; border:1.5px solid var(--border); border-radius:10px;"></textarea>
-        <div class="hint" id="planPdfMatchSummary"></div>
-        <button class="btn dark" id="applyPdfMatches">Add Matched Ingredients to Plan</button>
+        <div class="hint" id="planImportStatus" style="font-weight:700;"></div>
+        <div class="hint" id="planImportSummary"></div>
+        <div id="planImportRows" style="overflow-x:auto;"></div>
+        <div id="planImportApplyWrap" style="display:none;">
+          <div class="hint" id="planImportTotal" style="font-weight:700;"></div>
+          <label class="toggle-switch" style="margin-top:8px;"><input type="checkbox" id="planImportReplace" checked> Replace the ingredients already in the formula</label>
+          <button class="btn primary" id="applyPdfMatches">Add to the formula</button>
+        </div>
+        <details id="planPdfTextWrap" style="margin-top:10px;"><summary class="hint" style="cursor:pointer; margin:0;">Text it read (edit or paste here, then Read again)</summary>
+          <textarea id="planPdfText" rows="7" style="width:100%; font-family:monospace; font-size:0.78rem; padding:10px; border:1.5px solid var(--border); border-radius:10px; margin-top:8px;"></textarea>
+          <button type="button" class="btn dark" id="planImportReread" style="margin-top:8px;">Read again</button>
+        </details>
       </div>
     </div>
 
@@ -2621,12 +2635,13 @@ function loadFormulaRecord(plan) {
   document.getElementById("planRows").innerHTML = "";
   const cache = loadCache();
   plan.rows.forEach(r => {
-    // Pull the ingredient's CURRENT min/max usage rate, cost, and phase —
-    // a saved formula shouldn't keep showing the range from whenever it was
-    // saved if the real usage rate has since been corrected on the sheet.
+    // Pull the ingredient's CURRENT min/max usage rate and cost — a saved
+    // formula shouldn't keep showing the range from whenever it was saved if
+    // the real usage rate has since been corrected on the sheet. The phase is
+    // the formula's own (it can come from an imported sheet), so it stays.
     const current = cache.ingredients.find(i => i.code === r.code);
     const freshRow = current
-      ? Object.assign({}, r, { minRate: current.minRate, maxRate: current.maxRate, costPerKg: current.costPerKg, shipping: current.shipping, moq: current.moq, phase: current.phase || r.phase })
+      ? Object.assign({}, r, { minRate: current.minRate, maxRate: current.maxRate, costPerKg: current.costPerKg, shipping: current.shipping, moq: current.moq, phase: r.phase || current.phase })
       : r;
     addPlanRow(freshRow);
   });
@@ -3083,64 +3098,292 @@ document.addEventListener("click", (e) => {
   updateQuickBadges();
 });
 
-// ---------- PDF import (Planning Mode) ----------
-// pdf.js is only loaded the first time a PDF is picked, so it doesn't slow app start-up.
+// ---------- Formula import (Development Studio) ----------
+// Reads a formula from a PDF, a picture (phone photo or screenshot) or pasted
+// text, and pulls out only ingredient, phase and %. Pictures and scanned PDF
+// pages are read with Tesseract (text recognition on the phone itself). The
+// rows always land in a check list to correct before they go into the formula.
+// pdf.js and Tesseract are only loaded the first time they're needed.
 const PDFJS_BASE = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
-let pdfJsLoading = null;
-function loadPdfJs() {
-  if (typeof pdfjsLib !== "undefined") return Promise.resolve();
-  if (!pdfJsLoading) {
-    pdfJsLoading = new Promise((resolve, reject) => {
+const TESSERACT_BASE = "https://cdn.jsdelivr.net/npm/";
+const scriptLoads = {};
+function loadScriptOnce(src) {
+  if (!scriptLoads[src]) {
+    scriptLoads[src] = new Promise((resolve, reject) => {
       const s = document.createElement("script");
-      s.src = PDFJS_BASE + "pdf.min.js";
-      s.onload = () => {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + "pdf.worker.min.js";
-        resolve();
-      };
-      s.onerror = () => { pdfJsLoading = null; reject(new Error("pdf.js failed to load")); };
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => { delete scriptLoads[src]; reject(new Error("Couldn't load " + src.split("/").slice(-1)[0] + ". Check the internet and try again.")); };
       document.head.appendChild(s);
     });
   }
-  return pdfJsLoading;
+  return scriptLoads[src];
 }
-let pdfMatchedRows = [];
-document.getElementById("planPdfInput").addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try { await loadPdfJs(); } catch (err) { alert("Couldn't load the PDF reader. Check your connection and try again."); return; }
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  let fullText = "";
+async function loadPdfJs() {
+  await loadScriptOnce(PDFJS_BASE + "pdf.min.js");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + "pdf.worker.min.js";
+}
+let ocrWorker = null;
+async function ocrImage(source, onProgress) {
+  await loadScriptOnce(TESSERACT_BASE + "tesseract.js@5.1.1/dist/tesseract.min.js");
+  if (!ocrWorker) {
+    ocrWorker = await Tesseract.createWorker("eng", 1, {
+      workerPath: TESSERACT_BASE + "tesseract.js@5.1.1/dist/worker.min.js",
+      corePath: TESSERACT_BASE + "tesseract.js-core@5.1.1",
+      langPath: TESSERACT_BASE + "@tesseract.js-data/eng@1.0.0/4.0.0_best_int",
+      logger: m => { if (onProgress && m.status === "recognizing text") onProgress(m.progress); }
+    });
+    // Keep the layout: a table row comes back as one line.
+    await ocrWorker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "1" });
+  }
+  const { data } = await ocrWorker.recognize(source);
+  return data.text;
+}
+// Photos are shrunk to a sensible size and turned grey, which reads faster and better.
+function imageToCanvas(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      // Small screenshots are enlarged (text recognition misses decimal points in small print); big photos are shrunk.
+      const scale = Math.min(3, 2400 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      const ctx = c.getContext("2d");
+      ctx.filter = "grayscale(1) contrast(1.3)";
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      resolve(c);
+    };
+    img.onerror = () => reject(new Error("That picture couldn't be opened. Try a JPG or PNG."));
+    img.src = URL.createObjectURL(file);
+  });
+}
+// PDF text, row by row: pieces on the same line (same height on the page)
+// are joined left to right. A page with no text (a scan) is read as a picture.
+async function pdfToText(file, onProgress) {
+  await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  let out = "";
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    fullText += content.items.map(it => it.str).join(" ") + "\n";
+    const items = content.items.filter(it => it.str && it.str.trim());
+    if (items.reduce((n, it) => n + it.str.trim().length, 0) < 20) {
+      const viewport = page.getViewport({ scale: 2 });
+      const c = document.createElement("canvas");
+      c.width = viewport.width; c.height = viewport.height;
+      await page.render({ canvasContext: c.getContext("2d"), viewport: viewport }).promise;
+      out += await ocrImage(c, onProgress) + "\n";
+      continue;
+    }
+    const lines = [];
+    items.forEach(it => {
+      const y = it.transform[5], x = it.transform[4];
+      let line = lines.find(l => Math.abs(l.y - y) < Math.max(2.5, (it.height || 10) * 0.45));
+      if (!line) lines.push(line = { y: y, parts: [] });
+      line.parts.push({ x: x, s: it.str });
+    });
+    lines.sort((a, b) => b.y - a.y);
+    out += lines.map(l => l.parts.sort((a, b) => a.x - b.x).map(pt => pt.s.trim()).join("   ")).join("\n") + "\n";
   }
-  document.getElementById("planPdfText").value = fullText.trim();
-  document.getElementById("planPdfReview").style.display = "block";
+  return out;
+}
 
-  // Best-effort match: look for "<number>%" near an ingredient name from the
-  // real catalog. This is intentionally conservative — anything ambiguous
-  // is left for the manager to add by hand rather than guessed at.
-  const cache = loadCache();
-  pdfMatchedRows = [];
-  const lines = fullText.split(/\n|(?=\d+(?:\.\d+)?\s*%)/);
-  lines.forEach(line => {
-    const pctMatch = line.match(/(\d+(?:\.\d+)?)\s*%/);
-    if (!pctMatch) return;
-    const pct = parseFloat(pctMatch[1]);
-    const lower = line.toLowerCase();
-    const found = cache.ingredients.find(i => itemType(i) === "Ingredient" && lower.includes(i.name.toLowerCase()));
-    if (found) pdfMatchedRows.push({ code: found.code, name: found.name, phase: found.phase || "", percent: pct });
+// ---------- reading the rows ----------
+const normName = s => String(s || "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+function editDistance(a, b) {
+  if (Math.abs(a.length - b.length) > 3) return 99;
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+// Letters a photo often mixes up (l/i/1, o/0, rn/m) are treated as the same.
+const foldMisreads = s => s.replace(/rn/g, "m").replace(/[l1|]/g, "i").replace(/0/g, "o");
+// Words match if they're the same, or one or two letters off (photo misreads).
+function wordsMatch(a, b) {
+  if (a === b || foldMisreads(a) === foldMisreads(b)) return true;
+  if (a.length < 4 || b.length < 4) return false;
+  return editDistance(a, b) <= (Math.max(a.length, b.length) >= 8 ? 2 : 1);
+}
+// The catalog ingredient a written name is: by trade name or INCI name. A
+// name that appears whole wins (longest first), otherwise the closest overlap of words.
+function matchIngredient(text, catalog, fullLine) {
+  const t = normName(text);
+  if (!t) return null;
+  // The whole line too, so names with numbers in them (BTMS 50, Polawax GP 200) still match whole.
+  const tFull = normName(fullLine || text);
+  const words = t.split(" ").filter(w => w.length > 1 && !/^\d+$/.test(w));
+  let best = null, bestScore = 0;
+  catalog.forEach(ing => {
+    [ing.name, ing.inci].forEach(label => {
+      const n = normName(label);
+      if (!n || n.length < 3) return;
+      let score;
+      const fn = " " + foldMisreads(n) + " ";
+      if ((" " + t + " ").includes(" " + n + " ") || (" " + tFull + " ").includes(" " + n + " ") ||
+          (" " + foldMisreads(t) + " ").includes(fn) || (" " + foldMisreads(tFull) + " ").includes(fn)) score = 1 + n.length / 100;
+      else {
+        const cw = n.split(" ").filter(w => w.length > 1);
+        if (!cw.length || !words.length) return;
+        const hit = cw.filter(w => words.some(x => wordsMatch(w, x))).length;
+        score = 2 * hit / (cw.length + words.length);
+        if (hit < cw.length) score *= 0.85; // every word of the catalog name should be there
+      }
+      if (score > bestScore) { bestScore = score; best = ing; }
+    });
   });
-  const summary = document.getElementById("planPdfMatchSummary");
-  summary.textContent = pdfMatchedRows.length
-    ? "Matched " + pdfMatchedRows.length + " ingredient(s) with a percentage — review the text above, then add them."
-    : "No confident matches found — the text is above so you can add rows manually.";
+  return bestScore >= 0.6 ? best : null;
+}
+const PHASE_LETTERS = "ABCDEFGH";
+function parseFormulaText(text, catalog) {
+  const rows = [];
+  let phase = "", headingCount = 0;
+  String(text || "").split(/\r?\n/).forEach(raw => {
+    let line = raw.replace(/[|_]+/g, " ").replace(/\s+/g, " ").trim();
+    if (!line) return;
+    const low = line.toLowerCase();
+    // "Phase A", "PHASE B – Oil phase", "Phase 2", "Water phase", "Cool down phase"
+    const ph = low.match(/^phase\s*([a-h]|\d)\b/) || low.match(/^([a-h])\s*[-:.)]?\s*(?:phase)\b/);
+    const namedPhase = /^(water|oil|aqueous|cool[\s-]*down|emulsion|heated|heat|final|additives?)\s+phase\b/.test(low) || /^phase\s*(?:[-:]|$)/.test(low);
+    if ((ph || namedPhase) && !/\d+(?:[.,]\d+)?\s*%/.test(low)) {
+      if (ph) phase = /\d/.test(ph[1]) ? PHASE_LETTERS[Math.max(0, parseInt(ph[1], 10) - 1)] || "" : ph[1].toUpperCase();
+      else phase = PHASE_LETTERS[headingCount] || "";
+      headingCount++;
+      return;
+    }
+    if (/^(total|ingredients?|inci|trade name|phase\s+ingredient|batch|formula|product)\b/.test(low) && !/\d/.test(low.replace(/^total/, ""))) return;
+    if (/^total\b/.test(low)) return;
+    // Numbers on their own (not part of names like PEG-100, C12-15 or 1,2-Hexanediol).
+    const nums = [];
+    line.replace(/(^|[\s(])(\d{1,5}(?:[.,]\d+)?)\s*(%)?(?=$|[\s)%g])/g, (m, pre, n, pct) => { nums.push({ v: parseFloat(n.replace(",", ".")), pct: !!pct }); return m; });
+    const qs = /\b(q\.?\s?s\.?|to\s*100|ad\s*100|balance)\b/i.test(line);
+    // A phase written in its own column: a lone capital A–H first or last on
+    // the row (not in the middle, where it's part of a name like Vitamin E).
+    const own = line.match(/^([A-H])(?=[\s.):-])/) || line.match(/\s([A-H])$/);
+    let name = (own ? line.replace(/^[A-H](?=[\s.):-])|\s[A-H]$/, " ") : line)
+      .replace(/(^|[\s(])\d{1,5}(?:[.,]\d+)?\s*(?:%|g\b)?(?=$|[\s)%])/g, " ").replace(/\b(q\.?\s?s\.?|to\s*100|ad\s*100|balance)\b/ig, " ");
+    name = name.replace(/\s+/g, " ").replace(/^[\s\-–:.•*]+|[\s\-–:.•*]+$/g, "");
+    if (!/[a-z]{3}/i.test(name) || (!nums.length && !qs)) return;
+    rows.push({ text: name, nums: nums, qs: qs, phase: own ? own[1] : phase, ing: matchIngredient(name, catalog, line.replace(/\d{1,3}(?:[.,]\d+)?\s*%/g, " ")) });
+  });
+  // A number that is part of the ingredient's own name (BTMS 50, Polawax GP 200) isn't an amount.
+  rows.forEach(r => {
+    if (!r.ing) return;
+    const own = (normName(r.ing.name) + " " + normName(r.ing.inci)).split(" ").filter(w => /^\d+$/.test(w));
+    own.forEach(w => { const i = r.nums.findIndex(n => !n.pct && String(n.v) === w); if (i >= 0) r.nums.splice(i, 1); });
+  });
+  // Which number is the %: one marked %, or the column that adds up closest to 100.
+  const maxCols = Math.max(0, ...rows.map(r => r.nums.length));
+  let col = -1, bestGap = Infinity;
+  for (let k = 0; k < maxCols; k++) {
+    const sum = rows.reduce((t, r) => { const n = r.nums[r.nums.length - 1 - k]; return t + (n && n.v <= 100 ? n.v : 0); }, 0);
+    if (Math.abs(sum - 100) < bestGap) { bestGap = Math.abs(sum - 100); col = k; }
+  }
+  rows.forEach(r => {
+    const marked = r.nums.find(n => n.pct);
+    const pick = marked || r.nums[r.nums.length - 1 - col] || r.nums.find(n => n.v <= 100);
+    r.percent = pick && pick.v <= 100 ? pick.v : "";
+  });
+  // With a grams column too, each % is checked against its grams: a misread
+  // decimal point (2.5 read as 25) is put right from the grams.
+  if (col >= 0 && maxCols >= 2 && rows.length >= 4) {
+    const other = col === 0 ? 1 : 0;
+    const pairs = rows.filter(r => r.ing).map(r => ({ r, pct: r.nums[r.nums.length - 1 - col], g: r.nums[r.nums.length - 1 - other] })).filter(x => x.pct && x.g && x.pct.v > 0 && x.g.v > 0);
+    const ratios = pairs.map(x => x.g.v / x.pct.v).sort((a, b) => a - b);
+    const k = ratios[Math.floor(ratios.length / 2)];
+    if (k && pairs.length >= 4 && pairs.filter(x => Math.abs(x.g.v / x.pct.v - k) / k < 0.03).length >= pairs.length / 2) {
+      pairs.forEach(x => {
+        if (Math.abs(x.g.v / x.pct.v - k) / k > 0.03 && !x.pct.pct) x.r.percent = Math.round(x.g.v / k * 1000) / 1000;
+      });
+    }
+  }
+  // "q.s." / "to 100" (usually water) takes whatever the rest leaves.
+  const fixed = rows.filter(r => !r.qs).reduce((t, r) => t + (Number(r.percent) || 0), 0);
+  rows.filter(r => r.qs).forEach(r => { r.percent = Math.max(0, Math.round((100 - fixed) * 100) / 100); });
+  // A line that is neither a known ingredient nor has a % (a title like "Conditioner — 1300 g") isn't a row.
+  return rows.filter(r => r.ing || r.percent !== "");
+}
+
+// ---------- the check list ----------
+let importRows = [];
+function showImportRows(rows) {
+  importRows = rows.map(r => Object.assign({ use: true }, r));
+  renderImportRows();
+}
+function renderImportRows() {
+  const wrap = document.getElementById("planImportRows");
+  const found = importRows.filter(r => r.ing).length;
+  document.getElementById("planImportSummary").textContent = importRows.length
+    ? "Found " + importRows.length + " row" + (importRows.length === 1 ? "" : "s") + " · " + found + " matched to your ingredients" + (found < importRows.length ? " · pick the rest below" : "") + "."
+    : "No ingredient rows with a percentage were found. Check the text below, edit it if needed, then tap Read again.";
+  const phaseOpts = v => '<option value="">—</option>' + PHASE_LETTERS.split("").map(l => '<option' + (l === v ? " selected" : "") + '>' + l + '</option>').join("");
+  wrap.innerHTML = importRows.length ? '<table class="formula-table import-table"><thead><tr><th></th><th>Ingredient</th><th>Phase</th><th>%</th></tr></thead><tbody>' +
+    importRows.map((r, i) => '<tr data-i="' + i + '" class="' + (r.ing ? "" : "unmatched") + '"><td><input type="checkbox" class="imp-use"' + (r.use ? " checked" : "") + '></td>' +
+      '<td><div class="autocomplete"><input class="imp-ing" value="' + escapeHtml(r.ing ? r.ing.name : "") + '" placeholder="Pick for: ' + escapeHtml(r.text) + '"></div>' +
+      '<div class="imp-src">' + escapeHtml(r.text) + '</div></td>' +
+      '<td><select class="imp-phase">' + phaseOpts(r.phase) + '</select></td>' +
+      '<td><input class="imp-pct" inputmode="decimal" value="' + (r.percent === "" ? "" : r.percent) + '"></td></tr>').join("") + '</tbody></table>' : "";
+  wrap.querySelectorAll("tr[data-i]").forEach(tr => {
+    const r = importRows[+tr.dataset.i];
+    tr.querySelector(".imp-use").addEventListener("change", e => { r.use = e.target.checked; importTotal(); });
+    tr.querySelector(".imp-phase").addEventListener("change", e => { r.phase = e.target.value; });
+    tr.querySelector(".imp-pct").addEventListener("input", e => { r.percent = e.target.value; importTotal(); });
+    const inp = tr.querySelector(".imp-ing");
+    attachAutocomplete(inp, ing => { r.ing = ing; tr.classList.remove("unmatched"); importTotal(); });
+    inp.addEventListener("input", () => { if (!inp.value.trim()) { r.ing = null; tr.classList.add("unmatched"); } });
+  });
+  document.getElementById("planImportApplyWrap").style.display = importRows.length ? "block" : "none";
+  importTotal();
+}
+function importTotal() {
+  const use = importRows.filter(r => r.use && r.ing);
+  const total = use.reduce((t, r) => t + (parseFloat(r.percent) || 0), 0);
+  const left = importRows.filter(r => r.use && !r.ing).length;
+  document.getElementById("planImportTotal").textContent = "Total " + (Math.round(total * 100) / 100) + "%" + (Math.abs(total - 100) > 0.05 ? " (not 100%)" : "") + (left ? " · " + left + " ticked row" + (left === 1 ? " has" : "s have") + " no ingredient picked and will be skipped" : "");
+  document.getElementById("applyPdfMatches").textContent = "Add " + use.length + " ingredient" + (use.length === 1 ? "" : "s") + " to the formula";
+}
+async function readImport(getText, label) {
+  const status = document.getElementById("planImportStatus");
+  document.getElementById("planPdfReview").style.display = "block";
+  status.textContent = label;
+  try {
+    const text = await getText(p => { status.textContent = label + " " + Math.round(p * 100) + "%"; });
+    document.getElementById("planPdfText").value = text.trim();
+    status.textContent = "";
+    showImportRows(parseFormulaText(text, loadCache().ingredients.filter(i => itemType(i) === "Ingredient")));
+  } catch (err) {
+    status.textContent = err.message || "Couldn't read that file.";
+  }
+}
+document.getElementById("planPdfInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) readImport(onP => pdfToText(file, onP), "Reading the PDF…");
+  else readImport(async onP => ocrImage(await imageToCanvas(file), onP), "Reading the picture… (the first time takes a little longer)");
+});
+document.getElementById("planImportReread").addEventListener("click", () => {
+  const text = document.getElementById("planPdfText").value;
+  readImport(async () => text, "Reading…");
+});
+document.getElementById("planImportPaste").addEventListener("click", () => {
+  document.getElementById("planPdfReview").style.display = "block";
+  document.getElementById("planPdfTextWrap").open = true;
+  document.getElementById("planPdfText").focus();
 });
 document.getElementById("applyPdfMatches").addEventListener("click", () => {
-  pdfMatchedRows.forEach(r => addPlanRow(r));
-  document.getElementById("planMsg").textContent = "Added " + pdfMatchedRows.length + " matched ingredient(s) to the plan below — check the percentages before saving.";
+  const use = importRows.filter(r => r.use && r.ing && parseFloat(r.percent) > 0);
+  if (!use.length) { document.getElementById("planImportStatus").textContent = "Tick at least one row with an ingredient and a %."; return; }
+  if (document.getElementById("planImportReplace").checked) document.getElementById("planRows").innerHTML = "";
+  use.forEach(r => addPlanRow({
+    code: r.ing.code, name: r.ing.name, phase: r.phase || r.ing.phase || "", percent: parseFloat(r.percent),
+    costPerKg: r.ing.costPerKg, shipping: r.ing.shipping, moq: r.ing.moq, minRate: r.ing.minRate, maxRate: r.ing.maxRate
+  }));
+  recalcStudio();
+  document.getElementById("planMsg").textContent = "Added " + use.length + " ingredient" + (use.length === 1 ? "" : "s") + " from the import. Add the name, batch size and the rest, then check before saving.";
+  document.getElementById("planRows").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 // ---------- PDF export (Planning Mode) — via browser print ----------
